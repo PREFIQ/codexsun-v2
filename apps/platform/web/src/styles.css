@@ -1,0 +1,145 @@
+.public-page,
+.simple-page,
+.auth-page {
+  min-height: 100vh;
+}
+
+.public-page {
+  background:
+    linear-gradient(120deg, rgba(15, 118, 110, 0.1), rgba(37, 99, 235, 0.08)),
+    var(--cx-bg);
+}
+
+.public-nav {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 22px 36px;
+}
+
+.public-brand {
+  color: var(--cx-text);
+  font-size: 19px;
+  font-weight: 850;
+}
+
+.public-nav div {
+  display: flex;
+  gap: 18px;
+}
+
+.public-nav a {
+  color: #2f3e38;
+  font-weight: 700;
+}
+
+.public-hero {
+  align-items: center;
+  display: grid;
+  min-height: 56vh;
+  padding: 42px 36px 22px;
+}
+
+.public-hero > div {
+  max-width: 860px;
+}
+
+.public-hero h1 {
+  font-size: clamp(42px, 7vw, 82px);
+  line-height: 0.98;
+  margin: 22px 0 20px;
+}
+
+.public-hero p {
+  color: #415049;
+  font-size: 20px;
+  line-height: 1.55;
+  max-width: 740px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.public-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0 36px 36px;
+}
+
+.simple-page,
+.auth-page {
+  align-items: center;
+  display: grid;
+  justify-items: center;
+  padding: 24px;
+}
+
+.simple-page .cx-card,
+.auth-page .cx-card {
+  width: min(520px, 100%);
+}
+
+.auth-form {
+  display: grid;
+  gap: 16px;
+}
+
+.form-error {
+  color: var(--cx-danger);
+  font-weight: 700;
+  margin: 0;
+}
+
+.status-list {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 150px minmax(0, 1fr);
+}
+
+.status-list span {
+  color: var(--cx-muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.desk-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .public-nav {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .public-nav div {
+    flex-wrap: wrap;
+  }
+
+  .public-hero {
+    padding: 28px 18px 18px;
+  }
+
+  .public-grid,
+  .desk-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .public-grid {
+    padding: 0 18px 18px;
+  }
+
+  .status-list {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "codexsun",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@10.9.2",
+  "description": "CODEXSUN",
+  "type": "module",
+  "workspaces": [
+    "apps/*/*",
+    "packages/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev --parallel",
+    "dev:platform": "concurrently -n api,web -c cyan,green \"npm run dev -w @codexsun/platform-api\" \"npm run dev -w @codexsun/platform-web\"",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "lint": "turbo lint",
+    "check": "npm run typecheck && npm run lint",
+    "version:show": "node tools/version/version.mjs show",
+    "version:bump": "node tools/version-bump.mjs",
+    "changelog:append": "node tools/version/version.mjs append",
+    "check:versions": "node tools/check-versions.mjs",
+    "github:now": "node tools/github-helper.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
+    "concurrently": "^9.1.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "dependencies": {
+    "mariadb": "^3.5.3"
+  }
+}
