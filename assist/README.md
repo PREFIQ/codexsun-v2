@@ -277,18 +277,19 @@ Use `assist/agents/vibe-coding.md`, `assist/agents/codeit-workflows.md`, `assist
 1. `assist/readme.md`
 2. `assist/blueprint/first-mvp.md`
 3. `assist/blueprint/framework-foundation.md`
-4. `assist/blueprint/decision-summary.md`
-5. `assist/blueprint/foundation-blueprint.md`
-6. `assist/product/product-scope.md`
-7. `assist/product/domain-map.md`
-8. `assist/architecture/architecture-principles.md`
-9. `assist/architecture/tenant-isolation.md`
-10. `assist/product/enterprise-scope.md` for enterprise-impacting work.
-11. Relevant module, industry, agent, or operation notes for the task.
-12. `assist/governance/rules.md`
-13. `assist/governance/engineering-standards.md`
-14. `assist/governance/testing-strategy.md`
-15. `assist/governance/quality-gates.md`
+4. `assist/blueprint/platform-foundation.md`
+5. `assist/blueprint/decision-summary.md`
+6. `assist/blueprint/foundation-blueprint.md`
+7. `assist/product/product-scope.md`
+8. `assist/product/domain-map.md`
+9. `assist/architecture/architecture-principles.md`
+10. `assist/architecture/tenant-isolation.md`
+11. `assist/product/enterprise-scope.md` for enterprise-impacting work.
+12. Relevant module, industry, agent, or operation notes for the task.
+13. `assist/governance/rules.md`
+14. `assist/governance/engineering-standards.md`
+15. `assist/governance/testing-strategy.md`
+16. `assist/governance/quality-gates.md`
 
 ## Working Principle
 

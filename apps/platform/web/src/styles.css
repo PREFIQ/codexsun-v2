@@ -79,8 +79,8 @@
   padding: 24px;
 }
 
-.simple-page .cx-card,
-.auth-page .cx-card {
+.simple-page > section,
+.auth-page > section {
   width: min(520px, 100%);
 }
 

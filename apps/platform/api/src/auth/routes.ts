@@ -1,22 +1,20 @@
 import "@fastify/cookie";
 import { fail, ok } from "@codexsun/framework/http";
+import {
+  InMemorySessionStore,
+  deskToUserType,
+  loginRequestSchema,
+  verifyPassword
+} from "@codexsun/platform/auth";
 import type { FastifyInstance } from "fastify";
-import { z } from "zod";
 import { createServerConnection } from "../db/bootstrap.js";
 import { env } from "../env.js";
-import { verifyPassword } from "../security/password.js";
-import { createSession, destroySession, getSession, type SessionUserType } from "./session.js";
 
-const loginSchema = z.object({
-  desk: z.enum(["sa", "admin", "tenant"]),
-  email: z.string().email(),
-  password: z.string().min(1),
-  tenantCode: z.string().default("test")
-});
+const sessions = new InMemorySessionStore();
 
 export async function registerAuthRoutes(app: FastifyInstance) {
   app.post("/auth/login", async (request, reply) => {
-    const parsed = loginSchema.safeParse(request.body);
+    const parsed = loginRequestSchema.safeParse(request.body);
 
     if (!parsed.success) {
       return reply.code(400).send(
@@ -51,8 +49,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       );
     }
 
-    const userType: SessionUserType =
-      desk === "sa" ? "super_admin" : desk === "admin" ? "staff" : "tenant";
+    const userType = deskToUserType(desk);
 
     const sessionInput =
       desk === "tenant"
@@ -66,7 +63,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
             userType
           };
 
-    const session = createSession(sessionInput);
+    const session = sessions.create(sessionInput);
 
     reply.setCookie("codexsun_session", session.token, {
       httpOnly: true,
@@ -88,7 +85,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   });
 
   app.get("/auth/me", async (request, reply) => {
-    const session = getSession(request.cookies.codexsun_session);
+    const session = sessions.get(request.cookies.codexsun_session);
 
     if (!session) {
       return reply.code(401).send(
@@ -118,7 +115,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   });
 
   app.post("/auth/logout", async (request) => {
-    destroySession(request.cookies.codexsun_session);
+    sessions.destroy(request.cookies.codexsun_session);
 
     return ok(
       {

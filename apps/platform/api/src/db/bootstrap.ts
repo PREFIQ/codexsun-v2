@@ -1,6 +1,6 @@
 import { createDatabaseConnector } from "@codexsun/framework/db";
+import { hashPassword } from "@codexsun/platform/auth";
 import { env } from "../env.js";
-import { hashPassword } from "../security/password.js";
 
 type DbStatus = {
   masterDatabase: string;

@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.0
+Current version: 1.0.1
 
-Release tag: v-1.0.0
+Release tag: v-1.0.1
 
-Changelog label: v 1.0.0
+Changelog label: v 1.0.1
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -20,7 +20,47 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 
 Records UI, API, service logic, tooling, and documentation changes.
 
+## v-1.0.1
+
+### [v 1.0.1] 2026-06-28 6:11 pm - root dist and shadcn ui wiring
+
+#### Database Changes
+
+- Database update: Yes (auto-check).
+
+#### App Codebase Changes
+
+- Bumped workspace version to 1.0.1.
+
 ## v-1.0.0
+
+### [v 1.0.0] 2026-06-28 6:35 pm - root dist and shadcn ui wiring
+
+#### Database Changes
+
+- Database update: No.
+
+#### App Codebase Changes
+
+- Routed Platform API build output to root `dist/apps/platform/api`.
+- Routed Platform Web build output to root `dist/apps/platform/web`.
+- Added root build cleanup and package output collection into `dist/packages/...`.
+- Added Tailwind CSS, PostCSS, shadcn-compatible configuration, and `components.json`.
+- Reworked `@codexsun/ui` primitives around Tailwind and shadcn-style variants while keeping the existing app component API.
+- Wired Platform Web to consume the shared `@codexsun/ui/styles.css` Tailwind entrypoint.
+
+### [v 1.0.0] 2026-06-28 6:20 pm - platform package foundation
+
+#### Database Changes
+
+- Database update: No.
+
+#### App Codebase Changes
+
+- Added `@codexsun/platform` package with tenant, auth, users, roles, permissions, subscription, activation, audit, notifications, and settings subpaths.
+- Moved Platform auth request contract, desk user-type mapping, password hashing, verification, and development session store into `@codexsun/platform/auth`.
+- Rewired Platform API login, session, and seed hashing to use Platform package auth primitives.
+- Added Platform foundation documentation and updated the agent reading order.
 
 ### [v 1.0.0] 2026-06-28 6:10 pm - mariadb driver compatibility
 

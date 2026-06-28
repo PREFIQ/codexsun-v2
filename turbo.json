@@ -3,7 +3,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "inputs": ["$TURBO_DEFAULT$", "../../../tailwind.config.cjs", "../../../postcss.config.cjs", "postcss.config.cjs"],
+      "outputs": ["dist/**", "../../../dist/**", "../../dist/**"]
     },
     "typecheck": {
       "dependsOn": ["^build"],

@@ -1,10 +1,10 @@
 {
   "name": "@codexsun/platform-api",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "npm run build -w @codexsun/framework",
+    "predev": "npm run build -w @codexsun/framework && npm run build -w @codexsun/platform",
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@codexsun/framework": "1.0.0",
+    "@codexsun/platform": "1.0.0",
     "@fastify/cookie": "^11.0.1",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.1",

@@ -184,7 +184,11 @@ Rules:
 
 ## Build Output
 
-TypeScript builds go to `dist/` per workspace package.
+Runnable app builds go to the root `dist/apps/...` tree.
+
+Workspace package builds still create package-local `dist/` folders for Node package export compatibility, then `tools/collect-dist.mjs` copies those package outputs into the root `dist/packages/...` tree.
+
+The root build command clears root `dist/` first, runs all workspace builds, and then collects package outputs into the common root build folder.
 
 Never emit generated build outputs into source trees.
 
