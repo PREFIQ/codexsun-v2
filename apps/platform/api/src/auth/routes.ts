@@ -5,9 +5,10 @@ import { ok } from "@codexsun/framework/http";
 import { loginRequestSchema } from "@codexsun/platform/auth";
 import type { FastifyInstance } from "fastify";
 
-function responseMeta(request: { id: string; tenantId?: string }) {
+function responseMeta(request: { correlationId?: string; id: string; tenantId?: string }) {
   return {
     requestId: request.id,
+    ...(request.correlationId ? { correlationId: request.correlationId } : {}),
     ...(request.tenantId ? { tenantId: request.tenantId } : {})
   };
 }
@@ -47,7 +48,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     } catch (error) {
       await app.auditService.authLoginFailed({
         actorType: desk === "sa" ? "super_admin" : desk === "admin" ? "staff" : "tenant",
-        actorEmail: email
+        actorEmail: email,
+        ...(request.correlationId ? { correlationId: request.correlationId } : {})
       });
       throw error;
     }
@@ -55,6 +57,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     await app.auditService.authLoginSuccess({
       actorType: userTypeToActorType(session.userType),
       actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
       ...(session.tenantId ? { tenantId: session.tenantId } : {})
     });
 
@@ -122,6 +125,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       await app.auditService.authLogout({
         actorType: userTypeToActorType(session.userType),
         actorEmail: session.email,
+        ...(request.correlationId ? { correlationId: request.correlationId } : {}),
         ...(session.tenantId ? { tenantId: session.tenantId } : {})
       });
     } catch {

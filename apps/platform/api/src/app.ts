@@ -4,17 +4,26 @@ import { createDatabasePool, type CompatibleDbPool } from "@codexsun/framework/d
 import { AuthService, DatabaseSessionStore } from "@codexsun/platform/auth";
 import { MasterDbTenantRepository, TenantLookupService, TenantService } from "@codexsun/platform/tenant";
 import { AuditService, MasterDbAuditRepository } from "@codexsun/platform/audit";
+import { ActivationService } from "@codexsun/platform/activation";
+import { ModuleCatalogService } from "@codexsun/platform/catalog";
+import { PermissionService } from "@codexsun/platform/permissions";
+import { SubscriptionService } from "@codexsun/platform/subscription";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerTenantRoutes } from "./tenant/routes.js";
+import { registerAdminRoutes } from "./admin/routes.js";
 import { bootstrapDatabases, createServerConnection } from "./db/bootstrap.js";
 import { getDatabaseShutdownHooks } from "./db/shutdown.js";
 import { env } from "./env.js";
 
 declare module "fastify" {
   interface FastifyInstance {
-    masterDbPool: CompatibleDbPool;
-    authService: AuthService;
+    activationService: ActivationService;
     auditService: AuditService;
+    authService: AuthService;
+    masterDbPool: CompatibleDbPool;
+    moduleCatalog: ModuleCatalogService;
+    permissionService: PermissionService;
+    subscriptionService: SubscriptionService;
     tenantLookup: TenantLookupService;
     tenantService: TenantService;
   }
@@ -78,6 +87,10 @@ export async function createApp() {
   const authService = new AuthService(env.JWT_SECRET, tenantLookup, userFinder, authMode, sessionStore);
   const auditRepository = new MasterDbAuditRepository(masterDbPool);
   const auditService = new AuditService(auditRepository);
+  const activationService = new ActivationService(masterDbPool);
+  const moduleCatalog = new ModuleCatalogService(masterDbPool);
+  const permissionService = new PermissionService();
+  const subscriptionService = new SubscriptionService();
 
   const app = await createApiApp({
     appName: "CODEXSUN Platform API",
@@ -103,6 +116,10 @@ export async function createApp() {
   app.decorate("masterDbPool", masterDbPool);
   app.decorate("authService", authService);
   app.decorate("auditService", auditService);
+  app.decorate("activationService", activationService);
+  app.decorate("moduleCatalog", moduleCatalog);
+  app.decorate("permissionService", permissionService);
+  app.decorate("subscriptionService", subscriptionService);
   app.decorate("tenantLookup", tenantLookup);
   app.decorate("tenantService", tenantService);
 
@@ -123,6 +140,7 @@ export async function createApp() {
 
   await registerAuthRoutes(app);
   await registerTenantRoutes(app);
+  await registerAdminRoutes(app);
 
   return app;
 }

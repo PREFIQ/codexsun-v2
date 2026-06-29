@@ -1,12 +1,15 @@
 export type QueueJob<TPayload = unknown> = {
-  requestId?: string;
+  actorEmail?: string;
+  correlationId?: string;
   idempotencyKey?: string;
   jobName: string;
   payload: TPayload;
+  requestId?: string;
   retry?: {
     attempts: number;
     backoffMs: number;
   };
+  sourceModule?: string;
   tenantId?: string;
 };
 

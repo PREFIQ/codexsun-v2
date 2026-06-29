@@ -17,59 +17,65 @@ export class AuditService {
     }
   }
 
-  async authLoginSuccess(input: { actorType: AuditEvent["actorType"]; actorEmail: string; tenantId?: string }): Promise<void> {
+  async authLoginSuccess(input: { actorType: AuditEvent["actorType"]; actorEmail: string; correlationId?: string; tenantId?: string }): Promise<void> {
     await this.write({
       actorType: input.actorType,
       actorEmail: input.actorEmail,
+      ...(input.correlationId ? { correlationId: input.correlationId } : {}),
       eventName: "auth.login.success",
       ...(input.tenantId ? { tenantId: input.tenantId } : {}),
       payload: { email: input.actorEmail }
     });
   }
 
-  async authLoginFailed(input: { actorType: AuditEvent["actorType"]; actorEmail: string }): Promise<void> {
+  async authLoginFailed(input: { actorType: AuditEvent["actorType"]; actorEmail: string; correlationId?: string }): Promise<void> {
     await this.write({
       actorType: input.actorType,
       actorEmail: input.actorEmail,
+      ...(input.correlationId ? { correlationId: input.correlationId } : {}),
       eventName: "auth.login.failed",
       payload: { email: input.actorEmail }
     });
   }
 
-  async authLogout(input: { actorType: AuditEvent["actorType"]; actorEmail: string; tenantId?: string }): Promise<void> {
+  async authLogout(input: { actorType: AuditEvent["actorType"]; actorEmail: string; correlationId?: string; tenantId?: string }): Promise<void> {
     await this.write({
       actorType: input.actorType,
       actorEmail: input.actorEmail,
+      ...(input.correlationId ? { correlationId: input.correlationId } : {}),
       eventName: "auth.logout",
       ...(input.tenantId ? { tenantId: input.tenantId } : {}),
       payload: { email: input.actorEmail }
     });
   }
 
-  async tenantCreated(input: { actorEmail: string; tenantId: string; tenantCode: string }): Promise<void> {
+  async tenantCreated(input: { actorEmail: string; correlationId?: string; tenantId: string; tenantCode: string }): Promise<void> {
     await this.write({
       actorType: "super_admin",
       actorEmail: input.actorEmail,
+      ...(input.correlationId ? { correlationId: input.correlationId } : {}),
       eventName: "tenant.created",
       tenantId: input.tenantId,
       payload: { tenantCode: input.tenantCode }
     });
   }
 
-  async tenantUpdated(input: { actorEmail: string; tenantId: string; changes: Record<string, unknown> }): Promise<void> {
+  async tenantUpdated(input: { actorEmail: string; correlationId?: string; tenantId: string; changes: Record<string, unknown> }): Promise<void> {
     await this.write({
       actorType: "super_admin",
       actorEmail: input.actorEmail,
+      ...(input.correlationId ? { correlationId: input.correlationId } : {}),
       eventName: "tenant.updated",
       tenantId: input.tenantId,
       payload: { changes: input.changes }
     });
   }
 
-  async tenantDeleted(input: { actorEmail: string; tenantId: string; tenantCode: string }): Promise<void> {
+  async tenantDeleted(input: { actorEmail: string; correlationId?: string; tenantId: string; tenantCode: string }): Promise<void> {
     await this.write({
       actorType: "super_admin",
       actorEmail: input.actorEmail,
+      ...(input.correlationId ? { correlationId: input.correlationId } : {}),
       eventName: "tenant.deleted",
       tenantId: input.tenantId,
       payload: { tenantCode: input.tenantCode }

@@ -4,12 +4,15 @@ export type TenantContext = {
 };
 
 export type DomainEvent<TPayload = unknown> = {
+  actorEmail?: string;
   actorId?: string;
-  requestId?: string;
+  correlationId?: string;
   eventName: string;
   eventVersion: number;
   occurredAt: string;
   payload: TPayload;
+  requestId?: string;
+  sourceModule?: string;
   tenant?: TenantContext;
 };
 

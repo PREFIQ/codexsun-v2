@@ -1,4 +1,5 @@
 export type ResponseMeta = {
+  correlationId?: string;
   tenantId?: string;
   requestId: string;
   timestamp: string;
@@ -23,7 +24,7 @@ export type ErrorEnvelope<TDetails = unknown> = {
 export type ApiEnvelope<TData, TDetails = unknown> = SuccessEnvelope<TData> | ErrorEnvelope<TDetails>;
 
 
-export function createMeta(requestId: string, tenantId?: string): ResponseMeta {
+export function createMeta(requestId: string, tenantId?: string, correlationId?: string): ResponseMeta {
   const meta: ResponseMeta = {
     requestId,
     timestamp: new Date().toISOString()
@@ -33,19 +34,24 @@ export function createMeta(requestId: string, tenantId?: string): ResponseMeta {
     meta.tenantId = tenantId;
   }
 
+  if (correlationId) {
+    meta.correlationId = correlationId;
+  }
+
   return meta;
 }
 
 export function ok<TData>(
   data: TData,
   input: {
+    correlationId?: string;
     tenantId?: string;
     requestId: string;
   }
 ): SuccessEnvelope<TData> {
   return {
     data,
-    meta: createMeta(input.requestId, input.tenantId),
+    meta: createMeta(input.requestId, input.tenantId, input.correlationId),
     success: true
   };
 }
@@ -57,13 +63,14 @@ export function fail<TDetails>(
     message: string;
   },
   input: {
+    correlationId?: string;
     tenantId?: string;
     requestId: string;
   }
 ): ErrorEnvelope<TDetails> {
   return {
     error,
-    meta: createMeta(input.requestId, input.tenantId),
+    meta: createMeta(input.requestId, input.tenantId, input.correlationId),
     success: false
   };
 }

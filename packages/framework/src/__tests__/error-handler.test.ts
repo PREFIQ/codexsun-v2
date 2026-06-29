@@ -78,19 +78,30 @@ describe("Error Handler", () => {
     expect(body.meta.requestId).toBeDefined();
   });
 
-  it("should ignore x-correlation-id header and not echo it", async () => {
+  it("should echo x-correlation-id header in response and envelope meta", async () => {
     const app = await createTestApiApp();
 
     const res = await app.inject({
       method: "GET",
       url: "/",
-      headers: { "x-correlation-id": "should-be-ignored" }
+      headers: { "x-correlation-id": "my-trace-id" }
     });
 
-    expect(res.headers["x-correlation-id"]).toBeUndefined();
+    expect(res.headers["x-correlation-id"]).toBe("my-trace-id");
     const body = JSON.parse(res.body);
     expect(body.success).toBe(true);
     expect(body.meta.requestId).toBeDefined();
-    expect((body.meta as Record<string, unknown>).correlationId).toBeUndefined();
+    expect(body.meta.correlationId).toBe("my-trace-id");
+  });
+
+  it("should generate correlationId from request.id when no header is sent", async () => {
+    const app = await createTestApiApp();
+
+    const res = await app.inject({ method: "GET", url: "/" });
+
+    const body = JSON.parse(res.body);
+    expect(body.success).toBe(true);
+    expect(body.meta.correlationId).toBeDefined();
+    expect(body.meta.correlationId).not.toBe("");
   });
 });

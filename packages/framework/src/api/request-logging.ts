@@ -13,6 +13,9 @@ export function registerRequestLogging(app: FastifyInstance): void {
       requestId: request.id,
       action: "request.start"
     });
+    if (request.correlationId) {
+      log.correlationId = request.correlationId;
+    }
     if (request.tenantId) {
       log.tenantId = request.tenantId;
     }
@@ -34,6 +37,9 @@ export function registerRequestLogging(app: FastifyInstance): void {
       requestId: request.id,
       action: "request.end"
     });
+    if (request.correlationId) {
+      log.correlationId = request.correlationId;
+    }
     if (request.tenantId) {
       log.tenantId = request.tenantId;
     }

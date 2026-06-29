@@ -114,7 +114,7 @@ export class MasterDbTenantRepository implements TenantRepository {
     );
     if (!existing[0]) return false;
 
-    await this.db.execute("DELETE FROM tenants WHERE id = ?", [id]);
+    await this.db.execute("UPDATE tenants SET status = 'inactive' WHERE id = ?", [id]);
     return true;
   }
 

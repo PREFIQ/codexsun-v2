@@ -2,9 +2,10 @@ import { ok } from "@codexsun/framework/http";
 import type { FastifyInstance } from "fastify";
 import { requireSuperAdmin } from "../auth/guards.js";
 
-function responseMeta(request: { id: string; tenantId?: string }) {
+function responseMeta(request: { correlationId?: string; id: string; tenantId?: string }) {
   return {
     requestId: request.id,
+    ...(request.correlationId ? { correlationId: request.correlationId } : {}),
     ...(request.tenantId ? { tenantId: request.tenantId } : {})
   };
 }
@@ -37,6 +38,7 @@ export async function registerTenantRoutes(app: FastifyInstance) {
     });
     await app.auditService.tenantCreated({
       actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
       tenantId: tenant.id,
       tenantCode: tenant.tenantCode
     });
@@ -56,6 +58,7 @@ export async function registerTenantRoutes(app: FastifyInstance) {
     const tenant = await app.tenantService.update(id, input);
     await app.auditService.tenantUpdated({
       actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
       tenantId: id,
       changes
     });
@@ -69,6 +72,7 @@ export async function registerTenantRoutes(app: FastifyInstance) {
     await app.tenantService.delete(id);
     await app.auditService.tenantDeleted({
       actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
       tenantId: id,
       tenantCode: existing.tenantCode
     });

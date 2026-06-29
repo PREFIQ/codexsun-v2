@@ -1,26 +1,34 @@
-export type FrameworkModule = {
-  name: string;
-  register(): Promise<void> | void;
+export type ModuleScope = "industry" | "integration" | "platform" | "tenant";
+
+export type ModuleContract = {
+  displayName: string;
+  migrationKey?: string;
+  moduleKey: string;
+  requiredFeatureKey?: string;
+  requiredPermissions?: string[];
+  scope: ModuleScope;
+  version: string;
 };
 
 export class ModuleRegistry {
-  private readonly modules = new Map<string, FrameworkModule>();
+  private readonly modules = new Map<string, ModuleContract>();
 
-  register(module: FrameworkModule) {
-    if (this.modules.has(module.name)) {
-      throw new Error(`Module already registered: ${module.name}`);
-    }
-
-    this.modules.set(module.name, module);
+  get(key: string): ModuleContract | undefined {
+    return this.modules.get(key);
   }
 
-  async boot() {
-    for (const module of this.modules.values()) {
-      await module.register();
-    }
+  list(): ModuleContract[] {
+    return [...this.modules.values()];
   }
 
-  list() {
-    return [...this.modules.keys()];
+  listByScope(scope: ModuleScope): ModuleContract[] {
+    return this.list().filter((m) => m.scope === scope);
+  }
+
+  register(module: ModuleContract): void {
+    if (this.modules.has(module.moduleKey)) {
+      throw new Error(`Module already registered: ${module.moduleKey}`);
+    }
+    this.modules.set(module.moduleKey, module);
   }
 }

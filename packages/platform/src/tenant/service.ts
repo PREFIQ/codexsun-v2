@@ -95,6 +95,9 @@ export class TenantService {
     if (!existing) {
       throw AppError.notFound("Tenant not found");
     }
+    if (existing.status === "inactive") {
+      throw AppError.conflict("Tenant is already archived");
+    }
     await this.repository.delete(id);
   }
 

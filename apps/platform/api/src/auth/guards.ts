@@ -1,6 +1,7 @@
 import "fastify";
 import "@fastify/cookie";
 import { AppError } from "@codexsun/framework/errors";
+import { userTypeHasPermission } from "@codexsun/platform/permissions";
 import type { PlatformSessionRecord } from "@codexsun/platform/auth";
 import type { FastifyInstance } from "fastify";
 
@@ -51,30 +52,25 @@ export function requireTenantMatch(request: { tenantId?: string }, session: { te
   }
 }
 
-/**
- * Permission guard placeholder.
- * Currently allows super_admin for all permissions and denies other roles.
- * Replace with full RBAC check when role-permission mapping is available.
- */
 export function requirePermission(session: { userType: string }, permission: string): void {
-  if (session.userType === "super_admin") return;
-  throw AppError.forbidden(`Missing permission: ${permission}`);
+  if (!userTypeHasPermission(session.userType as "staff" | "super_admin" | "system" | "tenant", permission)) {
+    throw AppError.forbidden(`Missing permission: ${permission}`);
+  }
 }
 
-/**
- * Activation guard placeholder.
- * Currently allows all requests. Replace with tenant feature/subscription check when available.
- */
-export function requireActiveTenant(_session: { tenantId?: string }): void {
-  // Placeholder: allow all until tenant activation checks are implemented
+export async function requireActiveTenant(app: FastifyInstance, tenantId: string): Promise<void> {
+  const isActive = await app.activationService.isTenantActive(tenantId);
+  if (!isActive) {
+    throw AppError.forbidden("Tenant is not active");
+  }
 }
 
-/**
- * Feature enablement guard placeholder.
- * Currently allows all features. Replace with feature-toggle check when available.
- */
-export function requireFeatureEnabled(_tenantId: string | undefined, _featureKey: string): void {
-  // Placeholder: allow all until feature toggle service is implemented
+export async function requireFeatureEnabled(app: FastifyInstance, tenantId: string, featureKey: string): Promise<void> {
+  await app.activationService.requireEnabled(tenantId, featureKey);
+}
+
+export async function requireSubscriptionAllowed(_app: FastifyInstance, _tenantId: string, _moduleKey: string): Promise<void> {
+  // Placeholder: subscription check not yet implemented.
 }
 
 function tokenFromRequest(request: {

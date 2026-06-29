@@ -1,6 +1,6 @@
 {
   "name": "@codexsun/platform",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "type": "module",
   "exports": {
@@ -11,6 +11,10 @@
     "./activation": {
       "types": "./dist/activation/index.d.ts",
       "default": "./dist/activation/index.js"
+    },
+    "./catalog": {
+      "types": "./dist/catalog/index.d.ts",
+      "default": "./dist/catalog/index.js"
     },
     "./audit": {
       "types": "./dist/audit/index.d.ts",
@@ -59,7 +63,7 @@
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
-    "@codexsun/framework": "1.0.2",
+    "@codexsun/framework": "1.0.4",
     "zod": "^3.24.1"
   },
   "devDependencies": {

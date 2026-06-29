@@ -188,7 +188,7 @@ describe("Auth Endpoints", () => {
       expect(res.statusCode).toBe(401);
     });
 
-    it("should delete a tenant", async () => {
+    it("should archive a tenant (soft-delete) instead of hard-deleting", async () => {
       const listRes = await app.inject({
         method: "GET",
         url: "/tenants",
@@ -206,6 +206,59 @@ describe("Auth Endpoints", () => {
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
       expect(body.data.deleted).toBe(true);
+
+      // Verify tenant still exists but is archived (inactive)
+      const getRes = await app.inject({
+        method: "GET",
+        url: `/tenants/${created.id}`,
+        headers: { Authorization: `Bearer ${saToken}` }
+      });
+      const getBody = JSON.parse(getRes.body);
+      expect(getBody.data.status).toBe("inactive");
+    });
+
+    it("should reject archiving an already archived tenant", async () => {
+      // Create another tenant to archive twice
+      const createRes = await app.inject({
+        method: "POST",
+        url: "/tenants",
+        headers: { Authorization: `Bearer ${saToken}` },
+        body: {
+          tenantCode: "archive-twice-" + Date.now(),
+          tenantName: "Archive Twice Test"
+        }
+      });
+      const created = JSON.parse(createRes.body).data;
+
+      // First archive
+      await app.inject({
+        method: "DELETE",
+        url: `/tenants/${created.id}`,
+        headers: { Authorization: `Bearer ${saToken}` }
+      });
+
+      // Second archive should fail with conflict
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/tenants/${created.id}`,
+        headers: { Authorization: `Bearer ${saToken}` }
+      });
+      expect(res.statusCode).toBe(409);
+    });
+
+    it("should echo x-correlation-id header in tenant response", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: "/tenants",
+        headers: {
+          Authorization: `Bearer ${saToken}`,
+          "x-correlation-id": "tenant-test-corr-001"
+        }
+      });
+
+      expect(res.headers["x-correlation-id"]).toBe("tenant-test-corr-001");
+      const body = JSON.parse(res.body);
+      expect(body.meta.correlationId).toBe("tenant-test-corr-001");
     });
   });
 });

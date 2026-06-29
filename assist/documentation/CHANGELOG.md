@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.3
+Current version: 1.0.5
 
-Release tag: v-1.0.3
+Release tag: v-1.0.5
 
-Changelog label: v 1.0.3
+Changelog label: v 1.0.5
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -19,6 +19,63 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 #### App Codebase Changes
 
 Records UI, API, service logic, tooling, and documentation changes.
+
+## v-1.0.5
+
+### [v 1.0.5] 2026-06-29 - Framework And Platform Module Readiness
+
+#### Database Changes
+
+- Database update: Yes (auto-check).
+- Extracted monolithic bootstrap into versioned MigrationRunner with ordered migrations.
+- Created `platform_modules` and `tenant_module_activation` tables for module catalog and feature activation.
+
+#### App Codebase Changes
+
+- Bumped workspace version to 1.0.5.
+- Redesigned `ModuleRegistry` with rich `ModuleContract` (moduleKey, displayName, scope, version, requiredPermissions, requiredFeatureKey, migrationKey).
+- Added `sourceModule`, `actorEmail` to `DomainEvent` and `QueueJob` contracts.
+- Created platform module catalog (`@codexsun/platform/catalog`) with `ModuleCatalogService` and stable module keys for platform and future tenant modules.
+- Defined permission keys (`platform.tenant.profile.view`, `platform.audit.activity.view`, `platform.user.profile.manage`, etc.) and role-to-permission mapping (`super_admin`, `staff`, `tenant`, `system`).
+- Replaced placeholder `requirePermission()` with real check against `userTypeHasPermission()`.
+- Created `PermissionService` at `@codexsun/platform/permissions`.
+- Created `ActivationService` with DB-backed `isEnabled`, `requireEnabled`, `isTenantActive`, `requireTenantActive` checks.
+- Created `SubscriptionService` with `requireSubscriptionAllowed` placeholder.
+- Created `MigrationRunner` at `apps/platform/api/src/db/migration-runner.ts` for ordered, repeatable, startup-safe migrations.
+- Split bootstrap schema into versioned migration files: `001_master_foundation`, `002_master_audit_sessions`, `003_master_platform_catalog`.
+- Added read-only admin support endpoints: `GET /admin/modules`, `GET /admin/modules/:tenantId`, `GET /admin/audit`, `GET /admin/migrations`.
+- Added 11 platform package unit tests for permissions, catalog contracts, and migration runner.
+- Framework tests remain at 30 passing, platform tests at 15 passing (30 + 11 + 5 = 46 total).
+
+## v-1.0.4
+
+### [v 1.0.4] 2026-06-29 8:54 am - Restore Correlation ID And Harden Platform Foundation
+
+#### Database Changes
+
+- Database update: Yes (auto-check).
+- Added `correlation_id` column to `audit_events` table.
+
+#### App Codebase Changes
+
+- Bumped workspace version to 1.0.4.
+- Restored `correlationId` to framework envelope (`ResponseMeta`, `createMeta`, `ok`, `fail`) at `packages/framework/src/http/envelope.ts`.
+- Restored `correlationId` to `StructuredLog` at `packages/framework/src/logger/logger.ts`.
+- Restored `correlationId` to `DomainEvent` contract at `packages/framework/src/events/contracts.ts`.
+- Restored `correlationId` to `QueueJob` contract at `packages/framework/src/queue/contracts.ts`.
+- Restored `correlationId` to `FastifyRequest` decoration and `x-correlation-id` header read/echo at `packages/framework/src/api/tenant-context.ts`.
+- Restored `correlationId` propagation in `create-api-app.ts` error handler and root route.
+- Restored `correlationId` to structured request logging at `packages/framework/src/api/request-logging.ts`.
+- Restored `correlationId` to health route meta at `packages/framework/src/api/health-route.ts`.
+- Added `correlationId` to `AuditEvent` contract at `packages/platform/src/audit/contracts.ts`.
+- Wired `correlationId` through all `AuditService` methods (auth login/logout, tenant lifecycle).
+- Stored `correlation_id` in `MasterDbAuditRepository` insert at `packages/platform/src/audit/repository.ts`.
+- Changed tenant `delete` to archive (set status=inactive) in `TenantService` and `MasterDbTenantRepository`.
+- Added `correlationId` propagation in auth routes and tenant routes audit calls.
+- Updated framework envelope tests to verify `correlationId` presence/absence.
+- Updated error handler tests to verify `x-correlation-id` echo and auto-generation.
+- Updated health route tests to verify `correlationId` in health meta.
+- Updated platform API tests with archive verification, duplicate-archive rejection, and `x-correlation-id` echo test.
 
 ## v-1.0.3
 

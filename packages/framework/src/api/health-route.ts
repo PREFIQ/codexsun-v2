@@ -12,6 +12,7 @@ export function registerHealthRoute(app: FastifyInstance, checks: HealthCheck[])
       result,
       {
         requestId: request.id,
+        ...(request.correlationId ? { correlationId: request.correlationId } : {}),
         ...(request.tenantId ? { tenantId: request.tenantId } : {})
       }
     );

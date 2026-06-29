@@ -72,4 +72,23 @@ describe("Health Check System", () => {
     const body = JSON.parse(res.body);
     expect(body.meta.tenantId).toBe("tenant-health-001");
   });
+
+  it("should include correlationId in health response meta when x-correlation-id is sent", async () => {
+    const app = await createTestApiApp();
+    const checks: HealthCheck[] = [
+      { name: "db", check: () => ({ status: "ok" }) }
+    ];
+    registerHealthRoute(app, checks);
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/health",
+      headers: { "x-correlation-id": "health-corr-001" }
+    });
+
+    expect(res.headers["x-correlation-id"]).toBe("health-corr-001");
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.meta.correlationId).toBe("health-corr-001");
+  });
 });

@@ -23,3 +23,13 @@ export function classifyActivationChange(key: string, enabled: boolean): Activat
 
   return "normal";
 }
+
+export type ActivationStatus = "disabled" | "enabled" | "expired" | "suspended" | "trial";
+
+export type TenantModuleActivation = {
+  limits?: Record<string, unknown>;
+  moduleKey: string;
+  providerConfig?: Record<string, unknown>;
+  status: ActivationStatus;
+  tenantId: string;
+};

@@ -15,9 +15,10 @@ export type CreateApiAppOptions = {
   shutdownHooks?: ShutdownHook[];
 };
 
-function requestMeta(request: { id: string; tenantId?: string }) {
+function requestMeta(request: { correlationId?: string; id: string; tenantId?: string }) {
   return {
     requestId: request.id,
+    ...(request.correlationId ? { correlationId: request.correlationId } : {}),
     ...(request.tenantId ? { tenantId: request.tenantId } : {})
   };
 }
