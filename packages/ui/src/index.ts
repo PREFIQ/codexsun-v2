@@ -64,3 +64,4 @@ export * from "./components/use-toast";
 export * from "./design-system";
 export * from "./blocks/menu/sidemenu/dashboard-01";
 export * from "./lib/utils";
+export * from "./workspace/index";

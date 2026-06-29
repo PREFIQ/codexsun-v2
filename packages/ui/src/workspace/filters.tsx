@@ -21,7 +21,7 @@ export function WorkspaceFilters({
   columnOptions,
   filterOptions,
   filterValue,
-  onColumnToggle,
+  onColumnToggle: _onColumnToggle,
   onFilterValueChange,
   onSearchValueChange,
   onShowAllColumns,
@@ -63,7 +63,7 @@ export function WorkspaceFilters({
           <FilterMenu filterOptions={filterOptions} filterValue={filterValue} onFilterValueChange={onFilterValueChange} />
         ) : null}
         {columnOptions && columnOptions.length > 0 ? (
-          <ColumnMenu columnOptions={columnOptions} onShowAllColumns={onShowAllColumns} />
+          <ColumnMenu columnOptions={columnOptions} {...(onShowAllColumns ? { onShowAllColumns } : {})} />
         ) : null}
       </div>
     </div>
@@ -156,7 +156,7 @@ function ColumnMenu({
               key={column.id}
               checked={column.checked}
               className="rounded-md py-2.5 pl-9 pr-3"
-              disabled={column.disabled}
+              {...(column.disabled !== undefined ? { disabled: column.disabled } : {})}
               onCheckedChange={(checked) => column.onCheckedChange(Boolean(checked))}
             >
               {column.label}

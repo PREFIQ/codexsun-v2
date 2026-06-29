@@ -22,7 +22,7 @@ export function WorkspaceLineTableHeader({
   )
 }
 
-export function WorkspaceLineTable<T extends { id?: string | number }>({
+export function WorkspaceLineTable<T>({
   className,
   columns,
   data,

@@ -1,6 +1,5 @@
 "use client"
 
-import type { ReactNode } from "react"
 import { WorkspacePage } from "../page"
 import { WorkspaceTablePanel } from "../table"
 import { WorkspaceRowActions } from "../row-actions"

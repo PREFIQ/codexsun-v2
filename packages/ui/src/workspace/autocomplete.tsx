@@ -1,7 +1,7 @@
 "use client"
 
 import { Check, ChevronDown, Search } from "lucide-react"
-import { useState, type ReactNode } from "react"
+import { useState } from "react"
 import { Button } from "../components/button"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../components/command"
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover"

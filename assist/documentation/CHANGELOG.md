@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.5
+Current version: 1.0.6
 
-Release tag: v-1.0.5
+Release tag: v-1.0.6
 
-Changelog label: v 1.0.5
+Changelog label: v 1.0.6
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -19,6 +19,30 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 #### App Codebase Changes
 
 Records UI, API, service logic, tooling, and documentation changes.
+
+## v-1.0.6
+
+### [v 1.0.6] 2026-06-29 6:25 pm - Workspace Design System And Reusable List Patterns
+
+#### Database Changes
+
+- Database update: No.
+
+#### App Codebase Changes
+
+- Bumped workspace version to 1.0.6.
+- Created reusable workspace building blocks in `@codexsun/ui/src/workspace/`: page, panel, header, actions, field, section, status, table, filters, pagination, row-actions, show, upsert, line-table, totals, print, motion, autocomplete, editor, drag-drop, types, utils.
+- Created workspace presets in `@codexsun/ui/src/workspace/presets/`: common-list, master-list, entry-list.
+- Wrapped third-party UI libraries (framer-motion, @tiptap, react-hook-form, @hookform/resolvers) behind CODEXSUN workspace wrappers.
+- Added subpath exports to `@codexsun/ui/package.json` for workspace, presets, components, and lib paths.
+- Created three template pages with dummy data in Platform Web: CommonListTemplatePage (Tenant Domains), MasterListTemplatePage (Contacts), EntryListTemplatePage (Invoices).
+- Added three design routes: `/design/common-list`, `/design/master-list`, `/design/entry-list`.
+- Built one reusable workspace list/show foundation; CommonList, MasterList, EntryList use the same base blocks.
+- Implemented list -> show -> upsert flow for all three templates with local dummy state.
+- Added print preview for entry (Invoice) flow.
+- Added line-table with editable sub-table rows and totals calculation for entry upsert.
+- Removed unused imports across template pages to satisfy strict lint rules.
+- All six workspace packages pass typecheck and lint cleanly.
 
 ## v-1.0.5
 

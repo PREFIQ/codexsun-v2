@@ -1,12 +1,11 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { cn } from "../../lib/utils"
 import { WorkspacePage } from "../page"
 import { WorkspaceTablePanel } from "../table"
 import { WorkspaceRowActions } from "../row-actions"
-import { WorkspaceShowLayout, WorkspaceShowCard, WorkspaceDetailTable } from "../show"
-import { WorkspaceUpsertPage, WorkspaceFormPanel, WorkspaceFormGrid } from "../upsert"
+import { WorkspaceShowCard, WorkspaceDetailTable } from "../show"
+import { WorkspaceUpsertPage, WorkspaceFormPanel } from "../upsert"
 
 export const MasterList = WorkspacePage
 export const MasterTablePanel = WorkspaceTablePanel
@@ -37,7 +36,7 @@ export function MasterUpsertPage({
   title: string
 }) {
   return (
-    <WorkspaceUpsertPage action={action} description={description} onBack={onBack} title={title}>
+    <WorkspaceUpsertPage action={action} title={title} {...(description ? { description } : {})} {...(onBack ? { onBack } : {})}>
       {children}
     </WorkspaceUpsertPage>
   )
@@ -45,17 +44,13 @@ export function MasterUpsertPage({
 
 export function MasterFormPage({
   action,
-  backLabel = "Back",
   children,
   description,
-  onBack,
   title,
 }: {
   action?: ReactNode
-  backLabel?: string
   children: ReactNode
   description?: string
-  onBack?: () => void
   title: string
 }) {
   return (

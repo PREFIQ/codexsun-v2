@@ -1,10 +1,10 @@
 "use client"
 
-import { DndContext, DragOverlay, closestCenter, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core"
+import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { GripVertical } from "lucide-react"
-import { useState, type ReactNode } from "react"
+import { type ReactNode } from "react"
 import { cn } from "../lib/utils"
 
 export { DndContext, DragOverlay, closestCenter, SortableContext, verticalListSortingStrategy, arrayMove }

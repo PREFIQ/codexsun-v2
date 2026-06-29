@@ -10,11 +10,9 @@ import {
 } from "@tanstack/react-table"
 import { ArrowUpDown } from "lucide-react"
 import { useState, type ReactNode } from "react"
-import { Button } from "../components/button"
 import { cn } from "../lib/utils"
 
 export function WorkspaceTable<T>({
-  className,
   columns,
   data,
   emptyState,
@@ -22,7 +20,6 @@ export function WorkspaceTable<T>({
   minWidth = "640px",
   onRowClick,
 }: {
-  className?: string
   columns: ColumnDef<T>[]
   data: T[]
   emptyState?: ReactNode
@@ -104,13 +101,11 @@ export function WorkspaceTable<T>({
 
 export function WorkspaceTablePanel({
   children,
-  className,
 }: {
   children: ReactNode
-  className?: string
 }) {
   return (
-    <div className={cn("rounded-md border border-border/70 bg-card/95 shadow-sm", className)}>
+    <div className="rounded-md border border-border/70 bg-card/95 shadow-sm">
       {children}
     </div>
   )

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEditor, EditorContent, type EditorOptions } from "@tiptap/react"
+import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import Link from "@tiptap/extension-link"
@@ -37,14 +37,14 @@ export function WorkspaceEditor({
   if (!editor) return null
 
   function toggleLink() {
-    const previousUrl = editor.getAttributes("link").href
+    const previousUrl = editor!.getAttributes("link").href
     const url = window.prompt("Enter URL", previousUrl ?? "")
     if (url === null) return
     if (url === "") {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run()
+      editor!.chain().focus().extendMarkRange("link").unsetLink().run()
       return
     }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run()
+    editor!.chain().focus().extendMarkRange("link").setLink({ href: url }).run()
   }
 
   return (

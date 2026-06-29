@@ -19,6 +19,9 @@ import { LoginPage } from "./pages/LoginPage";
 import { SaDesk } from "./pages/SaDesk";
 import { TenantDesk } from "./pages/TenantDesk";
 import { DesignSystemPage } from "./pages/DesignSystemPage";
+import { CommonListTemplatePage } from "./pages/templates/CommonListTemplatePage";
+import { MasterListTemplatePage } from "./pages/templates/MasterListTemplatePage";
+import { EntryListTemplatePage } from "./pages/templates/EntryListTemplatePage";
 
 
 const rootRoute = createRootRoute();
@@ -83,6 +86,24 @@ const workspaceRoute = createRoute({
   path: "/workspace"
 });
 
+const commonListRoute = createRoute({
+  component: CommonListTemplatePage,
+  getParentRoute: () => rootRoute,
+  path: "/design/common-list"
+});
+
+const masterListRoute = createRoute({
+  component: MasterListTemplatePage,
+  getParentRoute: () => rootRoute,
+  path: "/design/master-list"
+});
+
+const entryListRoute = createRoute({
+  component: EntryListTemplatePage,
+  getParentRoute: () => rootRoute,
+  path: "/design/entry-list"
+});
+
 const routeTree = rootRoute.addChildren([
   homeRoute,
   healthRoute,
@@ -93,7 +114,10 @@ const routeTree = rootRoute.addChildren([
   saRoute,
   adminRoute,
   tenantRoute,
-  workspaceRoute
+  workspaceRoute,
+  commonListRoute,
+  masterListRoute,
+  entryListRoute
 ]);
 
 const router = createRouter({ routeTree });
