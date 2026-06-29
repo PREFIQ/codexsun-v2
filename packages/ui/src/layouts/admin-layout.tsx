@@ -1,4 +1,19 @@
 import type { ReactNode } from "react";
+import {
+  BellIcon,
+  ClipboardCheckIcon,
+  LifeBuoyIcon,
+  LogOutIcon,
+  MonitorCogIcon,
+  ReceiptTextIcon,
+  ShieldCheckIcon,
+  StethoscopeIcon,
+  UsersRoundIcon,
+  WalletCardsIcon
+} from "lucide-react";
+
+import { AppLayout } from "./app-layout";
+import type { SidemenuItem } from "../blocks/menu/sidemenu/sub/sidemenu-section";
 
 type AdminLayoutProps = {
   actions?: ReactNode;
@@ -7,6 +22,82 @@ type AdminLayoutProps = {
   title?: ReactNode;
 };
 
+const adminMenuItems: SidemenuItem[] = [
+  {
+    title: "Support",
+    url: "/admin",
+    icon: LifeBuoyIcon,
+    isActive: true,
+    items: [
+      {
+        title: "Support Queue",
+        url: "/admin"
+      },
+      {
+        title: "Activation Review",
+        url: "/admin"
+      },
+      {
+        title: "Tenant Health",
+        url: "/status"
+      }
+    ]
+  },
+  {
+    title: "Tenants",
+    url: "/tenant",
+    icon: UsersRoundIcon
+  },
+  {
+    title: "Billing",
+    url: "/admin",
+    icon: ReceiptTextIcon
+  },
+  {
+    title: "System Status",
+    url: "/status",
+    icon: StethoscopeIcon
+  },
+  {
+    title: "Notifications",
+    url: "/admin",
+    icon: BellIcon
+  },
+  {
+    title: "Compliance",
+    url: "/status",
+    icon: ClipboardCheckIcon
+  }
+];
+
+const adminWorkspaceItems = [
+  {
+    title: "Staff Admin",
+    description: "Support, activation, and tenant operations.",
+    icon: WalletCardsIcon,
+    active: true,
+    url: "/admin"
+  },
+  {
+    title: "Tenant",
+    description: "Tenant workspace and customer-facing operations.",
+    icon: UsersRoundIcon,
+    url: "/tenant"
+  },
+  {
+    title: "Billing",
+    description: "Sales, purchase, receipt, payment, and reports.",
+    icon: ReceiptTextIcon,
+    url: "/admin"
+  },
+  {
+    title: "Status",
+    description: "Platform health, API state, and service checks.",
+    icon: MonitorCogIcon,
+    url: "/status"
+  }
+];
+
 export function AdminLayout({
   actions,
   children,
@@ -14,34 +105,47 @@ export function AdminLayout({
   title = "Staff Admin Desk"
 }: AdminLayoutProps) {
   return (
-    <div className="grid min-h-screen grid-cols-1 bg-background text-foreground md:grid-cols-[248px_minmax(0,1fr)]">
-      <aside className="flex flex-col gap-5 bg-[#17201c] p-4 text-white md:min-h-screen md:gap-7 md:p-6">
-        <a className="grid gap-0.5" href="/">
-          <span className="text-base font-bold">CODEXSUN</span>
-          <small className="text-[#a6b5ae]">Staff</small>
-        </a>
-        <nav className="flex gap-2 overflow-x-auto md:grid md:gap-1.5">
-          <a className="rounded-md px-3 py-2 text-sm font-semibold text-[#d8e2dd] hover:bg-white/10 hover:text-white" href="/admin">
-            Overview
-          </a>
-          <a className="rounded-md px-3 py-2 text-sm font-semibold text-[#d8e2dd] hover:bg-white/10 hover:text-white" href="/status">
-            System Status
-          </a>
-          <a className="rounded-md px-3 py-2 text-sm font-semibold text-[#d8e2dd] hover:bg-white/10 hover:text-white" href="/login">
-            Tenant Login
-          </a>
-        </nav>
-      </aside>
-      <main className="min-w-0">
-        <header className="flex min-h-[76px] flex-col items-start justify-between gap-3 border-b border-border bg-card/90 px-5 py-4 md:flex-row md:items-center md:px-7">
-          <div>
-            <h1 className="m-0 text-2xl font-semibold leading-tight">{title}</h1>
-            {subtitle ? <p className="mt-1 text-muted-foreground">{subtitle}</p> : null}
-          </div>
-          {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
-        </header>
-        <div className="p-5 md:p-7">{children}</div>
-      </main>
-    </div>
+    <AppLayout
+      brand={{
+        href: "/admin",
+        subtitle: "staff-admin",
+        title: "Staff Admin Desk"
+      }}
+      headerTitle="Staff Admin Desk"
+      homeHref="/admin"
+      logoutHref="/admin/login"
+      menuItems={adminMenuItems}
+      subtitle={subtitle}
+      title={title}
+      user={{
+        email: "admin@admin.com",
+        fallback: "A",
+        name: "ADMIN"
+      }}
+      userMenuItems={[
+        {
+          icon: ShieldCheckIcon,
+          title: "Account"
+        },
+        {
+          icon: MonitorCogIcon,
+          title: "Notifications"
+        },
+        {
+          icon: LifeBuoyIcon,
+          title: "Support Desk",
+          url: "/admin"
+        },
+        {
+          icon: LogOutIcon,
+          title: "Log out",
+          url: "/admin/login"
+        }
+      ]}
+      workspaceItems={adminWorkspaceItems}
+    >
+      {actions ? <div className="px-4 pt-4 lg:px-6">{actions}</div> : null}
+      <div className="p-5 md:p-7">{children}</div>
+    </AppLayout>
   );
 }

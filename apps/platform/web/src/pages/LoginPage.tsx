@@ -1,6 +1,7 @@
 import { AuthLayout, Button, Field } from "@codexsun/ui";
 import { LogIn } from "lucide-react";
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { type Desk, login } from "../api";
 
 type LoginPageProps = {
@@ -9,8 +10,10 @@ type LoginPageProps = {
 };
 
 export function LoginPage({ desk, title }: LoginPageProps) {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [tenantCode, setTenantCode] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +39,7 @@ export function LoginPage({ desk, title }: LoginPageProps) {
         desk,
         email,
         password,
-        tenantCode: "test"
+        ...(desk === "tenant" ? { tenantCode } : {})
       });
 
       if (!result.success) {
@@ -44,7 +47,9 @@ export function LoginPage({ desk, title }: LoginPageProps) {
         return;
       }
 
-      window.location.href = targetPath;
+      await navigate({ to: targetPath });
+    } catch {
+      setMessage("Network error, please try again");
     } finally {
       setLoading(false);
     }
@@ -57,6 +62,7 @@ export function LoginPage({ desk, title }: LoginPageProps) {
           autoComplete="email"
           label="Email"
           name="email"
+          disabled={loading}
           onChange={(event: ChangeEvent<HTMLInputElement>) => setEmail(event.target.value)}
           type="email"
           value={email}
@@ -65,14 +71,23 @@ export function LoginPage({ desk, title }: LoginPageProps) {
           autoComplete="current-password"
           label="Password"
           name="password"
+          disabled={loading}
           onChange={(event: ChangeEvent<HTMLInputElement>) => setPassword(event.target.value)}
           type="password"
           value={password}
         />
-        {desk === "tenant" ? <Field label="Tenant code" name="tenantCode" readOnly value="test" /> : null}
+        {desk === "tenant" ? (
+          <Field
+            label="Tenant code"
+            name="tenantCode"
+            disabled={loading}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => setTenantCode(event.target.value)}
+            value={tenantCode}
+          />
+        ) : null}
         {message ? <p className="form-error">{message}</p> : null}
         <Button disabled={loading} icon={<LogIn size={16} />} type="submit">
-          {loading ? "Signing in" : "Sign in"}
+          {loading ? "Signing in..." : "Sign in"}
         </Button>
       </form>
     </AuthLayout>

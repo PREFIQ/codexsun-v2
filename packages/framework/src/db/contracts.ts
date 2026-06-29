@@ -1,6 +1,6 @@
 import type { ConnectionOptions } from "mysql2/promise";
 import mysql from "mysql2/promise";
-import mariadb, { type ConnectionConfig } from "mariadb";
+import mariadb, { type ConnectionConfig, type PoolConfig } from "mariadb";
 
 export type DatabaseTarget = {
   database?: string;
@@ -15,6 +15,11 @@ export type DatabaseConfig = {
 };
 
 export type CompatibleDbConnection = {
+  end(): Promise<void>;
+  execute<TResult = unknown>(sql: string, values?: unknown[]): Promise<[TResult, unknown]>;
+};
+
+export type CompatibleDbPool = {
   end(): Promise<void>;
   execute<TResult = unknown>(sql: string, values?: unknown[]): Promise<[TResult, unknown]>;
 };
@@ -36,6 +41,63 @@ export function createDatabaseConnector(config: DatabaseConfig): DatabaseConnect
   }
 
   return createMariaDbConnector(config);
+}
+
+export function createDatabasePool(config: DatabaseConfig & DatabaseTarget): CompatibleDbPool {
+  const driver = config.driver ?? "mariadb";
+
+  if (driver === "mysql2") {
+    const options: mysql.PoolOptions = {
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      password: config.password,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
+    };
+    if (config.database) {
+      options.database = config.database;
+    }
+
+    const pool = mysql.createPool(options);
+
+    return {
+      async end() {
+        await pool.end();
+      },
+      async execute<TResult = unknown>(sql: string, values?: unknown[]) {
+        const result = values === undefined
+          ? await pool.execute(sql)
+          : await pool.execute(sql, values as never[]);
+        return result as unknown as [TResult, unknown];
+      }
+    };
+  }
+
+  const options: PoolConfig = {
+    allowPublicKeyRetrieval: true,
+    host: config.host,
+    port: config.port,
+    user: config.user,
+    password: config.password,
+    connectionLimit: 10
+  };
+  if (config.database) {
+    options.database = config.database;
+  }
+
+  const pool = mariadb.createPool(options);
+
+  return {
+    async end() {
+      await pool.end();
+    },
+    async execute<TResult = unknown>(sql: string, values?: unknown[]) {
+      const result = await pool.query(sql, values);
+      return [result as TResult, undefined];
+    }
+  };
 }
 
 function createMysql2Connector(config: DatabaseConfig): DatabaseConnector {

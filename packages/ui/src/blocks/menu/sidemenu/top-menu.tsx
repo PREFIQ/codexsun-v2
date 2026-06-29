@@ -6,6 +6,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   HomeIcon,
+  type LucideIcon,
   LogOutIcon,
   MailIcon,
   NewspaperIcon,
@@ -27,7 +28,22 @@ import {
 import { Separator } from "../../../components/separator"
 import { SidebarTrigger } from "../../../components/sidebar"
 
-const workspaceItems = [
+export type TopMenuWorkspaceItem = {
+  active?: boolean
+  description: string
+  icon: LucideIcon
+  title: string
+  url?: string
+}
+
+export type TopMenuProps = {
+  homeHref?: string
+  logoutHref?: string
+  pageTitle?: string
+  workspaceItems?: TopMenuWorkspaceItem[]
+}
+
+const defaultWorkspaceItems: TopMenuWorkspaceItem[] = [
   {
     title: "Application",
     description: "Shared workspace, company setup, and modules.",
@@ -61,7 +77,15 @@ const workspaceItems = [
   }
 ]
 
-export function TopMenu({ pageTitle = "Billing Desk" }: { pageTitle?: string }) {
+export function TopMenu({
+  homeHref = "/workspace",
+  logoutHref = "/login",
+  pageTitle = "Billing Desk",
+  workspaceItems = defaultWorkspaceItems
+}: TopMenuProps) {
+  const activeWorkspace = workspaceItems.find((item) => item.active) ?? workspaceItems[0]
+  const ActiveWorkspaceIcon = activeWorkspace?.icon ?? BriefcaseBusinessIcon
+
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b bg-background">
       <div className="flex h-full min-w-0 items-center">
@@ -72,8 +96,8 @@ export function TopMenu({ pageTitle = "Billing Desk" }: { pageTitle?: string }) 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
-                <ReceiptTextIcon className="size-4 text-muted-foreground" />
-                <span>Billing</span>
+                <ActiveWorkspaceIcon className="size-4 text-muted-foreground" />
+                <span>{activeWorkspace?.title ?? "Workspace"}</span>
                 <ChevronDownIcon className="size-3.5 text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>
@@ -83,15 +107,30 @@ export function TopMenu({ pageTitle = "Billing Desk" }: { pageTitle?: string }) 
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {workspaceItems.map((item) => (
-                <DropdownMenuItem key={item.title} className="gap-3 p-2">
-                  <div className="flex size-8 items-center justify-center rounded-md border bg-background">
-                    <item.icon className="size-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{item.title}</div>
-                    <div className="truncate text-xs text-muted-foreground">{item.description}</div>
-                  </div>
-                  {item.active ? <CheckIcon className="size-4" /> : null}
+                <DropdownMenuItem key={item.title} asChild={Boolean(item.url)} className="gap-3 p-2">
+                  {item.url ? (
+                    <a href={item.url}>
+                      <div className="flex size-8 items-center justify-center rounded-md border bg-background">
+                        <item.icon className="size-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{item.title}</div>
+                        <div className="truncate text-xs text-muted-foreground">{item.description}</div>
+                      </div>
+                      {item.active ? <CheckIcon className="size-4" /> : null}
+                    </a>
+                  ) : (
+                    <>
+                      <div className="flex size-8 items-center justify-center rounded-md border bg-background">
+                        <item.icon className="size-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{item.title}</div>
+                        <div className="truncate text-xs text-muted-foreground">{item.description}</div>
+                      </div>
+                      {item.active ? <CheckIcon className="size-4" /> : null}
+                    </>
+                  )}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -111,13 +150,13 @@ export function TopMenu({ pageTitle = "Billing Desk" }: { pageTitle?: string }) 
           </span>
         </Button>
         <Button asChild size="sm" variant="outline" className="hidden h-8 px-3 sm:inline-flex">
-          <a href="/workspace">
+          <a href={homeHref}>
             <HomeIcon />
             Home
           </a>
         </Button>
         <Button asChild size="sm" variant="outline" className="hidden h-8 px-3 sm:inline-flex">
-          <a href="/login">
+          <a href={logoutHref}>
             <LogOutIcon />
             Logout
           </a>

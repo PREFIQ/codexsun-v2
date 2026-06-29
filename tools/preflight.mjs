@@ -3,6 +3,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { createServer } from "node:net";
 
 const root = resolve(import.meta.dirname, "..");
 const app = process.argv[2];
@@ -11,14 +12,18 @@ const apps = {
   "platform-api": {
     cwd: "apps/platform/api",
     envKey: "PLATFORM_API_PORT",
-    fallbackPort: 4100,
+    hostKey: "PLATFORM_API_HOST",
+    fallbackPort: 5510,
+    fallbackHost: "127.0.0.1",
     command: process.execPath,
     args: [nodePackageBin("tsx", "dist/cli.mjs", "apps/platform/api"), "watch", "src/server.ts"]
   },
   "platform-web": {
     cwd: "apps/platform/web",
     envKey: "PLATFORM_WEB_PORT",
-    fallbackPort: 4200,
+    hostKey: "PLATFORM_WEB_HOST",
+    fallbackPort: 5520,
+    fallbackHost: "127.0.0.1",
     command: process.execPath,
     args: [nodePackageBin("vite", "bin/vite.js", "apps/platform/web"), "--host", "127.0.0.1", "--strictPort"]
   }
@@ -32,8 +37,9 @@ if (!app || !apps[app]) {
 const config = apps[app];
 const env = loadDotEnv();
 const port = Number(process.env[config.envKey] || env[config.envKey]) || config.fallbackPort;
+const host = process.env[config.hostKey] || env[config.hostKey] || config.fallbackHost;
 
-await freePort(port);
+await freePort(port, host);
 
 const child = spawn(config.command, [...config.args, ...(app === "platform-web" ? ["--port", String(port)] : [])], {
   cwd: resolve(root, config.cwd),
@@ -46,6 +52,12 @@ const child = spawn(config.command, [...config.args, ...(app === "platform-web" 
 });
 
 child.on("exit", (code) => process.exit(code ?? 0));
+
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.once(signal, () => {
+    stopChild(child, signal);
+  });
+}
 
 function loadDotEnv() {
   const envPath = resolve(root, ".env");
@@ -79,18 +91,24 @@ function parseEnvValue(value) {
   return trimmed.replace(/\s+#.*$/, "").trim();
 }
 
-async function freePort(port) {
+async function freePort(port, host) {
   console.log(`\n  > ${app} preflight`);
-  console.log(`  - Checking port ${port}`);
+  console.log(`  - Checking ${host}:${port}`);
+
+  if (await probePort(port, host)) {
+    await waitForPortRelease();
+    console.log(`  ok ${host}:${port} is ready\n`);
+    return;
+  }
 
   const pids = getPidsOnPort(port);
 
   if (!pids.length) {
-    console.log(`  ok Port ${port} is ready\n`);
+    console.log(`  ok Port ${port} is ready (no blocking process found)\n`);
     return;
   }
 
-  console.log(`  ! Port ${port} is already in use by PID ${pids.join(", ")}`);
+  console.log(`  ! ${host}:${port} is already in use by PID ${pids.join(", ")}`);
 
   if (process.env.CODEXSUN_DEV_PORT_POLICY === "abort") {
     console.error("  x Port policy is abort. Stop the existing process or change CODEXSUN_DEV_PORT_POLICY.\n");
@@ -103,16 +121,32 @@ async function freePort(port) {
   }
 
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    if (!getPidsOnPort(port).length) {
-      console.log(`  ok Port ${port} is ready\n`);
+    if (await probePort(port, host)) {
+      await waitForPortRelease();
+      console.log(`  ok ${host}:${port} is ready\n`);
       return;
     }
 
-    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+    await new Promise((resolveWait) => setTimeout(resolveWait, 250));
   }
 
   console.error(`  x Port ${port} was not released after stopping PID ${pids.join(", ")}.\n`);
   process.exit(1);
+}
+
+function probePort(port, host) {
+  return new Promise((resolve) => {
+    const server = createServer();
+    server.once("error", () => resolve(false));
+    server.once("listening", () => {
+      server.close((error) => resolve(!error));
+    });
+    server.listen(port, host);
+  });
+}
+
+function waitForPortRelease() {
+  return new Promise((resolveWait) => setTimeout(resolveWait, 100));
 }
 
 function getPidsOnPort(port) {
@@ -167,6 +201,25 @@ function killPid(pid) {
   }
 
   process.kill(pid, "SIGTERM");
+}
+
+function stopChild(childProcess, signal) {
+  if (childProcess.killed || !childProcess.pid) {
+    return;
+  }
+
+  if (process.platform === "win32") {
+    try {
+      execFileSync("taskkill", ["/PID", String(childProcess.pid), "/T", "/F"], {
+        stdio: ["ignore", "pipe", "pipe"]
+      });
+    } catch {
+      childProcess.kill(signal);
+    }
+    return;
+  }
+
+  childProcess.kill(signal);
 }
 
 function nodePackageBin(packageName, binPath, workspacePath) {

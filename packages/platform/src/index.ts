@@ -8,3 +8,5 @@ export * from "./settings/index.js";
 export * from "./subscription/index.js";
 export * from "./tenant/index.js";
 export * from "./users/index.js";
+export * from "./api-client/index.js";
+

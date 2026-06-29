@@ -13,9 +13,9 @@ npm install
 npm run dev:platform
 ```
 
-Platform API: <http://127.0.0.1:4100>
+Platform API: <http://127.0.0.1:5510>
 
-Platform web: <http://127.0.0.1:4200>
+Platform web: <http://127.0.0.1:5520>
 
 ## Workspace
 

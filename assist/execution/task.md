@@ -17,7 +17,7 @@ Use it together with:
 | --- | --- |
 | Batch reference | `#2` |
 | Target version | `1.0.2` |
-| Status | `planned` |
+| Status | `in_progress` |
 | Focus | Platform and framework hardening after first MVP shell |
 | Last updated | `2026-06-28` |
 

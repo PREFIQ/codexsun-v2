@@ -3,9 +3,10 @@ import { z } from "zod";
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "staging", "production"]).default("development"),
+  AUTH_MODE: z.enum(["cookie", "jwt", "hybrid"]).default("jwt"),
   PLATFORM_API_HOST: z.string().default("127.0.0.1"),
-  PLATFORM_API_PORT: z.coerce.number().int().positive().default(4100),
-  PLATFORM_WEB_ORIGIN: z.string().default("http://127.0.0.1:4200"),
+  PLATFORM_API_PORT: z.coerce.number().int().positive().default(5510),
+  PLATFORM_WEB_ORIGIN: z.string().default("http://127.0.0.1:5520"),
   DB_HOST: z.string().default("127.0.0.1"),
   DB_PORT: z.coerce.number().int().positive().default(3306),
   DB_USER: z.string().default("root"),

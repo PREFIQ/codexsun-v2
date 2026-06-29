@@ -1,17 +1,190 @@
 import type { CSSProperties, ReactNode } from "react";
+import {
+  AppWindowIcon,
+  BadgeCheckIcon,
+  BriefcaseBusinessIcon,
+  CreditCardIcon,
+  Globe2Icon,
+  LogOutIcon,
+  MailIcon,
+  MonitorCogIcon,
+  NewspaperIcon,
+  PanelsTopLeftIcon,
+  ReceiptTextIcon,
+  RefreshCwIcon,
+  SparklesIcon,
+  UsersRoundIcon,
+  WalletCardsIcon
+} from "lucide-react";
 
-import { AppSidebar } from "../blocks/menu/sidemenu/app-sidebar";
-import { TopMenu } from "../blocks/menu/sidemenu/top-menu";
+import {
+  AppSidebar,
+  type SidebarBrand,
+  type SidebarUser,
+  type SidebarUserMenuItem
+} from "../blocks/menu/sidemenu/app-sidebar";
+import { TopMenu, type TopMenuWorkspaceItem } from "../blocks/menu/sidemenu/top-menu";
+import type { SidemenuItem } from "../blocks/menu/sidemenu/sub/sidemenu-section";
 import { SidebarInset, SidebarProvider } from "../components/sidebar";
 
 type AppLayoutProps = {
+  brand?: SidebarBrand;
   children: ReactNode;
   headerTitle?: ReactNode;
+  homeHref?: string;
+  logoutHref?: string;
+  menuItems?: SidemenuItem[];
   subtitle?: ReactNode;
   title?: ReactNode;
+  user?: SidebarUser;
+  userMenuItems?: SidebarUserMenuItem[];
+  versionLabel?: string;
+  workspaceItems?: TopMenuWorkspaceItem[];
 };
 
-export function AppLayout({ children, headerTitle = "Documents", subtitle, title }: AppLayoutProps) {
+export const defaultWorkspaceItems: TopMenuWorkspaceItem[] = [
+  {
+    title: "Application",
+    description: "Shared workspace, company setup, and modules.",
+    icon: BriefcaseBusinessIcon,
+    url: "/workspace"
+  },
+  {
+    title: "ZETRO",
+    description: "Business assistance chat for teams.",
+    icon: SparklesIcon,
+    url: "/tenant"
+  },
+  {
+    title: "Billing",
+    description: "Sales, purchase, receipt, payment, and reports.",
+    icon: ReceiptTextIcon,
+    active: true,
+    url: "/workspace"
+  },
+  {
+    title: "Mail",
+    description: "Reusable workspace mail services.",
+    icon: MailIcon,
+    url: "/tenant"
+  },
+  {
+    title: "Blog",
+    description: "Tenant-scoped posts, categories, and updates.",
+    icon: NewspaperIcon,
+    url: "/tenant"
+  },
+  {
+    title: "Sites",
+    description: "Public tenant site content and pages.",
+    icon: Globe2Icon,
+    url: "/tenant"
+  }
+];
+
+export const defaultAppMenuItems: SidemenuItem[] = [
+  {
+    title: "Admin",
+    url: "/workspace",
+    icon: WalletCardsIcon,
+    isActive: true,
+    items: [
+      {
+        title: "Master Modules",
+        url: "/workspace"
+      },
+      {
+        title: "Platform Masters",
+        url: "/admin"
+      },
+      {
+        title: "Security Surface",
+        url: "/tenant"
+      }
+    ]
+  },
+  {
+    title: "Tenant",
+    url: "/tenant",
+    icon: UsersRoundIcon
+  },
+  {
+    title: "Domain",
+    url: "/status",
+    icon: Globe2Icon
+  },
+  {
+    title: "Subscription",
+    url: "/admin",
+    icon: CreditCardIcon
+  },
+  {
+    title: "Apps",
+    url: "/workspace",
+    icon: AppWindowIcon
+  },
+  {
+    title: "Compliance",
+    url: "/status",
+    icon: RefreshCwIcon
+  }
+];
+
+export const defaultSidebarBrand: SidebarBrand = {
+  href: "/workspace",
+  subtitle: "super-admin",
+  title: "Super Admin Desk"
+};
+
+export const defaultSidebarUser: SidebarUser = {
+  email: "sundar@sundar.com",
+  fallback: "S",
+  name: "SUNDAR"
+};
+
+export const defaultUserMenuItems: SidebarUserMenuItem[] = [
+  {
+    icon: SparklesIcon,
+    title: "Upgrade to Pro"
+  },
+  {
+    icon: BadgeCheckIcon,
+    title: "Account"
+  },
+  {
+    icon: ReceiptTextIcon,
+    title: "Billing"
+  },
+  {
+    icon: MonitorCogIcon,
+    title: "Notifications"
+  },
+  {
+    icon: PanelsTopLeftIcon,
+    title: "Super Admin login",
+    url: "/sa"
+  },
+  {
+    icon: LogOutIcon,
+    title: "Log out",
+    url: "/login"
+  }
+];
+
+export function AppLayout({
+  brand = defaultSidebarBrand,
+  children,
+  headerTitle = "Documents",
+  homeHref = "/workspace",
+  logoutHref = "/login",
+  menuItems = defaultAppMenuItems,
+  subtitle,
+  title,
+  user = defaultSidebarUser,
+  userMenuItems = defaultUserMenuItems,
+  versionLabel = "v 1.0.2",
+  workspaceItems = defaultWorkspaceItems
+}: AppLayoutProps) {
   return (
     <SidebarProvider
       style={
@@ -20,9 +193,21 @@ export function AppLayout({ children, headerTitle = "Documents", subtitle, title
         } as CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar
+        brand={brand}
+        items={menuItems}
+        user={user}
+        userMenuItems={userMenuItems}
+        variant="inset"
+        versionLabel={versionLabel}
+      />
       <SidebarInset>
-        <TopMenu pageTitle={String(headerTitle)} />
+        <TopMenu
+          homeHref={homeHref}
+          logoutHref={logoutHref}
+          pageTitle={String(headerTitle)}
+          workspaceItems={workspaceItems}
+        />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             {title || subtitle ? (

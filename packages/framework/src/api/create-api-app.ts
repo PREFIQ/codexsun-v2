@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { isAppError } from "../errors/index.js";
 import { fail, ok } from "../http/index.js";
 import { registerShutdownHooks, type ShutdownHook } from "./graceful-shutdown.js";
+import { registerTenantContext } from "./tenant-context.js";
 
 export type CreateApiAppOptions = {
   appName: string;
@@ -13,6 +14,13 @@ export type CreateApiAppOptions = {
   onReady?: () => Promise<void> | void;
   shutdownHooks?: ShutdownHook[];
 };
+
+function requestMeta(request: { id: string; tenantId?: string }) {
+  return {
+    requestId: request.id,
+    ...(request.tenantId ? { tenantId: request.tenantId } : {})
+  };
+}
 
 export async function createApiApp(options: CreateApiAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
@@ -30,6 +38,12 @@ export async function createApiApp(options: CreateApiAppOptions): Promise<Fastif
     secret: options.cookieSecret
   });
 
+  app.addHook("onRequest", async (_request, reply) => {
+    reply.header("Permissions-Policy", "unload=*");
+  });
+
+  registerTenantContext(app);
+
   app.setErrorHandler((error, request, reply) => {
     if (isAppError(error)) {
       return reply.code(error.statusCode).send(
@@ -39,9 +53,7 @@ export async function createApiApp(options: CreateApiAppOptions): Promise<Fastif
             details: error.details,
             message: error.message
           },
-          {
-            requestId: request.id
-          }
+          requestMeta(request)
         )
       );
     }
@@ -54,9 +66,7 @@ export async function createApiApp(options: CreateApiAppOptions): Promise<Fastif
           code: "INTERNAL_ERROR",
           message: "Something went wrong"
         },
-        {
-          requestId: request.id
-        }
+        requestMeta(request)
       )
     );
   });
@@ -75,9 +85,7 @@ export async function createApiApp(options: CreateApiAppOptions): Promise<Fastif
         name: options.appName,
         status: "ready"
       },
-      {
-        requestId: request.id
-      }
+      requestMeta(request)
     )
   );
 

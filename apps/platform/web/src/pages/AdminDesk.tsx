@@ -1,10 +1,25 @@
-import { AdminLayout, Card, StatusBadge } from "@codexsun/ui";
+import { AdminLayout, Card, StatusBadge, Button } from "@codexsun/ui";
 import { AuthGate } from "../components/AuthGate";
+import { useNavigate } from "@tanstack/react-router";
+import { logout } from "../api";
 
 export function AdminDesk() {
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    await logout("admin");
+    await navigate({ to: "/admin/login" });
+  }
+
   return (
     <AuthGate desk="admin">
-      <AdminLayout>
+      <AdminLayout
+        actions={
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <Button onClick={handleLogout} variant="secondary">Log out</Button>
+          </div>
+        }
+      >
         <div className="desk-grid">
           <Card title="Support Queue" description="Prepared for tenant operations">
             <StatusBadge tone="amber">Scaffold</StatusBadge>

@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.2
+Current version: 1.0.3
 
-Release tag: v-1.0.2
+Release tag: v-1.0.3
 
-Changelog label: v 1.0.2
+Changelog label: v 1.0.3
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -20,7 +20,42 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 
 Records UI, API, service logic, tooling, and documentation changes.
 
-## v-1.0.2
+## v-1.0.3
+
+### [v 1.0.3] 2026-06-29 8:54 am - JWT-only auth, preflight probe, lint clean
+
+#### Database Changes
+
+- Database update: Yes (auto-check).
+- Added `tenant_id` column to `audit_events` table.
+
+#### App Codebase Changes
+
+- Bumped workspace version to 1.0.3.
+- Added guard helpers: `requireSession`, `requireUserType`, `requireSuperAdmin`, `requireTenantMatch` (`apps/platform/api/src/auth/guards.ts`).
+- Added permission/activation guard placeholders: `requirePermission`, `requireActiveTenant`, `requireFeatureEnabled`.
+- Created `MasterDbTenantRepository` (`packages/platform/src/tenant/repository.ts`) with list/getById/findByCode/create/update/delete/resolveDatabase.
+- Created `TenantService` (`packages/platform/src/tenant/service.ts`) with validation, duplicate detection, and DTO mapping.
+- Created `MasterDbAuditRepository` (`packages/platform/src/audit/repository.ts`) and `AuditService` (`packages/platform/src/audit/service.ts`).
+- Wired audit events for `auth.login.success`, `auth.login.failed`, `auth.logout`, `tenant.created`, `tenant.updated`, `tenant.deleted`.
+- Split tenant CRUD routes out of auth routes into dedicated `apps/platform/api/src/tenant/routes.ts`.
+- Updated tenant routes to use guard helpers and tenant service instead of raw SQL.
+- Added 9 tenant management API tests covering list, create (success/duplicate/missing fields), read, update, and auth guards.
+- Removed AUTH_MODE entirely; switched from cookie/hybrid to JWT-only auth with no fallback.
+- Created JWT utilities at `packages/platform/src/auth/jwt.ts` using Node built-in `crypto.createHmac` (HMAC-SHA256, zero extra dependencies).
+- Simplified `AuthService` constructor to `(jwtSecret, tenantLookup, userFinder)` — `jwtSecret` is now required, `DatabaseSessionStore` dependency removed.
+- Updated login and session routes to always return/expect a Bearer JWT token; removed all cookie-related branches.
+- Added per-desk JWT token storage in `apps/platform/web/src/api.ts` with separate `localStorage` keys (`codexsun_session_sa`, `codexsun_session_admin`, `codexsun_session_tenant`).
+- Rewired `AuthGate` to validate JWT client-side (decode payload, check `exp` + `userType`) instead of making a network round-trip.
+- Created `TenantLayout` at `packages/ui/src/layouts/tenant-layout.tsx` matching the SuperLayout/AdminLayout pattern.
+- All three desks (SaDesk, AdminDesk, TenantDesk) now share the same composition pattern.
+- Created `tools/env-jwt-secret.mjs` for generating a random 32-byte hex `JWT_SECRET`; added `npm run env:jwt-secret`.
+- Synced `.env` and `.env.example` with all 22 schema variables plus `PLATFORM_WEB_PORT`, `VITE_PLATFORM_API_URL`, `VITE_TENANT_NAME`, and `CODEXSUN_DEV_PORT_POLICY`.
+- Updated ESLint config (`eslint.config.js`) to allow empty catch blocks and underscore-prefixed unused parameters, keeping lint clean across all 6 packages.
+- Replaced unreliable `netstat`-only port check in `tools/preflight.mjs` with a `net.createServer` probe (`probePort`) that directly tests whether the port can be bound, eliminating `EADDRINUSE` race conditions on restart.
+- Hardened platform API dev startup so preflight checks the configured host, stops watcher child trees on Windows, and registers graceful shutdown before listening.
+- Fixed the preflight probe handoff by waiting for the temporary socket to close before launching the API watcher, preventing Windows `EADDRINUSE` races.
+- Removed loose tenant route database casts so `@codexsun/platform-api` lint runs without warnings.
 
 ### [v 1.0.2] 2026-06-28 9:47 pm - sidebar trigger bar icon
 
@@ -33,6 +68,13 @@ Records UI, API, service logic, tooling, and documentation changes.
 - Bumped workspace version to 1.0.2.
 - Changed the shared sidebar trigger icon from the panel glyph to the bar menu glyph used by the workspace top bar.
 - Replaced the workspace switcher active mark with the shared Lucide check icon.
+- Converted the inset sidebar/topbar shell into a reusable role-driven dashboard template.
+- Wired Super Admin, Staff Admin, and Tenant desks to the shared template with dynamic menu, submenu, workspace switcher, branding, and user footer data.
+- Cleaned framework strict optional typing so uncached type checks remain green under the current TypeScript settings.
+- Wired framework correlation IDs through request context, response headers, envelopes, and structured request logs.
+- Added explicit `AUTH_MODE` support for cookie, bearer, and hybrid web/API session flows.
+- Removed the hidden tenant-code default from auth validation and login form state.
+- Tightened platform service, tenant lookup, session store, API client, and test helper types to keep framework/platform lint clean.
 
 ## v-1.0.1
 

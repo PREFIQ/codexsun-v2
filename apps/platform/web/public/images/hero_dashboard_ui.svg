@@ -1,0 +1,40 @@
+<svg viewBox="0 0 520 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="d1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#1e293b"/></linearGradient>
+    <linearGradient id="d2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#84cc16"/><stop offset="100%" stop-color="#a3e635"/></linearGradient>
+    <linearGradient id="d3" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#2563eb"/><stop offset="100%" stop-color="#60a5fa"/></linearGradient>
+  </defs>
+  <rect width="520" height="360" rx="16" fill="url(#d1)"/>
+  <rect x="0" y="0" width="520" height="56" rx="16" fill="#1e293b"/>
+  <circle cx="24" cy="28" r="5" fill="#ef4444"/><circle cx="42" cy="28" r="5" fill="#eab308"/><circle cx="60" cy="28" r="5" fill="#22c55e"/>
+  <text x="460" y="33" font-size="11" font-weight="700" fill="#64748b" text-anchor="end">dashboard.codexsun.com</text>
+  <rect x="16" y="72" width="90" height="274" rx="8" fill="#1e293b"/>
+  <rect x="16" y="72" width="90" height="4" rx="2" fill="#84cc16"/>
+  <rect x="24" y="88" width="74" height="28" rx="6" fill="#84cc1620"/><text x="61" y="107" font-size="10" font-weight="700" fill="#84cc16" text-anchor="middle">Dashboard</text>
+  <rect x="24" y="124" width="74" height="28" rx="6" fill="#0f172a"/><text x="61" y="143" font-size="10" font-weight="600" fill="#64748b" text-anchor="middle">Analytics</text>
+  <rect x="24" y="160" width="74" height="28" rx="6" fill="#0f172a"/><text x="61" y="179" font-size="10" font-weight="600" fill="#64748b" text-anchor="middle">Orders</text>
+  <rect x="24" y="196" width="74" height="28" rx="6" fill="#0f172a"/><text x="61" y="215" font-size="10" font-weight="600" fill="#64748b" text-anchor="middle">Products</text>
+  <rect x="24" y="232" width="74" height="28" rx="6" fill="#0f172a"/><text x="61" y="251" font-size="10" font-weight="600" fill="#64748b" text-anchor="middle">Clients</text>
+  <rect x="24" y="268" width="74" height="28" rx="6" fill="#0f172a"/><text x="61" y="287" font-size="10" font-weight="600" fill="#64748b" text-anchor="middle">Settings</text>
+  <rect x="118" y="72" width="386" height="130" rx="10" fill="#1e293b"/>
+  <text x="134" y="98" font-size="13" font-weight="800" fill="#f1f5f9">Financial Overview</text>
+  <rect x="134" y="110" width="110" height="70" rx="8" fill="#0f172a"/>
+  <text x="148" y="132" font-size="10" fill="#64748b">Total Revenue</text>
+  <text x="148" y="158" font-size="22" font-weight="900" fill="#84cc16">$128.4k</text>
+  <text x="148" y="172" font-size="9" fill="#22c55e">+12.5% vs last month</text>
+  <rect x="254" y="110" width="110" height="70" rx="8" fill="#0f172a"/>
+  <text x="268" y="132" font-size="10" fill="#64748b">Expenses</text>
+  <text x="268" y="158" font-size="22" font-weight="900" fill="#2563eb">$42.1k</text>
+  <text x="268" y="172" font-size="9" fill="#22c55e">-3.2% vs last month</text>
+  <rect x="374" y="110" width="110" height="70" rx="8" fill="#0f172a"/>
+  <text x="388" y="132" font-size="10" fill="#64748b">Net Profit</text>
+  <text x="388" y="158" font-size="22" font-weight="900" fill="#10b981">$86.3k</text>
+  <text x="388" y="172" font-size="9" fill="#22c55e">+18.7% vs last month</text>
+  <rect x="118" y="214" width="386" height="132" rx="10" fill="#1e293b"/>
+  <text x="134" y="240" font-size="13" font-weight="800" fill="#f1f5f9">Recent Transactions</text>
+  <rect x="134" y="252" width="350" height="1" fill="#334155"/>
+  <text x="134" y="272" font-size="10" fill="#cbd5e1" font-weight="600">Order #1042 - Garments Supply</text><text x="490" y="272" font-size="10" fill="#84cc16" font-weight="700" text-anchor="end">$4,280</text><rect x="134" y="278" width="220" height="3" rx="1.5" fill="#84cc16" opacity="0.6"/>
+  <text x="134" y="296" font-size="10" fill="#cbd5e1" font-weight="600">Order #0891 - Retail POS Sale</text><text x="490" y="296" font-size="10" fill="#2563eb" font-weight="700" text-anchor="end">$1,340</text><rect x="134" y="302" width="140" height="3" rx="1.5" fill="#2563eb" opacity="0.6"/>
+  <text x="134" y="320" font-size="10" fill="#cbd5e1" font-weight="600">Order #0452 - Print Services</text><text x="490" y="320" font-size="10" fill="#84cc16" font-weight="700" text-anchor="end">$890</text><rect x="134" y="326" width="90" height="3" rx="1.5" fill="#84cc16" opacity="0.6"/>
+  <text x="134" y="344" font-size="10" fill="#cbd5e1" font-weight="600">Order #0221 - Service Invoice</text><text x="490" y="344" font-size="10" fill="#2563eb" font-weight="700" text-anchor="end">$2,100</text><rect x="134" y="350" width="170" height="3" rx="1.5" fill="#2563eb" opacity="0.6"/>
+</svg>

@@ -3,7 +3,6 @@ export type LogLevel = "debug" | "error" | "info" | "warn";
 export type StructuredLog = {
   action?: string;
   app?: string;
-  correlationId?: string;
   durationMs?: number;
   environment?: string;
   errorCode?: string;

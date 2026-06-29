@@ -14,6 +14,9 @@ CODEXSUN APIs must be tenant-aware, permission-aware, stable, and clear for web,
 - API responses should avoid leaking internal implementation details.
 - Validation errors should be clear and field-specific.
 - Financial and compliance APIs should be especially explicit.
+- Tenant-scoped API calls should send `x-tenant-id` header with the validated database tenant ID.
+- The `x-tenant-id` header alone never authenticates or authorizes a request.
+- Protected tenant routes must validate that header tenant ID matches the authenticated session/JWT tenant context.
 
 ## API Types
 
@@ -117,7 +120,8 @@ Success:
   "data": {},
   "meta": {
     "requestId": "req_123",
-    "timestamp": "2026-06-28T10:00:00Z"
+    "timestamp": "2026-06-28T10:00:00Z",
+    "tenantId": "tenant-uuid-456"
   }
 }
 ```
@@ -134,7 +138,61 @@ Error:
   },
   "meta": {
     "requestId": "req_123",
-    "timestamp": "2026-06-28T10:00:00Z"
+    "timestamp": "2026-06-28T10:00:00Z",
+    "tenantId": "tenant-uuid-456"
   }
 }
 ```
+
+### Envelope Meta Fields
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `requestId` | always | Fastify request ID, used as internal trace value |
+| `timestamp` | always | ISO 8601 timestamp of response generation |
+| `tenantId` | optional | Present when the request carried a validated `x-tenant-id` header |
+
+### Request Header Contract
+
+| Header | When to send | Description |
+| --- | --- | --- |
+| `x-tenant-id` | Tenant-scoped API calls | Validated database tenant ID from session/JWT. Never used alone for auth. |
+| `x-correlation-id` | Removed | Superseded by `requestId` for trace and `tenantId` for tenant context. |
+
+## API Guard Pattern
+
+All protected routes use shared guard helpers from `apps/platform/api/src/auth/guards.ts`.
+
+### Available Guards
+
+| Guard | Purpose | Throws |
+| --- | --- | --- |
+| `requireSession(app, request)` | Resolves active session from Bearer token or `codexsun_session` cookie | `AppError.unauthorized()` if missing or invalid |
+| `requireUserType(session, allowedTypes)` | Checks user type against allowed list | `AppError.forbidden()` if type not allowed |
+| `requireSuperAdmin(app, request)` | Wrapper for super-admin-only routes | `AppError.unauthorized()` or `AppError.forbidden()` |
+| `requireTenantMatch(request, session)` | Verifies `x-tenant-id` header matches authenticated session tenant | `AppError.validation()` or `AppError.forbidden()` on mismatch |
+| `requirePermission(session, permission)` | Placeholder: super-admin allowed, others denied | `AppError.forbidden()` with permission name |
+| `requireActiveTenant(session)` | Placeholder: always passes | None yet |
+| `requireFeatureEnabled(tenantId, featureKey)` | Placeholder: always passes | None yet |
+
+### Route Ownership
+
+| Route module | File | Owner |
+| --- | --- | --- |
+| Auth (login, session, logout) | `apps/platform/api/src/auth/routes.ts` | `@codexsun/platform-api` |
+| Tenant management CRUD | `apps/platform/api/src/tenant/routes.ts` | `@codexsun/platform-api` |
+
+### Audit Events
+
+Auth and tenant mutations write audit events through `AuditService` (`@codexsun/platform/audit`).
+
+| Event Name | Trigger | Fields |
+| --- | --- | --- |
+| `auth.login.success` | Successful login | actorType, actorEmail, tenantId (optional) |
+| `auth.login.failed` | Failed login attempt | actorType, actorEmail |
+| `auth.logout` | Logout call | actorType, actorEmail, tenantId (optional) |
+| `tenant.created` | Tenant created by super admin | actorEmail, tenantId, tenantCode |
+| `tenant.updated` | Tenant updated by super admin | actorEmail, tenantId, changes |
+| `tenant.deleted` | Tenant deleted by super admin | actorEmail, tenantId, tenantCode |
+
+Audit failures are non-blocking: the main action completes and the failure is logged.

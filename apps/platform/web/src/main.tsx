@@ -1,5 +1,12 @@
 import { RouterProvider, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
-import { Dashboard01 } from "@codexsun/ui";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  DESIGN_SYSTEM_DEFAULT_STORAGE_KEY,
+  DESIGN_SYSTEM_NAME,
+  DESIGN_SYSTEM_VARIANT_MARKER,
+  Dashboard01,
+  isDesignSystemVariantId
+} from "@codexsun/ui";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "@codexsun/ui/styles.css";
@@ -11,6 +18,8 @@ import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { SaDesk } from "./pages/SaDesk";
 import { TenantDesk } from "./pages/TenantDesk";
+import { DesignSystemPage } from "./pages/DesignSystemPage";
+
 
 const rootRoute = createRootRoute();
 
@@ -24,6 +33,12 @@ const healthRoute = createRoute({
   component: HealthPage,
   getParentRoute: () => rootRoute,
   path: "/status"
+});
+
+const designSystemRoute = createRoute({
+  component: DesignSystemPage,
+  getParentRoute: () => rootRoute,
+  path: "/design-system"
 });
 
 const tenantLoginRoute = createRoute({
@@ -63,7 +78,7 @@ const tenantRoute = createRoute({
 });
 
 const workspaceRoute = createRoute({
-  component: Dashboard01,
+  component: import.meta.env.DEV ? Dashboard01 : () => <div>Not Found</div>,
   getParentRoute: () => rootRoute,
   path: "/workspace"
 });
@@ -71,6 +86,7 @@ const workspaceRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   homeRoute,
   healthRoute,
+  designSystemRoute,
   tenantLoginRoute,
   saLoginRoute,
   adminLoginRoute,
@@ -88,9 +104,22 @@ declare module "@tanstack/react-router" {
   }
 }
 
+const queryClient = new QueryClient();
+
+const storedDesignVariant = window.localStorage.getItem(DESIGN_SYSTEM_DEFAULT_STORAGE_KEY);
+document.documentElement.setAttribute("data-design-system", DESIGN_SYSTEM_NAME);
+document.documentElement.setAttribute(
+  DESIGN_SYSTEM_VARIANT_MARKER,
+  storedDesignVariant && isDesignSystemVariantId(storedDesignVariant)
+    ? storedDesignVariant
+    : "default"
+);
+
 createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <PageTitle />
-    <RouterProvider router={router} />
+    <QueryClientProvider client={queryClient}>
+      <PageTitle />
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   </React.StrictMode>
 );

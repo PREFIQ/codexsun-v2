@@ -5,7 +5,7 @@ export type TenantContext = {
 
 export type DomainEvent<TPayload = unknown> = {
   actorId?: string;
-  correlationId: string;
+  requestId?: string;
   eventName: string;
   eventVersion: number;
   occurredAt: string;

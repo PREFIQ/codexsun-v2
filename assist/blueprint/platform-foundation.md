@@ -23,14 +23,14 @@ The first package foundation provides subpaths for:
 
 ## Current Runtime Wiring
 
-Platform API now consumes `@codexsun/platform/auth` for:
+Platform API now consumes:
 
-- Login request contract.
-- Desk-to-user-type mapping.
-- Password hashing and verification.
-- In-memory development session store.
+- **`@codexsun/platform/auth`**: Login request contract, desk-to-user-type mapping, password hashing/verification, JWT creation/verification, cookie/hybrid session support via `DatabaseSessionStore`.
+- **`@codexsun/platform/tenant`**: `TenantLookupService` for tenant-by-code resolution and database resolution. `MasterDbTenantRepository` for CRUD operations. `TenantService` for validation and DTO mapping.
+- **`@codexsun/platform/audit`**: `MasterDbAuditRepository` and `AuditService` for writing auth and tenant mutation events.
+- **`apps/platform/api/src/auth/guards.ts`**: Shared guard helpers (`requireSession`, `requireUserType`, `requireSuperAdmin`, `requireTenantMatch`, `requirePermission`, `requireActiveTenant`, `requireFeatureEnabled`).
 
-SQL bootstrapping and seed execution remain inside `apps/platform/api` until cxsync migrations and Platform persistence repositories are formalized.
+Tenant CRUD SQL is behind `MasterDbTenantRepository` and `TenantService`. Auth and tenant mutation actions write audit events. SQL bootstrapping remains in `apps/platform/api` for now.
 
 ## Boundary Rules
 
@@ -41,9 +41,8 @@ SQL bootstrapping and seed execution remain inside `apps/platform/api` until cxs
 
 ## Next Platform Work
 
-- Move SQL persistence behind Platform repositories.
-- Add tenant lookup and domain resolution services.
-- Add activation enforcement helpers for API route guards.
-- Add permission checks and role-permission mapping.
-- Add audit event writer using framework event contracts.
-- Replace in-memory session store with persistent session tables.
+- Full RBAC screen and role-permission mapping UI.
+- Full tenant provisioning workflow.
+- Tenant database lifecycle management.
+- Feature toggle / activation admin screens.
+- Event outbox persistence for cross-service events.

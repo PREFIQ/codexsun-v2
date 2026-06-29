@@ -1,181 +1,141 @@
+import "fastify";
 import "@fastify/cookie";
-import { fail, ok } from "@codexsun/framework/http";
-import {
-  InMemorySessionStore,
-  deskToUserType,
-  loginRequestSchema,
-  verifyPassword
-} from "@codexsun/platform/auth";
+import { AppError } from "@codexsun/framework/errors";
+import { ok } from "@codexsun/framework/http";
+import { loginRequestSchema } from "@codexsun/platform/auth";
 import type { FastifyInstance } from "fastify";
-import { createServerConnection } from "../db/bootstrap.js";
-import { env } from "../env.js";
 
-const sessions = new InMemorySessionStore();
+function responseMeta(request: { id: string; tenantId?: string }) {
+  return {
+    requestId: request.id,
+    ...(request.tenantId ? { tenantId: request.tenantId } : {})
+  };
+}
+
+function tokenFromRequest(request: {
+  headers: Record<string, unknown>;
+}) {
+  const authorization = request.headers.authorization;
+  return typeof authorization === "string" && authorization.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length).trim()
+    : undefined;
+}
+
+function userTypeToActorType(userType: string): "staff" | "super_admin" | "system" | "tenant" {
+  if (userType === "super_admin") return "super_admin";
+  if (userType === "staff") return "staff";
+  if (userType === "tenant") return "tenant";
+  return "system";
+}
 
 export async function registerAuthRoutes(app: FastifyInstance) {
   app.post("/auth/login", async (request, reply) => {
     const parsed = loginRequestSchema.safeParse(request.body);
-
     if (!parsed.success) {
-      return reply.code(400).send(
-        fail(
-          {
-          code: "VALIDATION_ERROR",
-          message: "Login details are invalid",
-          details: parsed.error.flatten()
-        },
-          {
-            requestId: request.id
-          }
-        )
-      );
+      throw AppError.validation("Login details are invalid", parsed.error.flatten());
     }
 
     const { desk, email, password, tenantCode } = parsed.data;
-    const user = await findUser(desk, email);
-
-    if (!user || !verifyPassword(password, user.password_hash as string)) {
-      return reply.code(401).send(
-        fail(
-          {
-          code: "INVALID_CREDENTIALS",
-          message: "Email or password is incorrect",
-          details: {}
-        },
-          {
-            requestId: request.id
-          }
-        )
-      );
+    let session;
+    try {
+      session = await app.authService.login({
+        desk,
+        email,
+        password,
+        ...(tenantCode ? { tenantCode } : {})
+      });
+    } catch (error) {
+      await app.auditService.authLoginFailed({
+        actorType: desk === "sa" ? "super_admin" : desk === "admin" ? "staff" : "tenant",
+        actorEmail: email
+      });
+      throw error;
     }
 
-    const userType = deskToUserType(desk);
-
-    const sessionInput =
-      desk === "tenant"
-        ? {
-            email,
-            tenantCode,
-            userType
-          }
-        : {
-            email,
-            userType
-          };
-
-    const session = sessions.create(sessionInput);
+    await app.auditService.authLoginSuccess({
+      actorType: userTypeToActorType(session.userType),
+      actorEmail: session.email,
+      ...(session.tenantId ? { tenantId: session.tenantId } : {})
+    });
 
     reply.setCookie("codexsun_session", session.token, {
       httpOnly: true,
       path: "/",
       sameSite: "lax",
-      secure: env.NODE_ENV === "production"
+      secure: false
     });
 
     return ok(
       {
+        accessToken: session.token,
         email: session.email,
+        tenantId: session.tenantId,
         tenantCode: session.tenantCode,
         userType: session.userType
       },
-      {
-        requestId: request.id
-      }
-    );
-  });
-
-  app.get("/auth/me", async (request, reply) => {
-    const session = sessions.get(request.cookies.codexsun_session);
-
-    if (!session) {
-      return reply.code(401).send(
-        fail(
-          {
-          code: "NOT_AUTHENTICATED",
-          message: "No active session",
-          details: {}
-        },
-          {
-            requestId: request.id
-          }
-        )
-      );
-    }
-
-    return ok(
-      {
-        email: session.email,
-        tenantCode: session.tenantCode,
-        userType: session.userType
-      },
-      {
-        requestId: request.id
-      }
+      responseMeta(request)
     );
   });
 
   app.get("/auth/session", async (request) => {
-    const session = sessions.get(request.cookies.codexsun_session);
-
-    if (!session) {
+    const bearerToken = tokenFromRequest(request);
+    const cookieToken = request.cookies?.codexsun_session;
+    const token = bearerToken || cookieToken;
+    if (!token) {
       return ok(
         {
           authenticated: false
         },
-        {
-          requestId: request.id
-        }
+        responseMeta(request)
       );
     }
 
-    return ok(
-      {
-        authenticated: true,
-        email: session.email,
-        tenantCode: session.tenantCode,
-        userType: session.userType
-      },
-      {
-        requestId: request.id
-      }
-    );
+    try {
+      const session = await app.authService.getSession(token);
+      return ok(
+        {
+          authenticated: true,
+          email: session.email,
+          tenantId: session.tenantId,
+          tenantCode: session.tenantCode,
+          userType: session.userType
+        },
+        responseMeta(request)
+      );
+    } catch {
+      return ok(
+        {
+          authenticated: false
+        },
+        responseMeta(request)
+      );
+    }
   });
 
-  app.post("/auth/logout", async (request) => {
-    sessions.destroy(request.cookies.codexsun_session);
+  app.post("/auth/logout", async (request, reply) => {
+    const bearerToken = tokenFromRequest(request);
+    const cookieToken = request.cookies?.codexsun_session;
+    const token = bearerToken || cookieToken;
+
+    try {
+      const session = await app.authService.getSession(token);
+      await app.auditService.authLogout({
+        actorType: userTypeToActorType(session.userType),
+        actorEmail: session.email,
+        ...(session.tenantId ? { tenantId: session.tenantId } : {})
+      });
+    } catch {
+      // Session already invalid; audit without details
+    }
+
+    await app.authService.logout(token);
+    reply.clearCookie("codexsun_session", { path: "/" });
 
     return ok(
       {
         loggedOut: true
       },
-      {
-        requestId: request.id
-      }
+      responseMeta(request)
     );
   });
-}
-
-type UserRow = {
-  password_hash: string;
-};
-
-async function findUser(desk: "sa" | "admin" | "tenant", email: string): Promise<UserRow | undefined> {
-  if (desk === "tenant") {
-    const tenantDb = await createServerConnection(env.TENANT_TEST_DB_NAME);
-    const [rows] = await tenantDb.execute<UserRow[]>(
-      "SELECT * FROM tenant_users WHERE email = ? LIMIT 1",
-      [email]
-    );
-    await tenantDb.end();
-    return rows[0];
-  }
-
-  const tableName = desk === "sa" ? "super_admin_users" : "staff_users";
-  const masterDb = await createServerConnection(env.DB_MASTER_NAME);
-  const [rows] = await masterDb.execute<UserRow[]>(
-    `SELECT * FROM ${tableName} WHERE email = ? LIMIT 1`,
-    [email]
-  );
-  await masterDb.end();
-  return rows[0];
 }

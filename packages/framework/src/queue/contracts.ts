@@ -1,5 +1,5 @@
 export type QueueJob<TPayload = unknown> = {
-  correlationId: string;
+  requestId?: string;
   idempotencyKey?: string;
   jobName: string;
   payload: TPayload;
