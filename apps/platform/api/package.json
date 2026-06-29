@@ -12,8 +12,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@codexsun/framework": "1.0.2",
-    "@codexsun/platform": "1.0.2",
+    "@codexsun/framework": "1.0.4",
+    "@codexsun/platform": "1.0.4",
     "@fastify/cookie": "^11.0.1",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.1",
