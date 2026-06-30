@@ -37,26 +37,21 @@ export async function registerCoreProductRoutes(app: FastifyInstance, ctx: CoreR
     await ctx.guardFeatureEnabled(app, tenantId, "core");
     ctx.guardPermission(session, "core.product.manage");
     const body = request.body as {
-      code: string; name: string; description?: string;
-      groupCode?: string; categoryCode?: string; typeCode?: string;
-      unitCode: string; hsnCode?: string; taxCategoryCode?: string;
-      attributes?: any[];
+      code: string; name: string;
+      productTypeId?: number; hsnCodeId?: number; unitId?: number; taxId?: number;
     };
     const product = await app.coreProductService.create({
-      tenantId, code: body.code, name: body.name, unitCode: body.unitCode,
-      ...(body.description !== undefined ? { description: body.description } : {}),
-      ...(body.groupCode !== undefined ? { groupCode: body.groupCode } : {}),
-      ...(body.categoryCode !== undefined ? { categoryCode: body.categoryCode } : {}),
-      ...(body.typeCode !== undefined ? { typeCode: body.typeCode } : {}),
-      ...(body.hsnCode !== undefined ? { hsnCode: body.hsnCode } : {}),
-      ...(body.taxCategoryCode !== undefined ? { taxCategoryCode: body.taxCategoryCode } : {}),
-      ...(body.attributes !== undefined ? { attributes: body.attributes } : {}),
+      tenantId, code: body.code, name: body.name,
+      ...(body.productTypeId !== undefined ? { productTypeId: body.productTypeId } : {}),
+      ...(body.hsnCodeId !== undefined ? { hsnCodeId: body.hsnCodeId } : {}),
+      ...(body.unitId !== undefined ? { unitId: body.unitId } : {}),
+      ...(body.taxId !== undefined ? { taxId: body.taxId } : {}),
       createdBy: session.email
     });
     await auditRecordEvent(app, {
       actorType: "tenant", actorEmail: session.email,
       eventName: "core.product.created",
-      payload: { itemId: product.itemId, code: body.code, name: body.name },
+      payload: { itemId: product.itemId, code: body.code },
       ...(request.correlationId ? { correlationId: request.correlationId } : {}),
       ...(request.tenantId ? { tenantId: request.tenantId } : {})
     });
@@ -71,22 +66,16 @@ export async function registerCoreProductRoutes(app: FastifyInstance, ctx: CoreR
     ctx.guardPermission(session, "core.product.manage");
     const { id } = request.params as { id: string };
     const body = request.body as {
-      name?: string; description?: string;
-      groupCode?: string; categoryCode?: string; typeCode?: string;
-      unitCode?: string; hsnCode?: string; taxCategoryCode?: string;
-      attributes?: any[];
+      name?: string;
+      productTypeId?: number; hsnCodeId?: number; unitId?: number; taxId?: number;
     };
     const product = await app.coreProductService.update({
       tenantId, itemId: id,
       ...(body.name !== undefined ? { name: body.name } : {}),
-      ...(body.description !== undefined ? { description: body.description } : {}),
-      ...(body.groupCode !== undefined ? { groupCode: body.groupCode } : {}),
-      ...(body.categoryCode !== undefined ? { categoryCode: body.categoryCode } : {}),
-      ...(body.typeCode !== undefined ? { typeCode: body.typeCode } : {}),
-      ...(body.unitCode !== undefined ? { unitCode: body.unitCode } : {}),
-      ...(body.hsnCode !== undefined ? { hsnCode: body.hsnCode } : {}),
-      ...(body.taxCategoryCode !== undefined ? { taxCategoryCode: body.taxCategoryCode } : {}),
-      ...(body.attributes !== undefined ? { attributes: body.attributes } : {}),
+      ...(body.productTypeId !== undefined ? { productTypeId: body.productTypeId } : {}),
+      ...(body.hsnCodeId !== undefined ? { hsnCodeId: body.hsnCodeId } : {}),
+      ...(body.unitId !== undefined ? { unitId: body.unitId } : {}),
+      ...(body.taxId !== undefined ? { taxId: body.taxId } : {}),
       updatedBy: session.email
     });
     await auditRecordEvent(app, {

@@ -26,7 +26,6 @@ export class ProductService {
     if (!input.tenantId) throw AppError.validation("tenantId is required");
     if (!input.code?.trim()) throw AppError.validation("code is required");
     if (!input.name?.trim()) throw AppError.validation("name is required");
-    if (!input.unitCode?.trim()) throw AppError.validation("unitCode is required");
     const existing = await this.repository.getByCode(input.tenantId, input.code);
     if (existing) throw AppError.conflict(`Product with code '${input.code}' already exists`);
     const product: ProductItem = {
@@ -34,14 +33,10 @@ export class ProductService {
       tenantId: input.tenantId,
       code: input.code,
       name: input.name,
-      ...(input.description !== undefined ? { description: input.description } : {}),
-      ...(input.groupCode !== undefined ? { groupCode: input.groupCode } : {}),
-      ...(input.categoryCode !== undefined ? { categoryCode: input.categoryCode } : {}),
-      ...(input.typeCode !== undefined ? { typeCode: input.typeCode } : {}),
-      unitCode: input.unitCode,
-      ...(input.hsnCode !== undefined ? { hsnCode: input.hsnCode } : {}),
-      ...(input.taxCategoryCode !== undefined ? { taxCategoryCode: input.taxCategoryCode } : {}),
-      attributes: input.attributes ?? [],
+      ...(input.productTypeId !== undefined ? { productTypeId: input.productTypeId } : {}),
+      ...(input.hsnCodeId !== undefined ? { hsnCodeId: input.hsnCodeId } : {}),
+      ...(input.unitId !== undefined ? { unitId: input.unitId } : {}),
+      ...(input.taxId !== undefined ? { taxId: input.taxId } : {}),
       status: "active",
       createdBy: input.createdBy,
       createdAt: new Date().toISOString(),
@@ -57,14 +52,10 @@ export class ProductService {
     const updated: ProductItem = {
       ...existing,
       ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.description !== undefined ? { description: input.description } : {}),
-      ...(input.groupCode !== undefined ? { groupCode: input.groupCode } : {}),
-      ...(input.categoryCode !== undefined ? { categoryCode: input.categoryCode } : {}),
-      ...(input.typeCode !== undefined ? { typeCode: input.typeCode } : {}),
-      ...(input.unitCode !== undefined ? { unitCode: input.unitCode } : {}),
-      ...(input.hsnCode !== undefined ? { hsnCode: input.hsnCode } : {}),
-      ...(input.taxCategoryCode !== undefined ? { taxCategoryCode: input.taxCategoryCode } : {}),
-      ...(input.attributes !== undefined ? { attributes: input.attributes } : {}),
+      ...(input.productTypeId !== undefined ? { productTypeId: input.productTypeId } : {}),
+      ...(input.hsnCodeId !== undefined ? { hsnCodeId: input.hsnCodeId } : {}),
+      ...(input.unitId !== undefined ? { unitId: input.unitId } : {}),
+      ...(input.taxId !== undefined ? { taxId: input.taxId } : {}),
       updatedBy: input.updatedBy,
       updatedAt: new Date().toISOString()
     };

@@ -28,26 +28,47 @@ export async function registerCoreContactRoutes(app: FastifyInstance, ctx: CoreR
     await ctx.guardFeatureEnabled(app, tenantId, "core");
     ctx.guardPermission(session, "core.contact.manage");
     const body = request.body as {
-      contactType: string; displayName: string; companyName?: string;
-      phone?: any[]; email?: any[]; addresses?: any[];
-      socialLinks?: any[]; bankAccounts?: any[]; taxIdentities?: any[]; notes?: string;
+      code: string; name: string; contactTypeId?: string;
+      ledgerId?: string; ledgerName?: string; legalName?: string;
+      pan?: string; gstin?: string; msmeType?: string; msmeNo?: string;
+      tan?: string; tdsAvailable?: boolean; tcsAvailable?: boolean;
+      openingBalance?: number; balanceType?: string; creditLimit?: number;
+      website?: string; primaryEmail?: string; primaryPhone?: string; description?: string;
+      addressBook?: any[]; contactEmails?: any[]; contactPhones?: any[];
+      contactSocialLinks?: any[]; contactBankAccounts?: any[]; contactGstDetails?: any[];
     };
     const contact = await app.coreContactService.create({
-      tenantId, contactType: body.contactType as any, displayName: body.displayName,
-      ...(body.companyName !== undefined ? { companyName: body.companyName } : {}),
-      ...(body.phone !== undefined ? { phone: body.phone } : {}),
-      ...(body.email !== undefined ? { email: body.email } : {}),
-      ...(body.addresses !== undefined ? { addresses: body.addresses } : {}),
-      ...(body.socialLinks !== undefined ? { socialLinks: body.socialLinks } : {}),
-      ...(body.bankAccounts !== undefined ? { bankAccounts: body.bankAccounts } : {}),
-      ...(body.taxIdentities !== undefined ? { taxIdentities: body.taxIdentities } : {}),
-      ...(body.notes !== undefined ? { notes: body.notes } : {}),
+      tenantId, code: body.code, name: body.name,
+      ...(body.contactTypeId !== undefined ? { contactTypeId: body.contactTypeId } : {}),
+      ...(body.ledgerId !== undefined ? { ledgerId: body.ledgerId } : {}),
+      ...(body.ledgerName !== undefined ? { ledgerName: body.ledgerName } : {}),
+      ...(body.legalName !== undefined ? { legalName: body.legalName } : {}),
+      ...(body.pan !== undefined ? { pan: body.pan } : {}),
+      ...(body.gstin !== undefined ? { gstin: body.gstin } : {}),
+      ...(body.msmeType !== undefined ? { msmeType: body.msmeType } : {}),
+      ...(body.msmeNo !== undefined ? { msmeNo: body.msmeNo } : {}),
+      ...(body.tan !== undefined ? { tan: body.tan } : {}),
+      ...(body.tdsAvailable !== undefined ? { tdsAvailable: body.tdsAvailable } : {}),
+      ...(body.tcsAvailable !== undefined ? { tcsAvailable: body.tcsAvailable } : {}),
+      ...(body.openingBalance !== undefined ? { openingBalance: body.openingBalance } : {}),
+      ...(body.balanceType !== undefined ? { balanceType: body.balanceType } : {}),
+      ...(body.creditLimit !== undefined ? { creditLimit: body.creditLimit } : {}),
+      ...(body.website !== undefined ? { website: body.website } : {}),
+      ...(body.primaryEmail !== undefined ? { primaryEmail: body.primaryEmail } : {}),
+      ...(body.primaryPhone !== undefined ? { primaryPhone: body.primaryPhone } : {}),
+      ...(body.description !== undefined ? { description: body.description } : {}),
+      ...(body.addressBook !== undefined ? { addressBook: body.addressBook } : {}),
+      ...(body.contactEmails !== undefined ? { contactEmails: body.contactEmails } : {}),
+      ...(body.contactPhones !== undefined ? { contactPhones: body.contactPhones } : {}),
+      ...(body.contactSocialLinks !== undefined ? { contactSocialLinks: body.contactSocialLinks } : {}),
+      ...(body.contactBankAccounts !== undefined ? { contactBankAccounts: body.contactBankAccounts } : {}),
+      ...(body.contactGstDetails !== undefined ? { contactGstDetails: body.contactGstDetails } : {}),
       createdBy: session.email
     });
     await auditRecordEvent(app, {
       actorType: "tenant", actorEmail: session.email,
       eventName: "core.contact.created",
-      payload: { contactId: contact.contactId, displayName: body.displayName },
+      payload: { contactId: contact.contactId, name: body.name },
       ...(request.correlationId ? { correlationId: request.correlationId } : {}),
       ...(request.tenantId ? { tenantId: request.tenantId } : {})
     });
@@ -62,22 +83,43 @@ export async function registerCoreContactRoutes(app: FastifyInstance, ctx: CoreR
     ctx.guardPermission(session, "core.contact.manage");
     const { id } = request.params as { id: string };
     const body = request.body as {
-      contactType?: string; displayName?: string; companyName?: string;
-      phone?: any[]; email?: any[]; addresses?: any[];
-      socialLinks?: any[]; bankAccounts?: any[]; taxIdentities?: any[]; notes?: string;
+      code?: string; name?: string; contactTypeId?: string;
+      ledgerId?: string; ledgerName?: string; legalName?: string;
+      pan?: string; gstin?: string; msmeType?: string; msmeNo?: string;
+      tan?: string; tdsAvailable?: boolean; tcsAvailable?: boolean;
+      openingBalance?: number; balanceType?: string; creditLimit?: number;
+      website?: string; primaryEmail?: string; primaryPhone?: string; description?: string;
+      addressBook?: any[]; contactEmails?: any[]; contactPhones?: any[];
+      contactSocialLinks?: any[]; contactBankAccounts?: any[]; contactGstDetails?: any[];
     };
     const contact = await app.coreContactService.update({
       tenantId, contactId: id,
-      ...(body.contactType !== undefined ? { contactType: body.contactType as any } : {}),
-      ...(body.displayName !== undefined ? { displayName: body.displayName } : {}),
-      ...(body.companyName !== undefined ? { companyName: body.companyName } : {}),
-      ...(body.phone !== undefined ? { phone: body.phone } : {}),
-      ...(body.email !== undefined ? { email: body.email } : {}),
-      ...(body.addresses !== undefined ? { addresses: body.addresses } : {}),
-      ...(body.socialLinks !== undefined ? { socialLinks: body.socialLinks } : {}),
-      ...(body.bankAccounts !== undefined ? { bankAccounts: body.bankAccounts } : {}),
-      ...(body.taxIdentities !== undefined ? { taxIdentities: body.taxIdentities } : {}),
-      ...(body.notes !== undefined ? { notes: body.notes } : {}),
+      ...(body.code !== undefined ? { code: body.code } : {}),
+      ...(body.name !== undefined ? { name: body.name } : {}),
+      ...(body.contactTypeId !== undefined ? { contactTypeId: body.contactTypeId } : {}),
+      ...(body.ledgerId !== undefined ? { ledgerId: body.ledgerId } : {}),
+      ...(body.ledgerName !== undefined ? { ledgerName: body.ledgerName } : {}),
+      ...(body.legalName !== undefined ? { legalName: body.legalName } : {}),
+      ...(body.pan !== undefined ? { pan: body.pan } : {}),
+      ...(body.gstin !== undefined ? { gstin: body.gstin } : {}),
+      ...(body.msmeType !== undefined ? { msmeType: body.msmeType } : {}),
+      ...(body.msmeNo !== undefined ? { msmeNo: body.msmeNo } : {}),
+      ...(body.tan !== undefined ? { tan: body.tan } : {}),
+      ...(body.tdsAvailable !== undefined ? { tdsAvailable: body.tdsAvailable } : {}),
+      ...(body.tcsAvailable !== undefined ? { tcsAvailable: body.tcsAvailable } : {}),
+      ...(body.openingBalance !== undefined ? { openingBalance: body.openingBalance } : {}),
+      ...(body.balanceType !== undefined ? { balanceType: body.balanceType } : {}),
+      ...(body.creditLimit !== undefined ? { creditLimit: body.creditLimit } : {}),
+      ...(body.website !== undefined ? { website: body.website } : {}),
+      ...(body.primaryEmail !== undefined ? { primaryEmail: body.primaryEmail } : {}),
+      ...(body.primaryPhone !== undefined ? { primaryPhone: body.primaryPhone } : {}),
+      ...(body.description !== undefined ? { description: body.description } : {}),
+      ...(body.addressBook !== undefined ? { addressBook: body.addressBook } : {}),
+      ...(body.contactEmails !== undefined ? { contactEmails: body.contactEmails } : {}),
+      ...(body.contactPhones !== undefined ? { contactPhones: body.contactPhones } : {}),
+      ...(body.contactSocialLinks !== undefined ? { contactSocialLinks: body.contactSocialLinks } : {}),
+      ...(body.contactBankAccounts !== undefined ? { contactBankAccounts: body.contactBankAccounts } : {}),
+      ...(body.contactGstDetails !== undefined ? { contactGstDetails: body.contactGstDetails } : {}),
       updatedBy: session.email
     });
     await auditRecordEvent(app, {

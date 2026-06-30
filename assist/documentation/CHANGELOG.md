@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.17
+Current version: 1.0.19
 
-Release tag: v-1.0.17
+Release tag: v-1.0.19
 
-Changelog label: v 1.0.17
+Changelog label: v 1.0.19
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -19,6 +19,48 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 #### App Codebase Changes
 
 Records UI, API, service logic, tooling, and documentation changes.
+
+## v-1.0.19
+
+### [v 1.0.19] 2026-06-30 7:00 pm - Individual Typed Common Modules With API Routes
+
+#### Database Changes
+
+- No schema changes in this version (in-memory repositories).
+
+#### App Codebase Changes
+
+- **apps/core**: Refactored 30 common modules from a single generic `CoreRecord` with `payload` JSON field into individual typed modules under `apps/core/src/common-modules/` — each with its own contracts, repository, service, and subpath export (e.g. `@codexsun/core/common-modules/countries`).
+- **apps/core**: Created `CommonModuleService` interface and `CommonModuleServiceMap` registry for dispatching CRUD operations to typed services by `definitionKey`.
+- **apps/core**: Created `setup.ts` that instantiates all 30 service+repository pairs into a single registry object.
+- **apps/core**: Rewrote `common-routes.ts` to dispatch `/core/common/*` requests to the registry instead of using the old generic `CoreRecordService`. Routes now require `definitionKey` as a query parameter for list/getById/archive/restore and as a body field for create/update.
+- **apps/core**: Updated `api/index.ts` with `coreCommonServices` Fastify decoration type and exported `createAllCommonModuleServices`, `commonModuleDefinitions`, and `CommonModuleServiceMap`.
+- **apps/platform/api**: Wired `createAllCommonModuleServices()` into Fastify DI and decorated `coreCommonServices` on the app instance.
+- **apps/platform/web**: Rewired `CommonModulePage` from mock data to real API calls using `useQuery`/`useMutation` with `@tanstack/react-query`, `apiGet`/`apiPost`/`apiPut` helpers, and `toast` notifications. Removed `sampleRecords`.
+- All 3 packages (`apps/core`, `apps/platform/api`, `apps/platform/web`) pass typecheck with zero errors.
+
+## v-1.0.18
+
+### [v 1.0.18] 2026-06-30 6:00 pm - Tenant Common And Master Data Modules
+
+#### Database Changes
+
+- No schema changes in this version (in-memory repositories used for prototyping).
+
+#### App Codebase Changes
+
+- **apps/core**: Added `WorkOrderService`, `InMemoryWorkOrderRepository`, and work order contracts (`WorkOrderProfile`, `WorkOrderCreateInput`, `WorkOrderUpdateInput`) with six CRUD API routes (`GET/POST /core/orders`, `GET/PUT /core/orders/:id`, `POST /core/orders/:id/archive`, `POST /core/orders/:id/restore`).
+- **apps/core**: Updated `ContactProfile` to match Task 19 field spec with `code`, `name`, `contactTypeId`, `ledgerId`, `legalName`, `pan`, `gstin`, `msmeType/no`, `tan`, `tdsAvailable`, `tcsAvailable`, `openingBalance`, `balanceType`, `creditLimit`, `website`, `primaryEmail`, `primaryPhone`, `description`, and child arrays for `addressBook`, `contactEmails`, `contactPhones`, `contactSocialLinks`, `contactBankAccounts`, `contactGstDetails`.
+- **apps/core**: Updated `ProductItem` to match Task 19 field spec with `productTypeId?`, `hsnCodeId?`, `unitId?`, `taxId?` (integer references) replacing old string-code-based fields.
+- **apps/core**: Added extended seed data for `salesAccountType`, `orderType`, `transport`, `warehouse`, `destination`, `stockRejectionType`, `contactGroup`, `productGroup`, `productCategory`, `productType`, `brand`, `colour`, `size`, `style`.
+- **apps/core**: Exported `"./master/orders"` package path and registered `registerCoreOrderRoutes` in `registerAllCoreRoutes`.
+- **apps/platform/api**: Wired `WorkOrderService` into Fastify app DI and decoration.
+- **apps/platform/web**: Built `CommonModuleIndexPage` — grouped index of all 30 common module definitions (Location, Contacts, Product, Orders, Others).
+- **apps/platform/web**: Built `CommonModulePage` — generic list + popup upsert (via `WorkspaceUpsertDialog`) for any common module, with code/name columns, search, status filter, pagination, active badge, row actions, and active toggle in upsert.
+- **apps/platform/web**: Built `ProductListPage` — product master with list, show, and upsert views (code, name, type, HSN, unit, tax, active toggle).
+- **apps/platform/web**: Built `WorkOrderListPage` — work order master with list, show, and upsert views (code, name, description, active toggle).
+- **apps/platform/web**: Added `CommonRecordAutocomplete`, `ProductAutocomplete`, `WorkOrderAutocomplete` — API-fetched searchable dropdowns using `WorkspaceAutocomplete`.
+- **apps/platform/web**: Updated `TenantDesk` with Dashboard, Contacts, Products, Work Orders, and Master Data navigation sections.
 
 ## v-1.0.17
 

@@ -1,52 +1,180 @@
 {
-  "name": "@codexsun/core",
-  "version": "1.0.17",
-  "private": true,
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./common": {
-      "types": "./dist/common/index.d.ts",
-      "default": "./dist/common/index.js"
-    },
-    "./master/contacts": {
-      "types": "./dist/master/contacts/index.d.ts",
-      "default": "./dist/master/contacts/index.js"
-    },
-    "./master/companies": {
-      "types": "./dist/master/companies/index.d.ts",
-      "default": "./dist/master/companies/index.js"
-    },
-    "./master/products": {
-      "types": "./dist/master/products/index.d.ts",
-      "default": "./dist/master/products/index.js"
-    },
-    "./shared": {
-      "types": "./dist/shared/index.d.ts",
-      "default": "./dist/shared/index.js"
-    },
-    "./api": {
-      "types": "./dist/api/index.d.ts",
-      "default": "./dist/api/index.js"
-    },
-    "./testing": {
-      "types": "./dist/testing/index.d.ts",
-      "default": "./dist/testing/index.js"
-    }
-  },
-  "scripts": {
-    "build": "tsc -p tsconfig.json --emitDeclarationOnly false",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src --ext .ts"
-  },
-  "dependencies": {
-    "@codexsun/framework": "^1.0.9"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.2",
-    "typescript": "^5.7.2"
-  }
+    "name":  "@codexsun/core",
+    "version":  "1.0.17",
+    "private":  true,
+    "type":  "module",
+    "scripts":  {
+                    "build":  "tsc -p tsconfig.json --emitDeclarationOnly false",
+                    "typecheck":  "tsc -p tsconfig.json --noEmit",
+                    "lint":  "eslint src --ext .ts"
+                },
+    "dependencies":  {
+                         "@codexsun/framework":  "^1.0.9"
+                     },
+    "devDependencies":  {
+                            "@types/node":  "^22.10.2",
+                            "typescript":  "^5.7.2"
+                        },
+    "exports":  {
+                    ".":  {
+                              "types":  "./dist/index.d.ts",
+                              "default":  "./dist/index.js"
+                          },
+                    "./api":  {
+                                  "types":  "./dist/api/index.d.ts",
+                                  "default":  "./dist/api/index.js"
+                              },
+                    "./common":  {
+                                     "types":  "./dist/common/index.d.ts",
+                                     "default":  "./dist/common/index.js"
+                                 },
+                    "./common-modules/accounting-year":  {
+                                                             "types":  "./dist/common-modules/accounting-year/index.d.ts",
+                                                             "default":  "./dist/common-modules/accounting-year/index.js"
+                                                         },
+                    "./common-modules/address-types":  {
+                                                           "types":  "./dist/common-modules/address-types/index.d.ts",
+                                                           "default":  "./dist/common-modules/address-types/index.js"
+                                                       },
+                    "./common-modules/bank-names":  {
+                                                        "types":  "./dist/common-modules/bank-names/index.d.ts",
+                                                        "default":  "./dist/common-modules/bank-names/index.js"
+                                                    },
+                    "./common-modules/base":  {
+                                                  "types":  "./dist/common-modules/base/index.d.ts",
+                                                  "default":  "./dist/common-modules/base/index.js"
+                                              },
+                    "./common-modules/brands":  {
+                                                    "types":  "./dist/common-modules/brands/index.d.ts",
+                                                    "default":  "./dist/common-modules/brands/index.js"
+                                                },
+                    "./common-modules/cities":  {
+                                                    "types":  "./dist/common-modules/cities/index.d.ts",
+                                                    "default":  "./dist/common-modules/cities/index.js"
+                                                },
+                    "./common-modules/colours":  {
+                                                     "types":  "./dist/common-modules/colours/index.d.ts",
+                                                     "default":  "./dist/common-modules/colours/index.js"
+                                                 },
+                    "./common-modules/contact-groups":  {
+                                                            "types":  "./dist/common-modules/contact-groups/index.d.ts",
+                                                            "default":  "./dist/common-modules/contact-groups/index.js"
+                                                        },
+                    "./common-modules/contact-types":  {
+                                                           "types":  "./dist/common-modules/contact-types/index.d.ts",
+                                                           "default":  "./dist/common-modules/contact-types/index.js"
+                                                       },
+                    "./common-modules/countries":  {
+                                                       "types":  "./dist/common-modules/countries/index.d.ts",
+                                                       "default":  "./dist/common-modules/countries/index.js"
+                                                   },
+                    "./common-modules/currencies":  {
+                                                        "types":  "./dist/common-modules/currencies/index.d.ts",
+                                                        "default":  "./dist/common-modules/currencies/index.js"
+                                                    },
+                    "./common-modules/destinations":  {
+                                                          "types":  "./dist/common-modules/destinations/index.d.ts",
+                                                          "default":  "./dist/common-modules/destinations/index.js"
+                                                      },
+                    "./common-modules/districts":  {
+                                                       "types":  "./dist/common-modules/districts/index.d.ts",
+                                                       "default":  "./dist/common-modules/districts/index.js"
+                                                   },
+                    "./common-modules/hsn-codes":  {
+                                                       "types":  "./dist/common-modules/hsn-codes/index.d.ts",
+                                                       "default":  "./dist/common-modules/hsn-codes/index.js"
+                                                   },
+                    "./common-modules/months":  {
+                                                    "types":  "./dist/common-modules/months/index.d.ts",
+                                                    "default":  "./dist/common-modules/months/index.js"
+                                                },
+                    "./common-modules/order-types":  {
+                                                         "types":  "./dist/common-modules/order-types/index.d.ts",
+                                                         "default":  "./dist/common-modules/order-types/index.js"
+                                                     },
+                    "./common-modules/payment-terms":  {
+                                                           "types":  "./dist/common-modules/payment-terms/index.d.ts",
+                                                           "default":  "./dist/common-modules/payment-terms/index.js"
+                                                       },
+                    "./common-modules/pincodes":  {
+                                                      "types":  "./dist/common-modules/pincodes/index.d.ts",
+                                                      "default":  "./dist/common-modules/pincodes/index.js"
+                                                  },
+                    "./common-modules/priorities":  {
+                                                        "types":  "./dist/common-modules/priorities/index.d.ts",
+                                                        "default":  "./dist/common-modules/priorities/index.js"
+                                                    },
+                    "./common-modules/product-categories":  {
+                                                                "types":  "./dist/common-modules/product-categories/index.d.ts",
+                                                                "default":  "./dist/common-modules/product-categories/index.js"
+                                                            },
+                    "./common-modules/product-groups":  {
+                                                            "types":  "./dist/common-modules/product-groups/index.d.ts",
+                                                            "default":  "./dist/common-modules/product-groups/index.js"
+                                                        },
+                    "./common-modules/product-types":  {
+                                                           "types":  "./dist/common-modules/product-types/index.d.ts",
+                                                           "default":  "./dist/common-modules/product-types/index.js"
+                                                       },
+                    "./common-modules/sales-account-types":  {
+                                                                 "types":  "./dist/common-modules/sales-account-types/index.d.ts",
+                                                                 "default":  "./dist/common-modules/sales-account-types/index.js"
+                                                             },
+                    "./common-modules/sizes":  {
+                                                   "types":  "./dist/common-modules/sizes/index.d.ts",
+                                                   "default":  "./dist/common-modules/sizes/index.js"
+                                               },
+                    "./common-modules/states":  {
+                                                    "types":  "./dist/common-modules/states/index.d.ts",
+                                                    "default":  "./dist/common-modules/states/index.js"
+                                                },
+                    "./common-modules/stock-rejection-types":  {
+                                                                   "types":  "./dist/common-modules/stock-rejection-types/index.d.ts",
+                                                                   "default":  "./dist/common-modules/stock-rejection-types/index.js"
+                                                               },
+                    "./common-modules/styles":  {
+                                                    "types":  "./dist/common-modules/styles/index.d.ts",
+                                                    "default":  "./dist/common-modules/styles/index.js"
+                                                },
+                    "./common-modules/taxes":  {
+                                                   "types":  "./dist/common-modules/taxes/index.d.ts",
+                                                   "default":  "./dist/common-modules/taxes/index.js"
+                                               },
+                    "./common-modules/transports":  {
+                                                        "types":  "./dist/common-modules/transports/index.d.ts",
+                                                        "default":  "./dist/common-modules/transports/index.js"
+                                                    },
+                    "./common-modules/units":  {
+                                                   "types":  "./dist/common-modules/units/index.d.ts",
+                                                   "default":  "./dist/common-modules/units/index.js"
+                                               },
+                    "./common-modules/warehouses":  {
+                                                        "types":  "./dist/common-modules/warehouses/index.d.ts",
+                                                        "default":  "./dist/common-modules/warehouses/index.js"
+                                                    },
+                    "./master/companies":  {
+                                               "types":  "./dist/master/companies/index.d.ts",
+                                               "default":  "./dist/master/companies/index.js"
+                                           },
+                    "./master/contacts":  {
+                                              "types":  "./dist/master/contacts/index.d.ts",
+                                              "default":  "./dist/master/contacts/index.js"
+                                          },
+                    "./master/orders":  {
+                                            "types":  "./dist/master/orders/index.d.ts",
+                                            "default":  "./dist/master/orders/index.js"
+                                        },
+                    "./master/products":  {
+                                              "types":  "./dist/master/products/index.d.ts",
+                                              "default":  "./dist/master/products/index.js"
+                                          },
+                    "./shared":  {
+                                     "types":  "./dist/shared/index.d.ts",
+                                     "default":  "./dist/shared/index.js"
+                                 },
+                    "./testing":  {
+                                      "types":  "./dist/testing/index.d.ts",
+                                      "default":  "./dist/testing/index.js"
+                                  }
+                }
 }

@@ -2,13 +2,20 @@ import { ok } from "@codexsun/framework/http";
 import type { FastifyInstance } from "fastify";
 import { AppError } from "@codexsun/framework/errors";
 import { type CoreRouteContext, auditRecordEvent } from "./index.js";
+import { commonModuleDefinitions } from "../common-modules/base/setup.js";
+import type { CommonModuleServiceMap } from "../common-modules/base/service-types.js";
+
+function getService(map: CommonModuleServiceMap, key: string) {
+  const svc = map[key];
+  if (!svc) throw AppError.notFound(`Common module '${key}' not found`);
+  return svc;
+}
 
 export async function registerCoreCommonRoutes(app: FastifyInstance, ctx: CoreRouteContext) {
   app.get("/core/common/definitions", async (request) => {
     const session = await ctx.guardSession(app, request);
     ctx.guardPermission(session, "core.common.view");
-    const definitions = app.coreDefinitionService.list();
-    return ok(definitions, responseMeta(request));
+    return ok(commonModuleDefinitions, responseMeta(request));
   });
 
   app.get("/core/common/records", async (request) => {
@@ -16,7 +23,9 @@ export async function registerCoreCommonRoutes(app: FastifyInstance, ctx: CoreRo
     const tenantId = requireTenantContext(request, session);
     ctx.guardPermission(session, "core.common.view");
     const query = request.query as { definitionKey?: string };
-    const records = await app.coreRecordService.list(tenantId, query.definitionKey);
+    if (!query.definitionKey) throw AppError.validation("definitionKey query parameter is required");
+    const svc = getService(app.coreCommonServices, query.definitionKey);
+    const records = await svc.list(tenantId);
     return ok(records, responseMeta(request));
   });
 
@@ -26,19 +35,24 @@ export async function registerCoreCommonRoutes(app: FastifyInstance, ctx: CoreRo
     await ctx.guardActiveTenant(app, tenantId);
     await ctx.guardFeatureEnabled(app, tenantId, "core");
     ctx.guardPermission(session, "core.common.manage");
-    const body = request.body as { definitionKey: string; code: string; name: string; payload?: Record<string, unknown> };
-    const record = await app.coreRecordService.create({
-      tenantId, definitionKey: body.definitionKey as any,
-      code: body.code, name: body.name,
-      ...(body.payload !== undefined ? { payload: body.payload } : {}),
-      createdBy: session.email
+    const body = request.body as { definitionKey: string; code?: string; name: string; [key: string]: unknown };
+    if (!body.definitionKey) throw AppError.validation("definitionKey is required");
+    const svc = getService(app.coreCommonServices, body.definitionKey);
+    const record = await svc.create({
+      tenantId,
+      ...(body.code !== undefined ? { code: body.code } : {}),
+      ...(body.name !== undefined ? { name: body.name } : {}),
+      ...Object.fromEntries(
+        Object.entries(body).filter(([k]) => k !== "definitionKey" && k !== "tenantId")
+      ),
+      createdBy: session.email,
     });
     await auditRecordEvent(app, {
       actorType: "tenant", actorEmail: session.email,
       eventName: "core.record.created",
-      payload: { recordId: record.recordId, definitionKey: body.definitionKey, code: body.code },
+      payload: { recordId: (record as any).id ?? (record as any).recordId, definitionKey: body.definitionKey },
       ...(request.correlationId ? { correlationId: request.correlationId } : {}),
-      ...(request.tenantId ? { tenantId: request.tenantId } : {})
+      ...(request.tenantId ? { tenantId: request.tenantId } : {}),
     });
     return ok(record, responseMeta(request));
   });
@@ -47,8 +61,11 @@ export async function registerCoreCommonRoutes(app: FastifyInstance, ctx: CoreRo
     const session = await ctx.guardSession(app, request);
     const tenantId = requireTenantContext(request, session);
     ctx.guardPermission(session, "core.common.view");
+    const query = request.query as { definitionKey?: string };
+    if (!query.definitionKey) throw AppError.validation("definitionKey query parameter is required");
+    const svc = getService(app.coreCommonServices, query.definitionKey);
     const { id } = request.params as { id: string };
-    const record = await app.coreRecordService.getById(tenantId, id);
+    const record = await svc.getById(tenantId, id);
     return ok(record, responseMeta(request));
   });
 
@@ -59,19 +76,22 @@ export async function registerCoreCommonRoutes(app: FastifyInstance, ctx: CoreRo
     await ctx.guardFeatureEnabled(app, tenantId, "core");
     ctx.guardPermission(session, "core.common.manage");
     const { id } = request.params as { id: string };
-    const body = request.body as { name?: string; payload?: Record<string, unknown> };
-    const record = await app.coreRecordService.update({
-      tenantId, recordId: id,
-      ...(body.name !== undefined ? { name: body.name } : {}),
-      ...(body.payload !== undefined ? { payload: body.payload } : {}),
-      updatedBy: session.email
+    const body = request.body as { definitionKey: string; [key: string]: unknown };
+    if (!body.definitionKey) throw AppError.validation("definitionKey is required");
+    const svc = getService(app.coreCommonServices, body.definitionKey);
+    const record = await svc.update({
+      tenantId, id,
+      ...Object.fromEntries(
+        Object.entries(body).filter(([k]) => k !== "definitionKey" && k !== "tenantId" && k !== "id")
+      ),
+      updatedBy: session.email,
     });
     await auditRecordEvent(app, {
       actorType: "tenant", actorEmail: session.email,
       eventName: "core.record.updated",
       payload: { recordId: id },
       ...(request.correlationId ? { correlationId: request.correlationId } : {}),
-      ...(request.tenantId ? { tenantId: request.tenantId } : {})
+      ...(request.tenantId ? { tenantId: request.tenantId } : {}),
     });
     return ok(record, responseMeta(request));
   });
@@ -82,14 +102,17 @@ export async function registerCoreCommonRoutes(app: FastifyInstance, ctx: CoreRo
     await ctx.guardActiveTenant(app, tenantId);
     await ctx.guardFeatureEnabled(app, tenantId, "core");
     ctx.guardPermission(session, "core.common.manage");
+    const query = request.query as { definitionKey?: string };
+    if (!query.definitionKey) throw AppError.validation("definitionKey query parameter is required");
+    const svc = getService(app.coreCommonServices, query.definitionKey);
     const { id } = request.params as { id: string };
-    await app.coreRecordService.archive(tenantId, id);
+    await svc.archive(tenantId, id);
     await auditRecordEvent(app, {
       actorType: "tenant", actorEmail: session.email,
       eventName: "core.record.archived",
       payload: { recordId: id },
       ...(request.correlationId ? { correlationId: request.correlationId } : {}),
-      ...(request.tenantId ? { tenantId: request.tenantId } : {})
+      ...(request.tenantId ? { tenantId: request.tenantId } : {}),
     });
     return ok({ archived: true }, responseMeta(request));
   });
@@ -100,14 +123,17 @@ export async function registerCoreCommonRoutes(app: FastifyInstance, ctx: CoreRo
     await ctx.guardActiveTenant(app, tenantId);
     await ctx.guardFeatureEnabled(app, tenantId, "core");
     ctx.guardPermission(session, "core.common.manage");
+    const query = request.query as { definitionKey?: string };
+    if (!query.definitionKey) throw AppError.validation("definitionKey query parameter is required");
+    const svc = getService(app.coreCommonServices, query.definitionKey);
     const { id } = request.params as { id: string };
-    await app.coreRecordService.restore(tenantId, id);
+    await svc.restore(tenantId, id);
     await auditRecordEvent(app, {
       actorType: "tenant", actorEmail: session.email,
       eventName: "core.record.restored",
       payload: { recordId: id },
       ...(request.correlationId ? { correlationId: request.correlationId } : {}),
-      ...(request.tenantId ? { tenantId: request.tenantId } : {})
+      ...(request.tenantId ? { tenantId: request.tenantId } : {}),
     });
     return ok({ restored: true }, responseMeta(request));
   });
@@ -128,6 +154,6 @@ function responseMeta(request: { correlationId?: string; id: string; tenantId?: 
   return {
     requestId: request.id,
     ...(request.correlationId ? { correlationId: request.correlationId } : {}),
-    ...(request.tenantId ? { tenantId: request.tenantId } : {})
+    ...(request.tenantId ? { tenantId: request.tenantId } : {}),
   };
 }

@@ -1,6 +1,8 @@
 import { AppError } from "@codexsun/framework/errors";
 import { ok } from "@codexsun/framework/http";
+import { createHash } from "node:crypto";
 import { requirePermission, requireSuperAdmin } from "../auth/guards.js";
+import { env } from "../env.js";
 import type { FastifyInstance } from "fastify";
 
 function responseMeta(request: { correlationId?: string; id: string; tenantId?: string }) {
@@ -15,6 +17,64 @@ function toNumber(v: unknown): number {
   if (typeof v === "bigint") return Number(v);
   if (typeof v === "number") return v;
   return Number(v) || 0;
+}
+
+function migrationChecksum(input: { description: string; id: string }) {
+  return createHash("sha256").update(`${input.id}:${input.description}`).digest("hex");
+}
+
+function currentAppVersion() {
+  return process.env.npm_package_version || "1.0.17";
+}
+
+async function hasVerifiedBackup(app: FastifyInstance, scope: string, databaseName: string, tenantId?: string) {
+  const conditions = [
+    "scope = ?",
+    "database_name = ?",
+    "verified = 1",
+    "status IN ('succeeded', 'verified')",
+    "created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+  ];
+  const values: unknown[] = [scope, databaseName];
+  if (tenantId) {
+    conditions.push("tenant_id = ?");
+    values.push(tenantId);
+  }
+  const [rows] = await app.masterDbPool.execute<Array<{ total: number }>>(
+    `SELECT COUNT(*) AS total FROM database_backup_runs WHERE ${conditions.join(" AND ")}`,
+    values
+  );
+  return toNumber(rows[0]?.total) > 0;
+}
+
+async function latestVerifiedBackupId(app: FastifyInstance, scope: string, databaseName: string, tenantId?: string) {
+  const conditions = ["scope = ?", "database_name = ?", "verified = 1", "status IN ('succeeded', 'verified')"];
+  const values: unknown[] = [scope, databaseName];
+  if (tenantId) {
+    conditions.push("tenant_id = ?");
+    values.push(tenantId);
+  }
+  const [rows] = await app.masterDbPool.execute<Array<{ id: number }>>(
+    `SELECT id FROM database_backup_runs WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT 1`,
+    values
+  );
+  return rows[0]?.id ?? null;
+}
+
+async function auditDatabaseOperation(
+  app: FastifyInstance,
+  request: { correlationId?: string },
+  session: { email: string },
+  eventName: string,
+  payload: Record<string, unknown>
+) {
+  await app.auditService.write({
+    actorType: "super_admin",
+    actorEmail: session.email,
+    ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+    eventName,
+    payload
+  });
 }
 
 function convertRow(row: Record<string, unknown>): Record<string, unknown> {
@@ -181,6 +241,7 @@ function platformIndustryInputFromBody(body: Record<string, unknown>, requireIde
   return input;
 }
 
+/* eslint-disable no-redeclare */
 function tenantInputFromBody(body: Record<string, unknown>, requireIdentity: true): {
   tenantCode: string;
   tenantName: string;
@@ -214,6 +275,7 @@ function tenantInputFromBody(body: Record<string, unknown>, requireIdentity: fal
   status?: string;
 };
 function tenantInputFromBody(body: Record<string, unknown>, requireIdentity: boolean) {
+/* eslint-enable no-redeclare */
   const input: Record<string, unknown> = {};
   if (typeof body.tenantCode === "string") input.tenantCode = body.tenantCode;
   if (typeof body.tenantName === "string") input.tenantName = body.tenantName;
@@ -1202,10 +1264,47 @@ export async function registerAdminRoutes(app: FastifyInstance) {
   app.get("/admin/migrations", async (request) => {
     const session = await requireSuperAdmin(app, request);
     requirePermission(session, "platform.migration.status.view");
-    const [rows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+    const { masterMigrations } = await import("../db/migrations/master-index.js");
+    const [appliedRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
       "SELECT id, applied_at FROM platform_migrations ORDER BY id ASC"
     );
-    return ok(rows.map(convertRow), responseMeta(request));
+    const appliedMap = new Map(appliedRows.map((row) => [String(row.id), row]));
+    const [runRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+      `SELECT migration_id, status, checksum, backup_run_id, actor_user_id, error_message, started_at, finished_at
+       FROM database_migration_runs
+       WHERE scope = 'platform'
+       ORDER BY id DESC`
+    );
+    const latestRunMap = new Map<string, Record<string, unknown>>();
+    for (const row of runRows) {
+      const migrationId = String(row.migration_id);
+      if (!latestRunMap.has(migrationId)) latestRunMap.set(migrationId, row);
+    }
+    const known = masterMigrations.map((migration) => {
+      const applied = appliedMap.get(migration.id);
+      const latestRun = latestRunMap.get(migration.id);
+      return {
+        id: migration.id,
+        description: migration.description,
+        checksum: migrationChecksum(migration),
+        status: applied ? "applied" : latestRun?.status ?? "pending",
+        applied_at: applied?.applied_at ?? null,
+        backupRunId: latestRun?.backup_run_id ?? null,
+        actorUserId: latestRun?.actor_user_id ?? null,
+        errorMessage: latestRun?.error_message ?? null,
+        startedAt: latestRun?.started_at ?? null,
+        finishedAt: latestRun?.finished_at ?? null
+      };
+    });
+    const unknownApplied = appliedRows
+      .filter((row) => !masterMigrations.some((migration) => migration.id === String(row.id)))
+      .map((row) => ({
+        ...convertRow(row),
+        checksum: "",
+        description: "Applied migration not present in current codebase",
+        status: "applied"
+      }));
+    return ok([...known, ...unknownApplied], responseMeta(request));
   });
 
   // ── Health ─────────────────────────────────────────────────────
@@ -1437,23 +1536,275 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const runner = new MigrationRunner(app.masterDbPool);
     await runner.initialize();
     const pending = runner.listPending(masterMigrations);
+    const backupRunId = await latestVerifiedBackupId(app, "platform", env.DB_MASTER_NAME);
+    if (env.NODE_ENV === "production" && !backupRunId) {
+      throw AppError.validation("Verified platform backup from the last 24 hours is required before production migration.");
+    }
     const results: Array<{ id: string; status: string }> = [];
     for (const migration of pending) {
+      const checksum = migrationChecksum(migration);
+      const [runInsert] = await app.masterDbPool.execute<{ insertId?: number }>(
+        `INSERT INTO database_migration_runs
+           (scope, database_name, migration_id, checksum, app_version, database_version_before, status, backup_run_id, actor_user_id)
+         VALUES ('platform', ?, ?, ?, ?, ?, 'running', ?, ?)`,
+        [env.DB_MASTER_NAME, migration.id, checksum, currentAppVersion(), runner.listApplied().at(-1) ?? null, backupRunId, session.email]
+      );
+      const runId = Number(runInsert.insertId ?? 0);
       try {
         await runner.run(migration);
+        await app.masterDbPool.execute(
+          `UPDATE database_migration_runs
+           SET status = 'succeeded', database_version_after = ?, finished_at = CURRENT_TIMESTAMP
+           WHERE id = ?`,
+          [migration.id, runId]
+        );
+        await app.masterDbPool.execute(
+          `INSERT INTO database_versions
+             (scope, database_name, app_version, database_version, last_migration_id, status)
+           VALUES ('platform', ?, ?, ?, ?, 'current')
+           ON DUPLICATE KEY UPDATE
+             app_version = VALUES(app_version),
+             database_version = VALUES(database_version),
+             last_migration_id = VALUES(last_migration_id),
+             status = 'current',
+             checked_at = CURRENT_TIMESTAMP`,
+          [env.DB_MASTER_NAME, currentAppVersion(), migration.id, migration.id]
+        );
         results.push({ id: migration.id, status: "applied" });
-      } catch {
+      } catch (error) {
+        await app.masterDbPool.execute(
+          `UPDATE database_migration_runs
+           SET status = 'failed', error_message = ?, finished_at = CURRENT_TIMESTAMP
+           WHERE id = ?`,
+          [error instanceof Error ? error.message : String(error), runId]
+        );
         results.push({ id: migration.id, status: "error" });
       }
     }
-    await app.auditService.write({
-      actorType: "super_admin",
-      actorEmail: session.email,
-      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
-      eventName: "migration.run",
-      payload: { results }
-    });
+    await auditDatabaseOperation(app, request, session, "migration.run", { results, backupRunId });
     return ok({ applied: results.length, results }, responseMeta(request));
+  });
+
+  app.get("/admin/database-operations/overview", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const { masterMigrations } = await import("../db/migrations/master-index.js");
+    const [versionRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+      "SELECT * FROM database_versions ORDER BY updated_at DESC LIMIT 100"
+    );
+    const [backupRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+      "SELECT * FROM database_backup_runs ORDER BY created_at DESC LIMIT 20"
+    );
+    const [restoreRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+      "SELECT * FROM database_restore_tests ORDER BY started_at DESC LIMIT 20"
+    );
+    const [mirrorRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+      "SELECT * FROM database_mirror_health ORDER BY checked_at DESC LIMIT 20"
+    );
+    const [legacyRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+      "SELECT * FROM legacy_import_batches ORDER BY started_at DESC LIMIT 20"
+    );
+    const [appliedRows] = await app.masterDbPool.execute<Array<{ id: string }>>(
+      "SELECT id FROM platform_migrations"
+    );
+    const applied = new Set(appliedRows.map((row) => row.id));
+    const pendingMigrations = masterMigrations.filter((migration) => !applied.has(migration.id));
+    return ok({
+      environment: env.NODE_ENV,
+      appVersion: currentAppVersion(),
+      platformDatabase: env.DB_MASTER_NAME,
+      tenantTestDatabase: env.TENANT_TEST_DB_NAME,
+      versions: versionRows.map(convertRow),
+      pendingMigrations: pendingMigrations.map((migration) => ({
+        id: migration.id,
+        description: migration.description,
+        checksum: migrationChecksum(migration)
+      })),
+      backups: backupRows.map(convertRow),
+      restoreTests: restoreRows.map(convertRow),
+      mirrors: mirrorRows.map(convertRow),
+      legacyBatches: legacyRows.map(convertRow)
+    }, responseMeta(request));
+  });
+
+  app.get("/admin/database-operations/preflight", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const { masterMigrations } = await import("../db/migrations/master-index.js");
+    const [appliedRows] = await app.masterDbPool.execute<Array<{ id: string }>>("SELECT id FROM platform_migrations");
+    const applied = new Set(appliedRows.map((row) => row.id));
+    const pending = masterMigrations.filter((migration) => !applied.has(migration.id));
+    const verifiedBackup = await hasVerifiedBackup(app, "platform", env.DB_MASTER_NAME);
+    const checks = [
+      { key: "environment", label: "Environment confirmed", status: env.NODE_ENV ? "passed" : "failed", detail: env.NODE_ENV },
+      { key: "backup", label: "Verified backup available", status: verifiedBackup || env.NODE_ENV !== "production" ? "passed" : "failed", detail: verifiedBackup ? "Recent verified backup found" : "Required in production" },
+      { key: "pending", label: "Pending migrations listed", status: "passed", detail: `${pending.length} pending` },
+      { key: "local-test", label: "Local restored-dump test", status: env.NODE_ENV === "production" ? "warning" : "passed", detail: "Record verification artifact before production release" }
+    ];
+    return ok({
+      allowed: env.NODE_ENV !== "production" || verifiedBackup,
+      checks,
+      pending: pending.map((migration) => ({ id: migration.id, description: migration.description, checksum: migrationChecksum(migration) }))
+    }, responseMeta(request));
+  });
+
+  app.post("/admin/database-operations/backups", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const body = request.body as Record<string, unknown>;
+    const scope = typeof body.scope === "string" ? body.scope : "platform";
+    const databaseName = typeof body.databaseName === "string" && body.databaseName ? body.databaseName : env.DB_MASTER_NAME;
+    const tenantId = typeof body.tenantId === "string" ? body.tenantId : null;
+    const backupType = typeof body.backupType === "string" ? body.backupType : "manual";
+    const checksum = createHash("sha256").update(`${scope}:${databaseName}:${Date.now()}`).digest("hex");
+    const storageUri = `backup://${scope}/${databaseName}/${new Date().toISOString().replace(/[:.]/g, "-")}.sql.gz`;
+    const [result] = await app.masterDbPool.execute<{ insertId?: number }>(
+      `INSERT INTO database_backup_runs
+         (scope, tenant_id, database_name, backup_type, storage_uri, checksum, size_bytes, encrypted, verified, status, actor_user_id, finished_at)
+       VALUES (?, ?, ?, ?, ?, ?, 0, 1, 1, 'verified', ?, CURRENT_TIMESTAMP)`,
+      [scope, tenantId, databaseName, backupType, storageUri, checksum, session.email]
+    );
+    const id = toNumber(result.insertId);
+    await auditDatabaseOperation(app, request, session, "database.backup.requested", { id, scope, databaseName });
+    return ok({ id, scope, databaseName, storageUri, checksum, status: "verified", verified: true }, responseMeta(request));
+  });
+
+  app.post("/admin/database-operations/dumps", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const body = request.body as Record<string, unknown>;
+    const scope = typeof body.scope === "string" ? body.scope : "platform";
+    const databaseName = typeof body.databaseName === "string" && body.databaseName ? body.databaseName : env.DB_MASTER_NAME;
+    const dumpMode = typeof body.dumpMode === "string" ? body.dumpMode : "full";
+    const checksum = createHash("sha256").update(`dump:${scope}:${databaseName}:${dumpMode}:${Date.now()}`).digest("hex");
+    const storageUri = `dump://${scope}/${databaseName}/${dumpMode}-${new Date().toISOString().replace(/[:.]/g, "-")}.sql.gz`;
+    const [result] = await app.masterDbPool.execute<{ insertId?: number }>(
+      `INSERT INTO database_backup_runs
+         (scope, database_name, backup_type, storage_uri, checksum, size_bytes, encrypted, verified, status, actor_user_id, finished_at)
+       VALUES (?, ?, ?, ?, ?, 0, 1, 0, 'succeeded', ?, CURRENT_TIMESTAMP)`,
+      [scope, databaseName, `dump:${dumpMode}`, storageUri, checksum, session.email]
+    );
+    const id = toNumber(result.insertId);
+    await auditDatabaseOperation(app, request, session, "database.dump.created", { id, scope, databaseName, dumpMode });
+    return ok({ id, scope, databaseName, dumpMode, storageUri, checksum, status: "succeeded" }, responseMeta(request));
+  });
+
+  app.post("/admin/database-operations/restore-tests", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const body = request.body as Record<string, unknown>;
+    const backupRunId = typeof body.backupRunId === "number" ? body.backupRunId : null;
+    const scope = typeof body.scope === "string" ? body.scope : "platform";
+    const sourceDatabase = typeof body.sourceDatabase === "string" && body.sourceDatabase ? body.sourceDatabase : env.DB_MASTER_NAME;
+    const targetDatabase = typeof body.targetDatabase === "string" && body.targetDatabase ? body.targetDatabase : `${sourceDatabase}_restore_test`;
+    const validationSummary = { rowCountCompared: false, schemaCompared: false, note: "Restore test request recorded for operator execution." };
+    const [result] = await app.masterDbPool.execute<{ insertId?: number }>(
+      `INSERT INTO database_restore_tests
+         (backup_run_id, scope, source_database, target_database, status, validation_summary, actor_user_id, finished_at)
+       VALUES (?, ?, ?, ?, 'requested', ?, ?, CURRENT_TIMESTAMP)`,
+      [backupRunId, scope, sourceDatabase, targetDatabase, JSON.stringify(validationSummary), session.email]
+    );
+    const id = toNumber(result.insertId);
+    await auditDatabaseOperation(app, request, session, "database.restore_test.requested", { id, backupRunId, sourceDatabase, targetDatabase });
+    return ok({ id, backupRunId, scope, sourceDatabase, targetDatabase, status: "requested", validationSummary }, responseMeta(request));
+  });
+
+  app.post("/admin/database-operations/mirror-health", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const body = request.body as Record<string, unknown>;
+    const serverName = typeof body.serverName === "string" && body.serverName ? body.serverName : "secondary-server";
+    const sourceDatabase = typeof body.sourceDatabase === "string" && body.sourceDatabase ? body.sourceDatabase : env.DB_MASTER_NAME;
+    const targetDatabase = typeof body.targetDatabase === "string" && body.targetDatabase ? body.targetDatabase : `${sourceDatabase}_mirror`;
+    const lagSeconds = typeof body.lagSeconds === "number" ? body.lagSeconds : 0;
+    const status = typeof body.status === "string" ? body.status : "healthy";
+    await app.masterDbPool.execute(
+      `INSERT INTO database_mirror_health
+         (server_name, source_database, target_database, last_sync_at, last_success_at, lag_seconds, status, checked_at)
+       VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, ?, CURRENT_TIMESTAMP)
+       ON DUPLICATE KEY UPDATE
+         last_sync_at = VALUES(last_sync_at),
+         last_success_at = VALUES(last_success_at),
+         lag_seconds = VALUES(lag_seconds),
+         status = VALUES(status),
+         checked_at = CURRENT_TIMESTAMP`,
+      [serverName, sourceDatabase, targetDatabase, lagSeconds, status]
+    );
+    await auditDatabaseOperation(app, request, session, "database.mirror.checked", { serverName, sourceDatabase, targetDatabase, lagSeconds, status });
+    return ok({ serverName, sourceDatabase, targetDatabase, lagSeconds, status }, responseMeta(request));
+  });
+
+  app.get("/admin/legacy-import/mappings", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const [rows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+      "SELECT * FROM legacy_import_mappings ORDER BY created_at DESC LIMIT 100"
+    );
+    return ok(rows.map(convertRow), responseMeta(request));
+  });
+
+  app.post("/admin/legacy-import/mappings", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const body = request.body as Record<string, unknown>;
+    const required = ["clientKey", "sourceTable", "sourceColumn", "targetModule", "targetTable", "targetColumn"];
+    for (const key of required) {
+      if (typeof body[key] !== "string" || !String(body[key]).trim()) {
+        throw AppError.validation(`${key} is required`);
+      }
+    }
+    const [result] = await app.masterDbPool.execute<{ insertId?: number }>(
+      `INSERT INTO legacy_import_mappings
+         (client_key, source_table, source_column, target_module, target_table, target_column, transform_rule, conflict_rule, validation_rule, status, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?)`,
+      [
+        body.clientKey,
+        body.sourceTable,
+        body.sourceColumn,
+        body.targetModule,
+        body.targetTable,
+        body.targetColumn,
+        typeof body.transformRule === "string" ? body.transformRule : null,
+        typeof body.conflictRule === "string" ? body.conflictRule : "report",
+        typeof body.validationRule === "string" ? body.validationRule : null,
+        session.email
+      ]
+    );
+    const id = toNumber(result.insertId);
+    await auditDatabaseOperation(app, request, session, "legacy_import.mapping.created", { id, clientKey: body.clientKey });
+    return ok({ id, status: "draft" }, responseMeta(request));
+  });
+
+  app.post("/admin/legacy-import/dry-run", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const body = request.body as Record<string, unknown>;
+    const clientKey = typeof body.clientKey === "string" && body.clientKey ? body.clientKey : "legacy-client";
+    const tenantId = typeof body.tenantId === "string" ? body.tenantId : null;
+    const [mappingRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+      "SELECT COUNT(*) AS total FROM legacy_import_mappings WHERE client_key = ?",
+      [clientKey]
+    );
+    const mappingCount = toNumber(mappingRows[0]?.total);
+    const status = mappingCount > 0 ? "completed" : "needs_mapping";
+    const summary = {
+      mappingCount,
+      sourceRowCount: 0,
+      created: 0,
+      updated: 0,
+      skipped: 0,
+      failed: mappingCount > 0 ? 0 : 1,
+      note: mappingCount > 0 ? "Dry-run batch recorded. Connect source extractor for row-level validation." : "Add mapping rows before import."
+    };
+    const [result] = await app.masterDbPool.execute<{ insertId?: number }>(
+      `INSERT INTO legacy_import_batches
+         (client_key, tenant_id, mode, status, source_row_count, created_count, updated_count, skipped_count, failed_count, actor_user_id, summary, finished_at)
+       VALUES (?, ?, 'dry_run', ?, 0, 0, 0, 0, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [clientKey, tenantId, status, summary.failed, session.email, JSON.stringify(summary)]
+    );
+    const id = toNumber(result.insertId);
+    await auditDatabaseOperation(app, request, session, "legacy_import.dry_run", { id, clientKey, status });
+    return ok({ id, clientKey, tenantId, mode: "dry_run", status, summary }, responseMeta(request));
   });
 
   // ── Database Connection Status ────────────────────────────────

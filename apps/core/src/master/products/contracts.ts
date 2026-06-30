@@ -1,22 +1,12 @@
-export type ProductAttribute = {
-  attributeId: string;
-  type: "brand" | "colour" | "size" | "style";
-  value: string;
-};
-
 export type ProductItem = {
   itemId: string;
   tenantId: string;
   code: string;
   name: string;
-  description?: string;
-  groupCode?: string;
-  categoryCode?: string;
-  typeCode?: string;
-  unitCode: string;
-  hsnCode?: string;
-  taxCategoryCode?: string;
-  attributes: ProductAttribute[];
+  productTypeId?: number;
+  hsnCodeId?: number;
+  unitId?: number;
+  taxId?: number;
   status: "active" | "archived";
   createdBy: string;
   createdAt: string;
@@ -29,14 +19,10 @@ export type ProductCreateInput = {
   tenantId: string;
   code: string;
   name: string;
-  description?: string;
-  groupCode?: string;
-  categoryCode?: string;
-  typeCode?: string;
-  unitCode: string;
-  hsnCode?: string;
-  taxCategoryCode?: string;
-  attributes?: ProductAttribute[];
+  productTypeId?: number;
+  hsnCodeId?: number;
+  unitId?: number;
+  taxId?: number;
   createdBy: string;
 };
 
@@ -44,14 +30,10 @@ export type ProductUpdateInput = {
   tenantId: string;
   itemId: string;
   name?: string;
-  description?: string;
-  groupCode?: string;
-  categoryCode?: string;
-  typeCode?: string;
-  unitCode?: string;
-  hsnCode?: string;
-  taxCategoryCode?: string;
-  attributes?: ProductAttribute[];
+  productTypeId?: number;
+  hsnCodeId?: number;
+  unitId?: number;
+  taxId?: number;
   updatedBy: string;
 };
 

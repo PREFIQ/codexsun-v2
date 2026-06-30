@@ -21,9 +21,11 @@ import {
   ContactService as CoreContactService, InMemoryContactRepository as CoreInMemoryContactRepository,
   CompanyService, InMemoryCompanyRepository,
   ProductService, InMemoryProductRepository,
+  WorkOrderService, InMemoryWorkOrderRepository,
+  createAllCommonModuleServices,
   registerAllCoreRoutes
 } from "@codexsun/core";
-import type { CoreRouteContext } from "@codexsun/core";
+import type { CoreRouteContext, CommonModuleServiceMap } from "@codexsun/core";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerTenantRoutes } from "./tenant/routes.js";
 import { registerAdminRoutes } from "./admin/routes.js";
@@ -50,6 +52,8 @@ declare module "fastify" {
     coreContactService: CoreContactService;
     coreCompanyService: CompanyService;
     coreProductService: ProductService;
+    coreWorkOrderService: WorkOrderService;
+    coreCommonServices: CommonModuleServiceMap;
     fileService: FileService;
     masterDbPool: CompatibleDbPool;
     moduleCatalog: ModuleCatalogService;
@@ -169,6 +173,9 @@ export async function createApp() {
   const coreCompanyService = new CompanyService(coreCompanyRepository);
   const coreProductRepository = new InMemoryProductRepository();
   const coreProductService = new ProductService(coreProductRepository);
+  const coreWorkOrderRepository = new InMemoryWorkOrderRepository();
+  const coreWorkOrderService = new WorkOrderService(coreWorkOrderRepository);
+  const coreCommonServices = createAllCommonModuleServices();
 
   const app = await createApiApp({
     appName: "CODEXSUN Platform API",
@@ -227,6 +234,8 @@ export async function createApp() {
   app.decorate("coreContactService", coreContactService);
   app.decorate("coreCompanyService", coreCompanyService);
   app.decorate("coreProductService", coreProductService);
+  app.decorate("coreWorkOrderService", coreWorkOrderService);
+  app.decorate("coreCommonServices", coreCommonServices);
 
   const healthChecks: HealthCheck[] = [
     {

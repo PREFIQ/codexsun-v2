@@ -18,6 +18,7 @@ type SuperLayoutProps = {
   menuItems?: SidemenuItem[];
   subtitle?: ReactNode;
   title?: ReactNode;
+  versionLabel?: string;
 };
 
 const superMenuItems: SidemenuItem[] = [
@@ -96,7 +97,8 @@ export function SuperLayout({
   children,
   menuItems = superMenuItems,
   subtitle,
-  title
+  title,
+  versionLabel
 }: SuperLayoutProps) {
   return (
     <AppLayout
@@ -116,6 +118,7 @@ export function SuperLayout({
         fallback: "S",
         name: "SUNDAR"
       }}
+      versionLabel={versionLabel}
       userMenuItems={[
         {
           icon: SparklesIcon,

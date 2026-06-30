@@ -9,6 +9,8 @@ import {
 import { SuperLayout } from "@codexsun/ui/layouts/super-layout";
 import { AuthGate } from "../components/AuthGate";
 import { ConsoleHome } from "./sa/ConsoleHome";
+import { DatabaseManager } from "./sa/DatabaseManager";
+import { MigrationStatus } from "./sa/MigrationStatus";
 import { TenantList } from "./sa/TenantList";
 import { SuperAdminModulePage, superAdminModuleConfigs, type SuperAdminModuleKey } from "./sa/SuperAdminModulePage";
 
@@ -105,14 +107,21 @@ export function SaDesk() {
     {
       key: "foundation",
       label: "Platform Foundation",
-      icon: DatabaseIcon,
+      icon: CircleGaugeIcon,
       items: [
         { key: "audit", page: "audit", label: "Compliance" },
-        { key: "migrations", page: "migrations", label: "Migrations" },
-        { key: "database", page: "database", label: "Master Database" },
         { key: "health", page: "health", label: "Health" },
         { key: "settings", page: "settings", label: "Settings" },
         { key: "features", page: "features", label: "Features" }
+      ]
+    },
+    {
+      key: "database",
+      label: "Database",
+      icon: DatabaseIcon,
+      items: [
+        { key: "database", page: "database", label: "Database Manager" },
+        { key: "migrations", page: "migrations", label: "Migrations" }
       ]
     },
     {
@@ -169,14 +178,12 @@ export function SaDesk() {
 
   const modulePageKey: Partial<Record<SaPage, SuperAdminModuleKey>> = {
     audit: "audit",
-    database: "database",
     devdocs: "devdocs",
     domains: "domains",
     features: "features",
     gst: "gst",
     health: "health",
     industries: "industries",
-    migrations: "migrations",
     modules: "modules",
     permissions: "permissions",
     plans: "plans",
@@ -195,9 +202,11 @@ export function SaDesk() {
 
   return (
     <AuthGate desk="sa">
-      <SuperLayout menuItems={menuItems}>
+      <SuperLayout menuItems={menuItems} versionLabel={`v ${__APP_VERSION__}`}>
         {page === "home" && <ConsoleHome onNavigate={(p) => selectPage(p as SaPage)} />}
         {page === "tenants" && <TenantList onBack={() => selectPage("home")} />}
+        {page === "database" && <DatabaseManager onBack={() => selectPage("home")} />}
+        {page === "migrations" && <MigrationStatus onBack={() => selectPage("home")} />}
         {activeModuleKey ? (
           <SuperAdminModulePage
             key={activeModuleKey}

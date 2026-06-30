@@ -553,6 +553,62 @@ describe("Admin Endpoints", () => {
     expect(Array.isArray(body.data)).toBe(true);
   });
 
+  it("GET /admin/database-operations/preflight returns migration safety checks", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/admin/database-operations/preflight",
+      headers: { Authorization: `Bearer ${saToken}` }
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(typeof body.data.allowed).toBe("boolean");
+    expect(Array.isArray(body.data.checks)).toBe(true);
+  });
+
+  it("POST /admin/database-operations/backups records a verified backup checkpoint", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/admin/database-operations/backups",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: { databaseName: "codexsun_master_db", scope: "platform" }
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.data.status).toBe("verified");
+    expect(body.data.checksum).toBeTruthy();
+  });
+
+  it("POST /admin/legacy-import/mappings and dry-run track legacy migration readiness", async () => {
+    const clientKey = "legacy-test-" + Date.now();
+    const mappingRes = await app.inject({
+      method: "POST",
+      url: "/admin/legacy-import/mappings",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: {
+        clientKey,
+        conflictRule: "report",
+        sourceColumn: "name",
+        sourceTable: "customers",
+        targetColumn: "name",
+        targetModule: "contacts",
+        targetTable: "masters_contacts",
+        transformRule: "trim"
+      }
+    });
+    expect(mappingRes.statusCode).toBe(200);
+
+    const dryRunRes = await app.inject({
+      method: "POST",
+      url: "/admin/legacy-import/dry-run",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: { clientKey }
+    });
+    expect(dryRunRes.statusCode).toBe(200);
+    const body = JSON.parse(dryRunRes.body);
+    expect(body.data.status).toBe("completed");
+    expect(body.data.summary.mappingCount).toBeGreaterThan(0);
+  });
+
   // ── System Health ──────────────────────────────────────────────
   it("GET /admin/health returns health status", async () => {
     const res = await app.inject({

@@ -4,60 +4,78 @@ import { Button, TenantLayout } from "@codexsun/ui";
 import { AuthGate } from "../components/AuthGate";
 import { logout } from "../api";
 import { ContactListPage } from "./tenant/ContactListPage";
-import { ComingSoonPage } from "./tenant/ComingSoonPage";
+import { ProductListPage } from "./tenant/ProductListPage";
+import { WorkOrderListPage } from "./tenant/WorkOrderListPage";
+import { CommonModuleIndexPage } from "./tenant/CommonModuleIndexPage";
+import { CommonModulePage } from "./tenant/CommonModulePage";
 
 type TenantPage =
-  | { view: "home" }
+  | { view: "dashboard" }
   | { view: "contacts" }
-  | { view: "item-categories" }
-  | { view: "units" }
-  | { view: "tax-categories" };
+  | { view: "products" }
+  | { view: "work-orders" }
+  | { view: "master-data" }
+  | { view: "common-module"; definitionKey: string; definitionLabel: string };
 
 export function TenantDesk() {
   const navigate = useNavigate();
-  const [page, setPage] = useState<TenantPage>({ view: "home" });
+  const [page, setPage] = useState<TenantPage>({ view: "dashboard" });
 
   async function handleLogout() {
     await logout("tenant");
     await navigate({ to: "/login" });
   }
 
-  const navItems: Array<{ view: TenantPage; label: string }> = [
-    { view: { view: "home" }, label: "Dashboard" },
-    { view: { view: "contacts" }, label: "Contacts" },
-    { view: { view: "item-categories" }, label: "Item Categories" },
-    { view: { view: "units" }, label: "Units" },
-    { view: { view: "tax-categories" }, label: "Tax Categories" },
+  type NavEntry = { view: TenantPage; label: string };
+  const navSections: Array<{ heading: string; items: NavEntry[] }> = [
+    {
+      heading: "Main",
+      items: [
+        { view: { view: "dashboard" }, label: "Dashboard" },
+      ],
+    },
+    {
+      heading: "Modules",
+      items: [
+        { view: { view: "contacts" }, label: "Contacts" },
+        { view: { view: "products" }, label: "Products" },
+        { view: { view: "work-orders" }, label: "Work Orders" },
+      ],
+    },
+    {
+      heading: "Configuration",
+      items: [
+        { view: { view: "master-data" }, label: "Master Data" },
+      ],
+    },
   ];
 
   function renderPage() {
     switch (page.view) {
       case "contacts":
         return (
-          <ContactListPage onBack={() => setPage({ view: "home" })} />
+          <ContactListPage onBack={() => setPage({ view: "dashboard" })} />
         );
-      case "item-categories":
+      case "products":
         return (
-          <ComingSoonPage
-            title="Item Categories"
-            description="Product and service category definitions."
-            onBack={() => setPage({ view: "home" })}
+          <ProductListPage onBack={() => setPage({ view: "dashboard" })} />
+        );
+      case "work-orders":
+        return (
+          <WorkOrderListPage onBack={() => setPage({ view: "dashboard" })} />
+        );
+      case "master-data":
+        return (
+          <CommonModuleIndexPage
+            onNavigate={(key, label) => setPage({ view: "common-module", definitionKey: key, definitionLabel: label })}
           />
         );
-      case "units":
+      case "common-module":
         return (
-          <ComingSoonPage
-            title="Units"
-            description="Measurement units for items and quantities."
-            onBack={() => setPage({ view: "home" })}
-          />
-        );
-      case "tax-categories":
-        return (
-          <ComingSoonPage
-            title="Tax Categories"
-            description="GST rate categories for billing."
-            onBack={() => setPage({ view: "home" })}
+          <CommonModulePage
+            definitionKey={page.definitionKey}
+            definitionLabel={page.definitionLabel}
+            onBack={() => setPage({ view: "master-data" })}
           />
         );
       default:
@@ -79,15 +97,25 @@ export function TenantDesk() {
       <TenantLayout
         actions={
           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.5rem" }}>
-            {navItems.map((item) => (
-              <Button
-                key={item.label}
-                onClick={() => setPage(item.view)}
-                variant={page.view === item.view.view ? "default" : "ghost"}
-                size="sm"
-              >
-                {item.label}
-              </Button>
+            {navSections.map((section) => (
+              <div key={section.heading} style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                {section.items.map((item) => {
+                  const isActive =
+                    page.view === item.view.view ||
+                    (page.view === "common-module" && item.view.view === "master-data");
+                  return (
+                    <Button
+                      key={item.label}
+                      onClick={() => setPage(item.view)}
+                      variant={isActive ? "default" : "ghost"}
+                      size="sm"
+                    >
+                      {item.label}
+                    </Button>
+                  );
+                })}
+                <span style={{ width: "1px", height: "20px", background: "var(--border)", margin: "0 0.25rem" }} />
+              </div>
             ))}
             <Button onClick={handleLogout} variant="secondary" size="sm">Log out</Button>
           </div>

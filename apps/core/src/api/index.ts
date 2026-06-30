@@ -6,10 +6,13 @@ import type { CoreDefinitionService, CoreRecordService } from "../common/service
 import type { ContactService } from "../master/contacts/service.js";
 import type { CompanyService } from "../master/companies/service.js";
 import type { ProductService } from "../master/products/service.js";
+import type { WorkOrderService } from "../master/orders/service.js";
+import type { CommonModuleServiceMap } from "../common-modules/base/service-types.js";
 import { registerCoreCommonRoutes } from "./common-routes.js";
 import { registerCoreContactRoutes } from "./contact-routes.js";
 import { registerCoreCompanyRoutes } from "./company-routes.js";
 import { registerCoreProductRoutes } from "./product-routes.js";
+import { registerCoreOrderRoutes } from "./order-routes.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -18,6 +21,8 @@ declare module "fastify" {
     coreContactService: ContactService;
     coreCompanyService: CompanyService;
     coreProductService: ProductService;
+    coreWorkOrderService: WorkOrderService;
+    coreCommonServices: CommonModuleServiceMap;
   }
 }
 
@@ -65,4 +70,8 @@ export async function registerAllCoreRoutes(app: FastifyInstance, ctx: CoreRoute
   await registerCoreContactRoutes(app, ctx);
   await registerCoreCompanyRoutes(app, ctx);
   await registerCoreProductRoutes(app, ctx);
+  await registerCoreOrderRoutes(app, ctx);
 }
+
+export { createAllCommonModuleServices, commonModuleDefinitions } from "../common-modules/base/setup.js";
+export type { CommonModuleServiceMap } from "../common-modules/base/service-types.js";
