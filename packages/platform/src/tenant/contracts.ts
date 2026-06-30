@@ -1,8 +1,18 @@
 export type TenantStatus = "active" | "inactive" | "provisioning" | "suspended";
 
 export type TenantProfile = {
+  corporateId: string | null;
+  dbHost: string;
+  dbName: string;
+  dbPort: number;
+  dbSecretRef: string;
+  dbType: string;
+  dbUser: string;
   id: string;
+  mobile: string | null;
   name: string;
+  payloadSettings: Record<string, unknown>;
+  slug: string;
   status: TenantStatus;
   tenantCode: string;
 };

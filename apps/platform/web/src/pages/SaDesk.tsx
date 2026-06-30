@@ -1,108 +1,210 @@
-import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { Button, SuperLayout } from "@codexsun/ui";
+import { useEffect, useState } from "react";
+import {
+  BotIcon,
+  CircleGaugeIcon,
+  DatabaseIcon,
+  KeyRoundIcon,
+  WalletCardsIcon
+} from "lucide-react";
+import { SuperLayout } from "@codexsun/ui/layouts/super-layout";
 import { AuthGate } from "../components/AuthGate";
-import { logout } from "../api";
 import { ConsoleHome } from "./sa/ConsoleHome";
 import { TenantList } from "./sa/TenantList";
-import { TenantDomains } from "./sa/TenantDomains";
-import { ModuleActivation } from "./sa/ModuleActivation";
-import { AuditViewer } from "./sa/AuditViewer";
-import { MigrationStatus } from "./sa/MigrationStatus";
-import { HealthView } from "./sa/HealthView";
-import { UserList } from "./sa/UserList";
-import { RoleList } from "./sa/RoleList";
-import { PermissionMatrix } from "./sa/PermissionMatrix";
-import { SessionList } from "./sa/SessionList";
-import { PlatformSettings } from "./sa/PlatformSettings";
-import { FeatureFlags } from "./sa/FeatureFlags";
-import { WorkbenchPage } from "./sa/WorkbenchPage";
-import { Subscriptions } from "./sa/Subscriptions";
-import { Industries } from "./sa/Industries";
-import { QueueManager } from "./sa/QueueManager";
-import { DatabaseManager } from "./sa/DatabaseManager";
-import { DevDocs } from "./sa/DevDocs";
-import { Support } from "./sa/Support";
-import { ZetroSetup } from "./sa/ZetroSetup";
-import { GstSetup } from "./sa/GstSetup";
+import { SuperAdminModulePage, superAdminModuleConfigs, type SuperAdminModuleKey } from "./sa/SuperAdminModulePage";
 
-type SaPage = "home" | "tenants" | "domains" | "modules" | "audit" | "migrations" | "health" | "users" | "roles" | "permissions" | "sessions" | "settings" | "features" | "workbench" | "subscriptions" | "industries" | "queue" | "database" | "devdocs" | "support" | "zetro" | "gst";
+type SaPage = "home" | "tenants" | "domains" | "modules" | "audit" | "migrations" | "health" | "users" | "roles" | "permissions" | "sessions" | "settings" | "features" | "workbench" | "plans" | "subscriptions" | "industries" | "queue" | "database" | "devdocs" | "support" | "zetro" | "gst";
 
-export function SaDesk() {
-  const navigate = useNavigate();
-  const [page, setPage] = useState<SaPage>("home");
+const pageToMenuKey: Record<SaPage, string> = {
+  audit: "audit",
+  database: "database",
+  devdocs: "devdocs",
+  domains: "domains",
+  features: "features",
+  gst: "gst",
+  health: "health",
+  home: "home",
+  industries: "industries",
+  migrations: "migrations",
+  modules: "modules",
+  permissions: "permissions",
+  plans: "plans",
+  queue: "queue",
+  roles: "roles",
+  sessions: "sessions",
+  settings: "settings",
+  subscriptions: "subscriptions",
+  support: "support",
+  tenants: "tenants",
+  users: "users",
+  workbench: "workbench",
+  zetro: "zetro"
+};
 
-  async function handleLogout() {
-    await logout("sa");
-    await navigate({ to: "/sa/login" });
+function pageFromUrl(): SaPage {
+  const url = new URL(window.location.href);
+  const legacyPage = url.searchParams.get("page");
+  if (isSaPage(legacyPage)) {
+    return legacyPage;
   }
 
-  const navItems: Array<{ page: SaPage; label: string }> = [
-    { page: "home", label: "Console" },
-    { page: "tenants", label: "Tenants" },
-    { page: "domains", label: "Domains" },
-    { page: "subscriptions", label: "Subscriptions" },
-    { page: "modules", label: "Modules" },
-    { page: "industries", label: "Industries" },
-    { page: "audit", label: "Audit" },
-    { page: "migrations", label: "Migrations" },
-    { page: "database", label: "DB Manager" },
-    { page: "health", label: "Health" },
-    { page: "settings", label: "Settings" },
-    { page: "features", label: "Features" },
-    { page: "users", label: "Users" },
-    { page: "roles", label: "Roles" },
-    { page: "permissions", label: "Permissions" },
-    { page: "sessions", label: "Sessions" },
-    { page: "queue", label: "Queue" },
-    { page: "support", label: "Support" },
-    { page: "workbench", label: "Workbench" },
-    { page: "devdocs", label: "Dev Docs" },
-    { page: "zetro", label: "ZETRO" },
-    { page: "gst", label: "GST" },
+  const [, desk, requestedPage, ...rest] = url.pathname.split("/");
+  return desk === "sa" && rest.length === 0 && isSaPage(requestedPage) ? requestedPage : "home";
+}
+
+function isSaPage(value: string | null | undefined): value is SaPage {
+  return Boolean(value && value in pageToMenuKey);
+}
+
+function pathForPage(page: SaPage) {
+  return page === "home" ? "/sa" : `/sa/${page}`;
+}
+
+export function SaDesk() {
+  const [page, setPage] = useState<SaPage>(() => pageFromUrl());
+  const [activeMenu, setActiveMenu] = useState(() => pageToMenuKey[pageFromUrl()]);
+
+  function selectPage(nextPage: SaPage, menuKey: string = pageToMenuKey[nextPage], historyMode: "push" | "replace" = "push") {
+    setPage(nextPage);
+    setActiveMenu(menuKey);
+    const url = new URL(window.location.href);
+    url.pathname = pathForPage(nextPage);
+    url.searchParams.delete("page");
+    window.history[historyMode === "replace" ? "replaceState" : "pushState"]({ page: nextPage }, "", url);
+  }
+
+  useEffect(() => {
+    selectPage(page, pageToMenuKey[page], "replace");
+    const handlePopState = () => {
+      const nextPage = pageFromUrl();
+      setPage(nextPage);
+      setActiveMenu(pageToMenuKey[nextPage]);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const navGroups: Array<{
+    icon: typeof WalletCardsIcon;
+    key: string;
+    label: string;
+    items: Array<{ key: string; page: SaPage; label: string }>;
+  }> = [
+    {
+      key: "admin",
+      label: "Admin",
+      icon: WalletCardsIcon,
+      items: [
+        { key: "tenants", page: "tenants", label: "Tenant" },
+        { key: "domains", page: "domains", label: "Domain" },
+        { key: "plans", page: "plans", label: "Plan" },
+        { key: "subscriptions", page: "subscriptions", label: "Subscription" },
+        { key: "modules", page: "modules", label: "Apps" },
+        { key: "industries", page: "industries", label: "Industry" }
+      ]
+    },
+    {
+      key: "foundation",
+      label: "Platform Foundation",
+      icon: DatabaseIcon,
+      items: [
+        { key: "audit", page: "audit", label: "Compliance" },
+        { key: "migrations", page: "migrations", label: "Migrations" },
+        { key: "database", page: "database", label: "Master Database" },
+        { key: "health", page: "health", label: "Health" },
+        { key: "settings", page: "settings", label: "Settings" },
+        { key: "features", page: "features", label: "Features" }
+      ]
+    },
+    {
+      key: "access",
+      label: "Access Control",
+      icon: KeyRoundIcon,
+      items: [
+        { key: "users", page: "users", label: "Users" },
+        { key: "roles", page: "roles", label: "Roles" },
+        { key: "permissions", page: "permissions", label: "Permissions" },
+        { key: "sessions", page: "sessions", label: "Sessions" }
+      ]
+    },
+    {
+      key: "operations",
+      label: "Operations",
+      icon: CircleGaugeIcon,
+      items: [
+        { key: "queue", page: "queue", label: "Queue" },
+        { key: "support", page: "support", label: "Support" },
+        { key: "workbench", page: "workbench", label: "Workbench" },
+        { key: "devdocs", page: "devdocs", label: "Dev Docs" }
+      ]
+    },
+    {
+      key: "apps",
+      label: "Apps & Compliance",
+      icon: BotIcon,
+      items: [
+        { key: "zetro", page: "zetro", label: "ZETRO" },
+        { key: "gst", page: "gst", label: "GST" }
+      ]
+    }
   ];
+
+  const menuItems = [
+    {
+      title: "Overview",
+      icon: CircleGaugeIcon,
+      isActive: activeMenu === "home",
+      onSelect: () => selectPage("home")
+    },
+    ...navGroups.map((group) => ({
+      title: group.label,
+      icon: group.icon,
+      isActive: group.items.some((item) => activeMenu === item.key),
+      items: group.items.map((item) => ({
+        title: item.label,
+        isActive: activeMenu === item.key,
+        onSelect: () => selectPage(item.page, item.key)
+      }))
+    }))
+  ];
+
+  const modulePageKey: Partial<Record<SaPage, SuperAdminModuleKey>> = {
+    audit: "audit",
+    database: "database",
+    devdocs: "devdocs",
+    domains: "domains",
+    features: "features",
+    gst: "gst",
+    health: "health",
+    industries: "industries",
+    migrations: "migrations",
+    modules: "modules",
+    permissions: "permissions",
+    plans: "plans",
+    queue: "queue",
+    roles: "roles",
+    sessions: "sessions",
+    settings: "settings",
+    subscriptions: "subscriptions",
+    support: "support",
+    users: "users",
+    workbench: "workbench",
+    zetro: "zetro"
+  };
+
+  const activeModuleKey = modulePageKey[page];
 
   return (
     <AuthGate desk="sa">
-      <SuperLayout
-        actions={
-          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.5rem" }}>
-            {navItems.map((item) => (
-              <Button
-                key={item.page}
-                onClick={() => setPage(item.page)}
-                variant={page === item.page ? "default" : "ghost"}
-                size="sm"
-              >
-                {item.label}
-              </Button>
-            ))}
-            <Button onClick={handleLogout} variant="secondary" size="sm">Log out</Button>
-          </div>
-        }
-      >
-        {page === "home" && <ConsoleHome onNavigate={(p) => setPage(p as SaPage)} />}
-        {page === "tenants" && <TenantList onBack={() => setPage("home")} />}
-        {page === "domains" && <TenantDomains onBack={() => setPage("home")} />}
-        {page === "modules" && <ModuleActivation onBack={() => setPage("home")} />}
-        {page === "audit" && <AuditViewer onBack={() => setPage("home")} />}
-        {page === "migrations" && <MigrationStatus onBack={() => setPage("home")} />}
-        {page === "health" && <HealthView onBack={() => setPage("home")} />}
-        {page === "users" && <UserList onBack={() => setPage("home")} />}
-        {page === "roles" && <RoleList onBack={() => setPage("home")} />}
-        {page === "permissions" && <PermissionMatrix onBack={() => setPage("home")} />}
-        {page === "sessions" && <SessionList onBack={() => setPage("home")} />}
-        {page === "settings" && <PlatformSettings onBack={() => setPage("home")} />}
-        {page === "features" && <FeatureFlags onBack={() => setPage("home")} />}
-        {page === "workbench" && <WorkbenchPage onBack={() => setPage("home")} />}
-        {page === "subscriptions" && <Subscriptions onBack={() => setPage("home")} />}
-        {page === "industries" && <Industries onBack={() => setPage("home")} />}
-        {page === "queue" && <QueueManager onBack={() => setPage("home")} />}
-        {page === "database" && <DatabaseManager onBack={() => setPage("home")} />}
-        {page === "devdocs" && <DevDocs onBack={() => setPage("home")} />}
-        {page === "support" && <Support onBack={() => setPage("home")} />}
-        {page === "zetro" && <ZetroSetup onBack={() => setPage("home")} />}
-        {page === "gst" && <GstSetup onBack={() => setPage("home")} />}
+      <SuperLayout menuItems={menuItems}>
+        {page === "home" && <ConsoleHome onNavigate={(p) => selectPage(p as SaPage)} />}
+        {page === "tenants" && <TenantList onBack={() => selectPage("home")} />}
+        {activeModuleKey ? (
+          <SuperAdminModulePage
+            key={activeModuleKey}
+            config={superAdminModuleConfigs[activeModuleKey]}
+            onBack={() => selectPage("home")}
+          />
+        ) : null}
       </SuperLayout>
     </AuthGate>
   );

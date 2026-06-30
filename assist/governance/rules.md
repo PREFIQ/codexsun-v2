@@ -28,8 +28,11 @@
 - Use the centralized design system.
 - Keep layouts clear, dense, and work-focused for business users.
 - Use consistent form, table, filter, modal, and action patterns.
+- Use the shadcn/Radix themed design-system select (`WorkspaceSelect` or `Select` from `@codexsun/ui`) for all form selects; do not use raw native `<select>` in workspace/list/upsert screens.
+- Use the workspace lookup (`WorkspaceLookup`) for master/reference autocomplete fields. Use inline create for small common masters such as colour/label, and popup create for heavier masters such as contact/tenant.
 - Avoid custom one-off UI unless a module has a real domain need.
 - Screens should make tenant, module, status, and action context clear.
+- All clickable buttons and button-like controls must show a pointer cursor; disabled actions must show a disabled/not-allowed cursor.
 
 ## Data Rules
 

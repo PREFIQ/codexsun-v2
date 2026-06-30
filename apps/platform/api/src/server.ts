@@ -12,10 +12,11 @@ function isAddressInUseError(error: unknown): error is { code: "EADDRINUSE" } {
 async function startServer(retries = 15, delay = 250) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      await app.listen({
+      const address = await app.listen({
         host: env.PLATFORM_API_HOST,
         port: env.PLATFORM_API_PORT
       });
+      console.log(`  ok Platform API ready: ${address}`);
       return;
     } catch (error) {
       if (isAddressInUseError(error) && attempt < retries) {

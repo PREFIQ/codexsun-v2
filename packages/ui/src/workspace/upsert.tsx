@@ -3,6 +3,7 @@
 import type { ReactNode } from "react"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "../components/button"
+import { Label } from "../components/label"
 import { cn } from "../lib/utils"
 
 export function WorkspaceUpsertPage({
@@ -23,7 +24,7 @@ export function WorkspaceUpsertPage({
   title: string
 }) {
   return (
-    <section className={cn("mx-auto w-[94%] space-y-4 py-4 sm:w-[92%] lg:w-[90%] lg:py-5", className)}>
+    <section className={cn("mx-auto w-[calc(100%-2rem)] max-w-[92rem] space-y-4 py-4 lg:w-[calc(100%-3rem)] lg:py-5", className)}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-normal text-foreground/80">{title}</h1>
@@ -96,6 +97,23 @@ export function WorkspaceFormGrid({
         className,
       )}
     >
+      {children}
+    </div>
+  )
+}
+
+export function WorkspaceFormField({
+  children,
+  className,
+  label,
+}: {
+  children: ReactNode
+  className?: string
+  label: ReactNode
+}) {
+  return (
+    <div className={cn("grid gap-2", className)}>
+      <Label className="text-sm font-medium text-muted-foreground">{label}</Label>
       {children}
     </div>
   )

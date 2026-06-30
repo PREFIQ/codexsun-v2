@@ -73,6 +73,7 @@ type AuthUserRecord = {
 
 export async function createApp() {
   let dbStatus = {
+    bootstrap: "pending",
     masterDatabase: env.DB_MASTER_NAME,
     ready: false,
     tenantTestDatabase: env.TENANT_TEST_DB_NAME
@@ -182,7 +183,21 @@ export async function createApp() {
       }
     ],
     onReady: async () => {
-      dbStatus = await bootstrapDatabases();
+      if (flagEnabled(env.CODEXSUN_DEV_SKIP_DB)) {
+        dbStatus = {
+          bootstrap: "skipped",
+          masterDatabase: env.DB_MASTER_NAME,
+          ready: true,
+          tenantTestDatabase: env.TENANT_TEST_DB_NAME
+        };
+        return;
+      }
+
+      const nextStatus = await bootstrapDatabases();
+      dbStatus = {
+        ...nextStatus,
+        bootstrap: nextStatus.ready ? "complete" : "degraded"
+      };
       if (!dbStatus.ready) {
         app.log.warn({ database: dbStatus }, "Database bootstrap is degraded");
       }
@@ -248,4 +263,9 @@ export async function createApp() {
   await registerAllCoreRoutes(app, coreCtx);
 
   return app;
+}
+
+function flagEnabled(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }

@@ -1,6 +1,15 @@
 import { clearVariant } from "./variants/clear/tokens";
 import { compactVariant } from "./variants/compact/tokens";
 import { defaultVariant } from "./variants/default/tokens";
+import {
+  blueVariant,
+  graphiteVariant,
+  greenVariant,
+  neutralVariant,
+  orangeVariant,
+  purpleVariant,
+  shadcnVariant
+} from "./variants/palette/tokens";
 import type { DesignSystemVariant, DesignSystemVariantId } from "./types";
 
 export type { DesignSystemVariant, DesignSystemVariantId };
@@ -13,7 +22,14 @@ export const DESIGN_SYSTEM_DEFAULT_STORAGE_KEY = "codexsun.design-system.default
 export const designSystemVariants = [
   defaultVariant,
   compactVariant,
-  clearVariant
+  clearVariant,
+  shadcnVariant,
+  neutralVariant,
+  orangeVariant,
+  greenVariant,
+  blueVariant,
+  purpleVariant,
+  graphiteVariant
 ] satisfies DesignSystemVariant[];
 
 export const defaultDesignSystemVariantId: DesignSystemVariantId = "default";

@@ -12,7 +12,7 @@ function loadNearestEnvFile() {
   const envPath = findNearestEnvFile(process.cwd());
 
   if (envPath) {
-    dotenv.config({ path: envPath });
+    dotenv.config({ path: envPath, quiet: true });
   }
 }
 

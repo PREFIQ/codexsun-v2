@@ -1,4 +1,14 @@
-export type DesignSystemVariantId = "default" | "compact" | "clear";
+export type DesignSystemVariantId =
+  | "default"
+  | "compact"
+  | "clear"
+  | "shadcn"
+  | "neutral"
+  | "orange"
+  | "green"
+  | "blue"
+  | "purple"
+  | "graphite";
 
 export type DesignSystemVariant = {
   id: DesignSystemVariantId;

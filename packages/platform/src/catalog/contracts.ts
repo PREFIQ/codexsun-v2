@@ -25,7 +25,11 @@ export const platformModuleCatalog: CatalogModuleRecord[] = [
   { moduleKey: "business.billing", displayName: "Billing", scope: "tenant", version: "1.0.0" },
   { moduleKey: "business.accounting", displayName: "Accounting", scope: "tenant", version: "1.0.0" },
   { moduleKey: "business.reports", displayName: "Reports", scope: "tenant", version: "1.0.0" },
-  { moduleKey: "business.offline-sync", displayName: "Offline Sync", scope: "tenant", version: "1.0.0" }
+  { moduleKey: "business.offline-sync", displayName: "Offline Sync", scope: "tenant", version: "1.0.0" },
+  { moduleKey: "app.zetro", displayName: "ZETRO", scope: "tenant", version: "1.0.0" },
+  { moduleKey: "app.mail", displayName: "Mail", scope: "tenant", version: "1.0.0" },
+  { moduleKey: "app.blog", displayName: "Blog", scope: "tenant", version: "1.0.0" },
+  { moduleKey: "app.sites", displayName: "Sites", scope: "tenant", version: "1.0.0" }
 ];
 
 export function findModuleByKey(moduleKey: string): CatalogModuleRecord | undefined {

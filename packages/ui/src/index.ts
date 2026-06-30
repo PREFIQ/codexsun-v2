@@ -61,6 +61,7 @@ export * from "./components/toggle-group";
 export * from "./components/tooltip";
 export * from "./components/use-mobile";
 export * from "./components/use-toast";
+export * from "./components/global-loader";
 export * from "./design-system";
 export * from "./blocks/menu/sidemenu/dashboard-01";
 export * from "./lib/utils";

@@ -16,12 +16,15 @@ import {
 
 export type SidemenuItem = {
   title: string
-  url: string
+  url?: string
   icon: LucideIcon
   isActive?: boolean
+  onSelect?: () => void
   items?: {
+    isActive?: boolean
+    onSelect?: () => void
     title: string
-    url: string
+    url?: string
   }[]
 }
 
@@ -36,7 +39,7 @@ export function SidemenuSection({ items, title }: { items: SidemenuItem[]; title
 
           return (
             <Collapsible
-              key={item.title}
+              key={`${item.title}-${item.isActive ? "active" : "idle"}`}
               asChild
               defaultOpen={item.isActive ?? false}
               className="group/collapsible"
@@ -44,18 +47,25 @@ export function SidemenuSection({ items, title }: { items: SidemenuItem[]; title
               <SidebarMenuItem>
                 {hasItems ? (
                   <CollapsibleTrigger asChild>
-                    <SidebarMenuButton isActive={item.isActive ?? false} tooltip={item.title}>
+                    <SidebarMenuButton tooltip={item.title}>
                       <item.icon />
                       <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
-                      <ChevronRight className="ml-auto transition-transform duration-200 group-data-[collapsible=icon]:hidden group-data-[state=open]/collapsible:rotate-90" />
+                      <ChevronRight className="ml-auto text-muted-foreground transition-transform duration-200 group-data-[collapsible=icon]:hidden group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
                 ) : (
                   <SidebarMenuButton asChild isActive={item.isActive ?? false} tooltip={item.title}>
-                    <a href={item.url}>
+                    {item.onSelect ? (
+                    <button type="button" onClick={item.onSelect}>
                       <item.icon />
                       <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
-                    </a>
+                    </button>
+                    ) : (
+                      <a href={item.url ?? "#"}>
+                        <item.icon />
+                        <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
+                      </a>
+                    )}
                   </SidebarMenuButton>
                 )}
                 {hasItems ? (
@@ -63,10 +73,16 @@ export function SidemenuSection({ items, title }: { items: SidemenuItem[]; title
                     <SidebarMenuSub>
                     {subItems.map((subItem) => (
                       <SidebarMenuSubItem key={subItem.title}>
-                        <SidebarMenuSubButton asChild>
-                          <a href={subItem.url}>
+                        <SidebarMenuSubButton asChild isActive={subItem.isActive ?? false}>
+                          {subItem.onSelect ? (
+                          <button type="button" onClick={subItem.onSelect}>
                             <span>{subItem.title}</span>
-                          </a>
+                          </button>
+                          ) : (
+                            <a href={subItem.url ?? "#"}>
+                              <span>{subItem.title}</span>
+                            </a>
+                          )}
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     ))}

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { createServer } from "node:net";
 
 const root = resolve(import.meta.dirname, "..");
 const app = process.argv[2];
+const cliFlags = new Set(process.argv.slice(3));
 
 const apps = {
   "platform-api": {
@@ -38,15 +39,29 @@ const config = apps[app];
 const env = loadDotEnv();
 const port = Number(process.env[config.envKey] || env[config.envKey]) || config.fallbackPort;
 const host = process.env[config.hostKey] || env[config.hostKey] || config.fallbackHost;
+const skipDatabase = cliFlags.has("--skip-db") || flagEnabled("CODEXSUN_DEV_SKIP_DB", env);
 
 await freePort(port, host);
+
+if (app === "platform-api") {
+  ensurePlatformApiDependencies();
+}
+
+if (app === "platform-api" && skipDatabase) {
+  console.log("  skip Database preflight skipped by flag");
+}
+
+if (app === "platform-api" && !skipDatabase) {
+  runPlatformApiDatabasePreflight(env);
+}
 
 const child = spawn(config.command, [...config.args, ...(app === "platform-web" ? ["--port", String(port)] : [])], {
   cwd: resolve(root, config.cwd),
   env: {
     ...process.env,
     ...env,
-    [config.envKey]: String(port)
+    [config.envKey]: String(port),
+    ...(skipDatabase ? { CODEXSUN_DEV_SKIP_DB: "1" } : {})
   },
   stdio: "inherit"
 });
@@ -89,6 +104,74 @@ function parseEnvValue(value) {
   }
 
   return trimmed.replace(/\s+#.*$/, "").trim();
+}
+
+function flagEnabled(name, env) {
+  const value = String(process.env[name] ?? env[name] ?? "").trim().toLowerCase();
+  return value === "1" || value === "true" || value === "yes" || value === "on";
+}
+
+function ensurePlatformApiDependencies() {
+  console.log("  - Checking API package builds");
+  ensureWorkspacePackageBuild("@codexsun/framework", "packages/framework");
+  ensureWorkspacePackageBuild("@codexsun/platform", "packages/platform");
+}
+
+function ensureWorkspacePackageBuild(workspaceName, packagePath) {
+  const absolutePackagePath = resolve(root, packagePath);
+  const srcPath = join(absolutePackagePath, "src");
+  const distPath = join(absolutePackagePath, "dist");
+  const packageJsonPath = join(absolutePackagePath, "package.json");
+  const tsconfigPath = join(absolutePackagePath, "tsconfig.json");
+
+  if (!existsSync(distPath)) {
+    buildWorkspacePackage(workspaceName, "dist missing");
+    return;
+  }
+
+  const sourceTime = newestMtime([srcPath, packageJsonPath, tsconfigPath]);
+  const distTime = newestMtime([distPath]);
+
+  if (sourceTime > distTime) {
+    buildWorkspacePackage(workspaceName, "source changed");
+    return;
+  }
+
+  console.log(`  ok ${workspaceName} build is current`);
+}
+
+function buildWorkspacePackage(workspaceName, reason) {
+  const startedAt = Date.now();
+  console.log(`  build ${workspaceName} (${reason})`);
+  execFileSync(npmCommand(), ["run", "build", "-w", workspaceName], {
+    cwd: root,
+    stdio: "inherit"
+  });
+  console.log(`  ok ${workspaceName} built in ${Date.now() - startedAt}ms`);
+}
+
+function newestMtime(paths) {
+  let newest = 0;
+  for (const path of paths) {
+    if (!existsSync(path)) {
+      continue;
+    }
+    const stat = statSync(path);
+    newest = Math.max(newest, stat.mtimeMs);
+    if (stat.isDirectory()) {
+      for (const entry of readdirSync(path, { withFileTypes: true })) {
+        if (entry.name === "node_modules" || entry.name === ".turbo" || entry.name === "dist") {
+          continue;
+        }
+        newest = Math.max(newest, newestMtime([join(path, entry.name)]));
+      }
+    }
+  }
+  return newest;
+}
+
+function npmCommand() {
+  return process.platform === "win32" ? "npm.cmd" : "npm";
 }
 
 async function freePort(port, host) {
@@ -201,6 +284,29 @@ function killPid(pid) {
   }
 
   process.kill(pid, "SIGTERM");
+}
+
+function runPlatformApiDatabasePreflight(env) {
+  const startedAt = Date.now();
+  console.log("  - Checking database and migrations");
+  try {
+    execFileSync(
+      process.execPath,
+      [nodePackageBin("tsx", "dist/cli.mjs", "apps/platform/api"), "src/db/preflight.ts"],
+      {
+        cwd: resolve(root, "apps/platform/api"),
+        env: {
+          ...process.env,
+          ...env
+        },
+        stdio: "inherit"
+      }
+    );
+    console.log(`  ok Platform API preflight passed in ${Date.now() - startedAt}ms\n`);
+  } catch {
+    console.error("  x Platform API preflight failed. Fix the database or migration issue above, then retry.\n");
+    process.exit(1);
+  }
 }
 
 function stopChild(childProcess, signal) {

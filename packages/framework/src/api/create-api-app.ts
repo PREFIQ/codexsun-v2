@@ -25,13 +25,12 @@ function requestMeta(request: { correlationId?: string; id: string; tenantId?: s
 
 export async function createApiApp(options: CreateApiAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: {
-      level: options.environment === "development" ? "info" : "warn"
-    }
+    logger: options.environment === "development" ? false : { level: "warn" }
   });
 
   await app.register(cors, {
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     origin: options.corsOrigins
   });
 

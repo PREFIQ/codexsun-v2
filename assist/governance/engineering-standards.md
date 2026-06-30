@@ -78,6 +78,7 @@ Avoid vague names:
 - Keep forms predictable.
 - Show loading, empty, error, and permission states.
 - Keep business screens dense and scannable.
+- Buttons and button-like controls must use `cursor: pointer`; disabled actions must use a disabled/not-allowed cursor.
 - Do not place business rules only in frontend.
 
 ## Database Standards

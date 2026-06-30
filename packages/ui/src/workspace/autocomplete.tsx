@@ -44,7 +44,7 @@ export function WorkspaceAutocomplete({
           type="button"
           variant="outline"
           className={cn(
-            "h-11 w-full justify-between rounded-xl border-input bg-background px-3 text-left font-normal",
+            "h-11 w-full justify-between rounded-md border-input bg-background px-3 text-left font-normal",
             !selected && "text-muted-foreground",
             className,
           )}
@@ -53,7 +53,7 @@ export function WorkspaceAutocomplete({
           <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="z-[120] w-[var(--radix-popover-trigger-width)] rounded-xl p-0 shadow-xl">
+      <PopoverContent align="start" className="z-[120] w-[var(--radix-popover-trigger-width)] rounded-md p-0 shadow-xl">
         <Command>
           <CommandInput placeholder={placeholder} value={query} onValueChange={setQuery} />
           <CommandList>

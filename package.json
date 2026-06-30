@@ -1,6 +1,6 @@
 {
   "name": "codexsun",
-  "version": "1.0.9",
+  "version": "1.0.13",
   "private": true,
   "packageManager": "npm@11.17.0",
   "description": "CODEXSUN",
@@ -14,9 +14,12 @@
   "scripts": {
     "dev": "turbo dev --parallel",
     "dev:platform": "concurrently -n api,web -c cyan,green \"npm run dev -w @codexsun/platform-api\" \"npm run dev -w @codexsun/platform-web\"",
+    "dev:platform:skip-db": "concurrently -n api,web -c cyan,green \"npm run dev:skip-db -w @codexsun/platform-api\" \"npm run dev -w @codexsun/platform-web\"",
+    "dev:platform:fast": "concurrently -n api,web -c cyan,green \"npm run dev:fast -w @codexsun/platform-api\" \"npm run dev -w @codexsun/platform-web\"",
     "build": "node tools/clean-root-dist.mjs && turbo build && node tools/collect-dist.mjs",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
+    "e2e:platform": "playwright test apps/platform/web/e2e",
     "check": "npm run typecheck && npm run lint",
     "version:show": "node tools/version/version.mjs show",
     "version:bump": "node tools/version-bump.mjs",
@@ -27,6 +30,7 @@
     "env:jwt-secret": "node tools/env-jwt-secret.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.1",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
@@ -50,5 +54,3 @@
     "esbuild@0.28.1": true
   }
 }
-
-

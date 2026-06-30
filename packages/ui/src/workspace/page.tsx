@@ -21,7 +21,7 @@ export function WorkspacePage({
   return (
     <section
       data-technical-name={technicalName}
-      className={cn("mx-auto w-[94%] space-y-4 py-4 sm:w-[92%] lg:w-[90%] lg:py-5", className)}
+      className={cn("mx-auto w-[calc(100%-2rem)] max-w-[92rem] space-y-4 py-4 lg:w-[calc(100%-3rem)] lg:py-5", className)}
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">

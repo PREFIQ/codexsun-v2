@@ -87,6 +87,7 @@ async function migrateMasterDatabase() {
   const runner = new MigrationRunner(db, "platform_migrations");
   await runner.initialize();
   await runner.runAll(masterMigrations);
+  await repairMasterTenantSchema(db);
 
   if (hasSeedUser(env.SUPER_ADMIN_NAME, env.SUPER_ADMIN_EMAIL, env.SUPER_ADMIN_PASSWORD)) {
     await db.execute(
@@ -121,9 +122,16 @@ async function migrateMasterDatabase() {
   }
 
   await db.execute(
-    `INSERT INTO tenants (tenant_code, tenant_name)
-     VALUES ('test', 'Test Tenant')
-     ON DUPLICATE KEY UPDATE tenant_name = VALUES(tenant_name), status = 'active'`
+    `INSERT INTO tenants (tenant_code, tenant_name, corporate_id, mobile, slug, payload_settings)
+     VALUES ('test', 'Test Tenant', 'TEST', '9655227738', 'test', ?)
+     ON DUPLICATE KEY UPDATE
+       tenant_name = VALUES(tenant_name),
+       corporate_id = VALUES(corporate_id),
+       mobile = VALUES(mobile),
+       slug = VALUES(slug),
+       payload_settings = VALUES(payload_settings),
+       status = 'active'`,
+    [JSON.stringify({ apps: { enabled: ["core", "business.billing"] } })]
   );
 
   const [tenantRows] = await db.execute<Array<{ id: number | string }>>(
@@ -132,9 +140,16 @@ async function migrateMasterDatabase() {
   const tenantId = Number(tenantRows[0]?.id);
 
   await db.execute(
-    `INSERT INTO tenant_databases (tenant_id, database_name)
-     VALUES (?, ?)
-     ON DUPLICATE KEY UPDATE tenant_id = VALUES(tenant_id), status = 'ready'`,
+    `INSERT INTO tenant_databases (tenant_id, db_type, db_host, db_port, database_name, db_user, db_secret_ref)
+     VALUES (?, 'mariadb', 'localhost', 3306, ?, 'root', 'DB_PASSWORD')
+     ON DUPLICATE KEY UPDATE
+       tenant_id = VALUES(tenant_id),
+       db_type = VALUES(db_type),
+       db_host = VALUES(db_host),
+       db_port = VALUES(db_port),
+       db_user = VALUES(db_user),
+       db_secret_ref = VALUES(db_secret_ref),
+       status = 'ready'`,
     [tenantId, env.TENANT_TEST_DB_NAME]
   );
 
@@ -146,6 +161,169 @@ async function migrateMasterDatabase() {
   );
 
   await db.end();
+}
+
+type ServerConnection = Awaited<ReturnType<typeof createServerConnection>>;
+
+async function repairMasterTenantSchema(db: ServerConnection) {
+  await ensureColumn(db, "tenants", "corporate_id", "VARCHAR(120) NULL");
+  await ensureColumn(db, "tenants", "mobile", "VARCHAR(30) NULL");
+  await ensureColumn(db, "tenants", "slug", "VARCHAR(120) NULL");
+  await ensureColumn(db, "tenants", "payload_settings", "JSON NULL");
+
+  await db.execute(
+    `UPDATE tenants
+     SET slug = LOWER(REPLACE(tenant_code, ' ', '-'))
+     WHERE slug IS NULL OR slug = ''`
+  );
+  await db.execute(
+    `UPDATE tenants
+     SET corporate_id = UPPER(REPLACE(tenant_code, '-', '_'))
+     WHERE corporate_id IS NULL OR corporate_id = ''`
+  );
+  await db.execute(
+    `UPDATE tenants
+     SET payload_settings = ?
+     WHERE payload_settings IS NULL`,
+    [JSON.stringify({ apps: { enabled: ["core", "business.billing"] } })]
+  );
+  await db.execute("ALTER TABLE tenants MODIFY slug VARCHAR(120) NOT NULL");
+
+  await ensureIndex(db, "tenants", "uq_tenants_corporate_id", "UNIQUE KEY uq_tenants_corporate_id (corporate_id)");
+  await ensureIndex(db, "tenants", "uq_tenants_slug", "UNIQUE KEY uq_tenants_slug (slug)");
+
+  await ensureColumn(db, "tenant_databases", "db_type", "VARCHAR(40) NOT NULL DEFAULT 'mariadb'");
+  await ensureColumn(db, "tenant_databases", "db_host", "VARCHAR(190) NOT NULL DEFAULT 'localhost'");
+  await ensureColumn(db, "tenant_databases", "db_port", "INT NOT NULL DEFAULT 3306");
+  await ensureColumn(db, "tenant_databases", "db_user", "VARCHAR(120) NOT NULL DEFAULT 'root'");
+  await ensureColumn(db, "tenant_databases", "db_secret_ref", "VARCHAR(120) NOT NULL DEFAULT 'DB_PASSWORD'");
+  await ensureColumn(db, "tenant_databases", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+  await ensureIndex(db, "tenant_databases", "uq_tenant_databases_tenant", "UNIQUE KEY uq_tenant_databases_tenant (tenant_id)");
+
+  await ensureColumn(db, "tenant_domain_mappings", "landing_app", "VARCHAR(80) NULL");
+  await ensureColumn(db, "tenant_domain_mappings", "is_primary", "TINYINT(1) NOT NULL DEFAULT 0");
+  await ensureColumn(db, "tenant_domain_mappings", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_subscriptions (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id BIGINT UNSIGNED NOT NULL,
+      plan_name VARCHAR(120) NOT NULL,
+      billing_cycle VARCHAR(40) NOT NULL DEFAULT 'Monthly',
+      seats INT NOT NULL DEFAULT 1,
+      starts_on DATE NULL,
+      renews_on DATE NULL,
+      amount DECIMAL(12,2) NULL,
+      currency VARCHAR(8) NOT NULL DEFAULT 'INR',
+      status VARCHAR(30) NOT NULL DEFAULT 'active',
+      notes TEXT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY ix_tenant_subscriptions_tenant (tenant_id),
+      CONSTRAINT fk_tenant_subscriptions_tenant
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+    )
+  `);
+  await ensureColumn(db, "tenant_subscriptions", "billing_cycle", "VARCHAR(40) NOT NULL DEFAULT 'Monthly'");
+  await ensureColumn(db, "tenant_subscriptions", "seats", "INT NOT NULL DEFAULT 1");
+  await ensureColumn(db, "tenant_subscriptions", "starts_on", "DATE NULL");
+  await ensureColumn(db, "tenant_subscriptions", "renews_on", "DATE NULL");
+  await ensureColumn(db, "tenant_subscriptions", "amount", "DECIMAL(12,2) NULL");
+  await ensureColumn(db, "tenant_subscriptions", "currency", "VARCHAR(8) NOT NULL DEFAULT 'INR'");
+  await ensureColumn(db, "tenant_subscriptions", "notes", "TEXT NULL");
+  await ensureColumn(db, "tenant_subscriptions", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+  await ensureIndex(db, "tenant_subscriptions", "ix_tenant_subscriptions_tenant", "KEY ix_tenant_subscriptions_tenant (tenant_id)");
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS subscription_plans (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      plan_name VARCHAR(120) NOT NULL UNIQUE,
+      billing_cycle VARCHAR(40) NOT NULL DEFAULT 'Monthly',
+      seats INT NOT NULL DEFAULT 1,
+      amount DECIMAL(12,2) NULL,
+      currency VARCHAR(8) NOT NULL DEFAULT 'INR',
+      status VARCHAR(30) NOT NULL DEFAULT 'active',
+      description TEXT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+  await ensureColumn(db, "subscription_plans", "billing_cycle", "VARCHAR(40) NOT NULL DEFAULT 'Monthly'");
+  await ensureColumn(db, "subscription_plans", "seats", "INT NOT NULL DEFAULT 1");
+  await ensureColumn(db, "subscription_plans", "amount", "DECIMAL(12,2) NULL");
+  await ensureColumn(db, "subscription_plans", "currency", "VARCHAR(8) NOT NULL DEFAULT 'INR'");
+  await ensureColumn(db, "subscription_plans", "description", "TEXT NULL");
+  await ensureColumn(db, "subscription_plans", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS platform_modules (
+      module_key VARCHAR(80) NOT NULL PRIMARY KEY,
+      display_name VARCHAR(180) NOT NULL,
+      scope VARCHAR(30) NOT NULL DEFAULT 'platform',
+      version VARCHAR(20) NOT NULL DEFAULT '1.0.0',
+      default_enabled TINYINT(1) NOT NULL DEFAULT 0,
+      status VARCHAR(30) NOT NULL DEFAULT 'active',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+  await ensureColumn(db, "platform_modules", "default_enabled", "TINYINT(1) NOT NULL DEFAULT 0");
+  await ensureColumn(db, "platform_modules", "status", "VARCHAR(30) NOT NULL DEFAULT 'active'");
+  await ensureColumn(db, "platform_modules", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS platform_industries (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      industry_name VARCHAR(160) NOT NULL,
+      industry_code VARCHAR(80) NOT NULL UNIQUE,
+      segment VARCHAR(80) NOT NULL DEFAULT 'General',
+      default_template VARCHAR(180) NULL,
+      status VARCHAR(30) NOT NULL DEFAULT 'active',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+  await ensureColumn(db, "platform_industries", "segment", "VARCHAR(80) NOT NULL DEFAULT 'General'");
+  await ensureColumn(db, "platform_industries", "default_template", "VARCHAR(180) NULL");
+  await ensureColumn(db, "platform_industries", "status", "VARCHAR(30) NOT NULL DEFAULT 'active'");
+  await ensureColumn(db, "platform_industries", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+}
+
+async function ensureColumn(db: ServerConnection, tableName: string, columnName: string, definition: string) {
+  const [rows] = await db.execute<Array<{ found: number }>>(
+    `SELECT COUNT(*) AS found
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND COLUMN_NAME = ?`,
+    [tableName, columnName]
+  );
+
+  if (Number(rows[0]?.found ?? 0) === 0) {
+    await db.execute(`ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}\` ${definition}`);
+  }
+}
+
+async function ensureIndex(db: ServerConnection, tableName: string, indexName: string, definition: string) {
+  const [rows] = await db.execute<Array<{ found: number }>>(
+    `SELECT COUNT(*) AS found
+     FROM INFORMATION_SCHEMA.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND INDEX_NAME = ?`,
+    [tableName, indexName]
+  );
+
+  if (Number(rows[0]?.found ?? 0) === 0) {
+    try {
+      await db.execute(`ALTER TABLE \`${tableName}\` ADD ${definition}`);
+    } catch (error) {
+      const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+      if (code !== "ER_DUP_KEYNAME" && code !== "ER_DUP_ENTRY") {
+        throw error;
+      }
+    }
+  }
 }
 
 async function migrateTenantDatabase() {

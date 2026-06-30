@@ -1,6 +1,6 @@
 {
   "name": "@codexsun/platform",
-  "version": "1.0.9",
+  "version": "1.0.13",
   "private": true,
   "type": "module",
   "exports": {
@@ -91,6 +91,3 @@
     "typescript": "^5.7.2"
   }
 }
-
-
-

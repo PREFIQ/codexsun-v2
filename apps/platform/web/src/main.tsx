@@ -1,10 +1,12 @@
 import { RouterProvider, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useIsFetching } from "@tanstack/react-query";
 import {
   DESIGN_SYSTEM_DEFAULT_STORAGE_KEY,
   DESIGN_SYSTEM_NAME,
   DESIGN_SYSTEM_VARIANT_MARKER,
   Dashboard01,
+  GlobalLoader,
+  Toaster,
   isDesignSystemVariantId
 } from "@codexsun/ui";
 import React from "react";
@@ -68,6 +70,12 @@ const saRoute = createRoute({
   path: "/sa"
 });
 
+const saModuleRoute = createRoute({
+  component: SaDesk,
+  getParentRoute: () => rootRoute,
+  path: "/sa/$saPage"
+});
+
 const adminRoute = createRoute({
   component: AdminDesk,
   getParentRoute: () => rootRoute,
@@ -112,6 +120,7 @@ const routeTree = rootRoute.addChildren([
   saLoginRoute,
   adminLoginRoute,
   saRoute,
+  saModuleRoute,
   adminRoute,
   tenantRoute,
   workspaceRoute,
@@ -130,6 +139,11 @@ declare module "@tanstack/react-router" {
 
 const queryClient = new QueryClient();
 
+function GlobalQueryLoader() {
+  const fetchingCount = useIsFetching();
+  return fetchingCount > 0 ? <GlobalLoader /> : null;
+}
+
 const storedDesignVariant = window.localStorage.getItem(DESIGN_SYSTEM_DEFAULT_STORAGE_KEY);
 document.documentElement.setAttribute("data-design-system", DESIGN_SYSTEM_NAME);
 document.documentElement.setAttribute(
@@ -142,8 +156,12 @@ document.documentElement.setAttribute(
 createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <PageTitle />
-      <RouterProvider router={router} />
+      <React.Suspense fallback={<GlobalLoader />}>
+        <PageTitle />
+        <GlobalQueryLoader />
+        <RouterProvider router={router} />
+        <Toaster />
+      </React.Suspense>
     </QueryClientProvider>
   </React.StrictMode>
 );

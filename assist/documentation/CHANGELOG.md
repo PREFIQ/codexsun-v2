@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.9
+Current version: 1.0.13
 
-Release tag: v-1.0.9
+Release tag: v-1.0.13
 
-Changelog label: v 1.0.9
+Changelog label: v 1.0.13
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -19,6 +19,49 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 #### App Codebase Changes
 
 Records UI, API, service logic, tooling, and documentation changes.
+
+## v-1.0.13
+
+### [v 1.0.13] 2026-06-30  - Super Admin Apps And Industries DB Backing
+
+#### Database Changes
+
+- Database update: Yes.
+- Extended the existing platform catalog migration with persisted `platform_modules` status/default flags and a new `platform_industries` table.
+- Added bootstrap repair so existing local master databases receive Apps and Industry tables/columns during preflight.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.13`.
+- Added DB-backed `/admin/platform-apps` list/create/update APIs for the Apps module.
+- Added DB-backed `/admin/industries` list/create/update APIs for the Industry module.
+- Rewired Super Admin Apps and Industry pages to load, save, update, refresh, show, and persist through API/database only.
+- Removed frontend seed records from Apps and Industry module configs.
+- Added API tests for Apps and Industry persistence.
+- Added Playwright coverage for Apps and Industry list + show + upsert persistence after refresh.
+
+## v-1.0.12
+
+### [v 1.0.12] 2026-06-30 11:35 am - Super Admin Master Workspace Modules
+
+#### Database Changes
+
+- Database update: Yes.
+- Added fresh master foundation support for `tenant_subscriptions` and `subscription_plans`.
+- Added bootstrap repair for subscription and plan tables so existing local master databases can self-heal during preflight.
+- Kept existing migration files rewritten in-place for fresh migration flow, avoiding extra patch migrations for this foundation stage.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.12`.
+- Reviewed current module readiness: Tenant, Domain, Plan, and Subscription are DB/API-backed; Apps and Industry remain shared workspace-module screens and can move next unless DB-backed boundaries are requested.
+- Added Domain DB-backed list/show/upsert with tenant lookup, landing app, primary switch, status, and permanent force-delete confirmation.
+- Added Subscription DB-backed list/show/upsert with tenant lookup, Plan autocomplete/create, billing cycle, seats, amount, currency, start date, renewal date, notes, and status.
+- Added dedicated Plan module with reusable plan records and Subscription autocomplete binding.
+- Removed generic `Owner` field/column/show value from shared Super Admin module forms; retained explicit `Owner team` fields where module configs intentionally define them.
+- Added reusable workspace `DatePicker` using shadcn-style popover/calendar/select controls with month/year selection.
+- Improved workspace lookup clear behavior so dropdown remains usable immediately after clear without requiring blur/focus.
+- Added e2e coverage for Domain create/persist/force-delete, Subscription plan/tenant lookup/date picker persistence, and Super Admin sidebar visibility.
 
 ## v-1.0.11
 

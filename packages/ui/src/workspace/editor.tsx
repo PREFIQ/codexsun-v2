@@ -48,7 +48,7 @@ export function WorkspaceEditor({
   }
 
   return (
-    <div className={cn("overflow-hidden rounded-xl border border-input bg-background", className)}>
+    <div className={cn("overflow-hidden rounded-md border border-input bg-background", className)}>
       <div className="flex items-center gap-1 border-b border-border/70 px-2 py-1.5">
         <Toggle
           size="sm"

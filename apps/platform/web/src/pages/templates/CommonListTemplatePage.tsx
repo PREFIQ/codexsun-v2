@@ -140,21 +140,21 @@ export function CommonListTemplatePage() {
           <WorkspaceFormGrid columns={2}>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Tenant</Label>
-              <Input className="h-11 rounded-xl" value={form.tenant} onChange={(e) => setForm((f) => ({ ...f, tenant: (e.target as HTMLInputElement).value }))} />
+              <Input className="h-11 rounded-md" value={form.tenant} onChange={(e) => setForm((f) => ({ ...f, tenant: (e.target as HTMLInputElement).value }))} />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Domain</Label>
-              <Input className="h-11 rounded-xl font-mono" value={form.domain} onChange={(e) => setForm((f) => ({ ...f, domain: (e.target as HTMLInputElement).value }))} />
+              <Input className="h-11 rounded-md font-mono" value={form.domain} onChange={(e) => setForm((f) => ({ ...f, domain: (e.target as HTMLInputElement).value }))} />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Label</Label>
-              <Input className="h-11 rounded-xl" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: (e.target as HTMLInputElement).value }))} />
+              <Input className="h-11 rounded-md" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: (e.target as HTMLInputElement).value }))} />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-              <Input className="h-11 rounded-xl" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: (e.target as HTMLInputElement).value }))} />
+              <Input className="h-11 rounded-md" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: (e.target as HTMLInputElement).value }))} />
             </div>
-            <div className="col-span-full flex items-center justify-between gap-4 rounded-xl border border-border/70 px-4 py-3">
+            <div className="col-span-full flex items-center justify-between gap-4 rounded-md border border-border/70 px-4 py-3">
               <span>
                 <span className="flex items-center gap-1.5 text-sm font-medium">Primary domain</span>
                 <span className="block text-xs text-muted-foreground">Set as the primary entry point for this tenant.</span>

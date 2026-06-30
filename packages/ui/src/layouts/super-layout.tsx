@@ -1,12 +1,8 @@
 import type { ReactNode } from "react";
 import {
-  AppWindowIcon,
-  DatabaseIcon,
-  Globe2Icon,
   KeyRoundIcon,
   LogOutIcon,
   ReceiptTextIcon,
-  RefreshCwIcon,
   ShieldCheckIcon,
   SparklesIcon,
   UsersRoundIcon,
@@ -19,6 +15,7 @@ import type { SidemenuItem } from "../blocks/menu/sidemenu/sub/sidemenu-section"
 type SuperLayoutProps = {
   actions?: ReactNode;
   children: ReactNode;
+  menuItems?: SidemenuItem[];
   subtitle?: ReactNode;
   title?: ReactNode;
 };
@@ -31,53 +28,38 @@ const superMenuItems: SidemenuItem[] = [
     isActive: true,
     items: [
       {
-        title: "Master Modules",
+        title: "Console",
         url: "/sa"
       },
       {
-        title: "Tenant Registry",
+        title: "Tenant",
         url: "/tenant"
       },
       {
-        title: "Security Surface",
+        title: "Domain",
+        url: "/status"
+      },
+      {
+        title: "Subscription",
+        url: "/admin"
+      },
+      {
+        title: "Apps",
+        url: "/sa"
+      },
+      {
+        title: "Compliance",
+        url: "/status"
+      },
+      {
+        title: "Master Database",
+        url: "/status"
+      },
+      {
+        title: "Access Control",
         url: "/admin"
       }
     ]
-  },
-  {
-    title: "Tenant",
-    url: "/tenant",
-    icon: UsersRoundIcon
-  },
-  {
-    title: "Domain",
-    url: "/status",
-    icon: Globe2Icon
-  },
-  {
-    title: "Subscription",
-    url: "/admin",
-    icon: ReceiptTextIcon
-  },
-  {
-    title: "Apps",
-    url: "/sa",
-    icon: AppWindowIcon
-  },
-  {
-    title: "Compliance",
-    url: "/status",
-    icon: RefreshCwIcon
-  },
-  {
-    title: "Master Database",
-    url: "/status",
-    icon: DatabaseIcon
-  },
-  {
-    title: "Access Control",
-    url: "/sa",
-    icon: KeyRoundIcon
   }
 ];
 
@@ -112,8 +94,9 @@ const superWorkspaceItems = [
 export function SuperLayout({
   actions,
   children,
-  subtitle = "Founder and platform control surface.",
-  title = "Super Admin Desk"
+  menuItems = superMenuItems,
+  subtitle,
+  title
 }: SuperLayoutProps) {
   return (
     <AppLayout
@@ -125,7 +108,7 @@ export function SuperLayout({
       headerTitle="Super Admin Desk"
       homeHref="/sa"
       logoutHref="/sa/login"
-      menuItems={superMenuItems}
+      menuItems={menuItems}
       subtitle={subtitle}
       title={title}
       user={{
@@ -160,7 +143,7 @@ export function SuperLayout({
       workspaceItems={superWorkspaceItems}
     >
       {actions ? <div className="px-4 pt-4 lg:px-6">{actions}</div> : null}
-      <div className="p-5 md:p-7">{children}</div>
+      <div className="flex-1">{children}</div>
     </AppLayout>
   );
 }

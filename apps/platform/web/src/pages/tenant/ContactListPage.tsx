@@ -120,7 +120,7 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
             <div className="grid gap-2">
               <label className="text-sm font-medium text-muted-foreground">Display Name</label>
               <input
-                className="flex h-11 w-full rounded-xl border border-border/70 bg-background px-3 text-sm"
+                className="flex h-11 w-full rounded-md border border-border/70 bg-background px-3 text-sm"
                 value={form.displayName}
                 onChange={(e) => setForm((f) => ({ ...f, displayName: (e.target as HTMLInputElement).value }))}
               />
@@ -128,7 +128,7 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
             <div className="grid gap-2">
               <label className="text-sm font-medium text-muted-foreground">Type</label>
               <input
-                className="flex h-11 w-full rounded-xl border border-border/70 bg-background px-3 text-sm"
+                className="flex h-11 w-full rounded-md border border-border/70 bg-background px-3 text-sm"
                 value={form.contactType}
                 onChange={(e) => setForm((f) => ({ ...f, contactType: (e.target as HTMLInputElement).value }))}
               />
@@ -136,7 +136,7 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
             <div className="grid gap-2">
               <label className="text-sm font-medium text-muted-foreground">Company</label>
               <input
-                className="flex h-11 w-full rounded-xl border border-border/70 bg-background px-3 text-sm"
+                className="flex h-11 w-full rounded-md border border-border/70 bg-background px-3 text-sm"
                 value={form.companyName}
                 onChange={(e) => setForm((f) => ({ ...f, companyName: (e.target as HTMLInputElement).value }))}
               />
@@ -144,7 +144,7 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
             <div className="grid gap-2">
               <label className="text-sm font-medium text-muted-foreground">GSTIN</label>
               <input
-                className="flex h-11 w-full rounded-xl border border-border/70 bg-background px-3 font-mono text-sm uppercase"
+                className="flex h-11 w-full rounded-md border border-border/70 bg-background px-3 font-mono text-sm uppercase"
                 value={form.gstin}
                 onChange={(e) => setForm((f) => ({ ...f, gstin: (e.target as HTMLInputElement).value }))}
               />
@@ -152,7 +152,7 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
             <div className="grid gap-2">
               <label className="text-sm font-medium text-muted-foreground">Phone</label>
               <input
-                className="flex h-11 w-full rounded-xl border border-border/70 bg-background px-3 font-mono text-sm"
+                className="flex h-11 w-full rounded-md border border-border/70 bg-background px-3 font-mono text-sm"
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: (e.target as HTMLInputElement).value }))}
               />
@@ -160,7 +160,7 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
             <div className="grid gap-2">
               <label className="text-sm font-medium text-muted-foreground">Email</label>
               <input
-                className="flex h-11 w-full rounded-xl border border-border/70 bg-background px-3 text-sm"
+                className="flex h-11 w-full rounded-md border border-border/70 bg-background px-3 text-sm"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: (e.target as HTMLInputElement).value }))}
               />
@@ -168,7 +168,7 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
             <div className="col-span-full grid gap-2">
               <label className="text-sm font-medium text-muted-foreground">Notes</label>
               <textarea
-                className="flex min-h-[80px] w-full rounded-xl border border-border/70 bg-background px-3 py-2 text-sm"
+                className="flex min-h-[80px] w-full rounded-md border border-border/70 bg-background px-3 py-2 text-sm"
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: (e.target as HTMLTextAreaElement).value }))}
               />

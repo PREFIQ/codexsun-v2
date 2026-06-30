@@ -10,21 +10,39 @@ export const migration: Migration = {
         display_name VARCHAR(180) NOT NULL,
         scope VARCHAR(30) NOT NULL DEFAULT 'platform',
         version VARCHAR(20) NOT NULL DEFAULT '1.0.0',
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        default_enabled TINYINT(1) NOT NULL DEFAULT 0,
+        status VARCHAR(30) NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS platform_industries (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        industry_name VARCHAR(160) NOT NULL,
+        industry_code VARCHAR(80) NOT NULL UNIQUE,
+        segment VARCHAR(80) NOT NULL DEFAULT 'General',
+        default_template VARCHAR(180) NULL,
+        status VARCHAR(30) NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
 
     await db.execute(`
       CREATE TABLE IF NOT EXISTS tenant_module_activation (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        tenant_id VARCHAR(80) NOT NULL,
+        tenant_id BIGINT UNSIGNED NOT NULL,
         module_key VARCHAR(80) NOT NULL,
         status VARCHAR(30) NOT NULL DEFAULT 'disabled',
         limits JSON NULL,
         provider_config JSON NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uq_tenant_module (tenant_id, module_key)
+        UNIQUE KEY uq_tenant_module (tenant_id, module_key),
+        CONSTRAINT fk_tenant_module_activation_tenant
+          FOREIGN KEY (tenant_id) REFERENCES tenants(id)
       )
     `);
   }

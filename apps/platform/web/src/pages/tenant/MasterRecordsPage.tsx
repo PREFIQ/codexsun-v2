@@ -106,11 +106,11 @@ export function MasterRecordsPage({ definitionKey, onBack }: Props) {
           <WorkspaceFormGrid columns={2}>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Code</Label>
-              <Input className="h-11 rounded-xl" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: (e.target as HTMLInputElement).value }))} />
+              <Input className="h-11 rounded-md" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: (e.target as HTMLInputElement).value }))} />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Name</Label>
-              <Input className="h-11 rounded-xl" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: (e.target as HTMLInputElement).value }))} />
+              <Input className="h-11 rounded-md" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: (e.target as HTMLInputElement).value }))} />
             </div>
           </WorkspaceFormGrid>
           <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border/70 pt-5">

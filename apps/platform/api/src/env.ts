@@ -23,7 +23,8 @@ const envSchema = z.object({
   TENANT_TEST_DB_NAME: z.string().default("tenant_test_001_db"),
   TENANT_ADMIN_EMAIL: z.string().default(""),
   TENANT_ADMIN_NAME: z.string().default(""),
-  TENANT_ADMIN_PASSWORD: z.string().default("")
+  TENANT_ADMIN_PASSWORD: z.string().default(""),
+  CODEXSUN_DEV_SKIP_DB: z.string().default("")
 });
 
 export const env = loadEnv(envSchema);

@@ -9,8 +9,20 @@ import {
   type SortingState,
 } from "@tanstack/react-table"
 import { ArrowUpDown } from "lucide-react"
-import { useState, type ReactNode } from "react"
+import { useState, type ReactNode, type ThHTMLAttributes } from "react"
+import { Skeleton } from "../components/skeleton"
 import { cn } from "../lib/utils"
+
+export const workspaceTablePanelClass =
+  "overflow-hidden rounded-md border border-border/70 bg-card/95 shadow-sm"
+
+export const workspaceTableHeaderClass =
+  "border-b border-border/70 bg-muted/50 px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+
+export const workspaceTableRowClass =
+  "border-b border-border/70 transition-colors last:border-b-0 hover:bg-muted/20"
+
+export const workspaceTableCellClass = "px-4 py-2.5 text-foreground"
 
 export function WorkspaceTable<T>({
   columns,
@@ -39,16 +51,15 @@ export function WorkspaceTable<T>({
   })
 
   return (
-    <div className="overflow-hidden rounded-md border border-border/70 bg-card/95 shadow-sm">
+    <WorkspaceTablePanel>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm" style={{ minWidth }}>
           <thead className="bg-muted/50">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th
+                  <WorkspaceTableHeaderCell
                     key={header.id}
-                    className="border-b border-border/70 px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                     style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                   >
                     {header.isPlaceholder ? null : (
@@ -65,7 +76,7 @@ export function WorkspaceTable<T>({
                         ) : null}
                       </div>
                     )}
-                  </th>
+                  </WorkspaceTableHeaderCell>
                 ))}
               </tr>
             ))}
@@ -75,13 +86,13 @@ export function WorkspaceTable<T>({
               <tr
                 key={row.id}
                 className={cn(
-                  "border-b border-border/70 transition-colors last:border-b-0 hover:bg-muted/20",
+                  workspaceTableRowClass,
                   onRowClick && "cursor-pointer",
                 )}
                 onClick={() => onRowClick?.(row.original)}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-4 py-2.5 text-foreground">
+                  <td key={cell.id} className={workspaceTableCellClass}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
@@ -91,22 +102,68 @@ export function WorkspaceTable<T>({
         </table>
       </div>
       {table.getRowModel().rows.length === 0 ? (
-        <div className="px-6 py-14 text-center text-sm text-muted-foreground">
-          {isLoading ? "Loading data..." : emptyState ?? "No records found."}
-        </div>
+        isLoading ? <WorkspaceTableSkeletonRows columns={columns.length} /> : <WorkspaceTableEmptyState>{emptyState ?? "No records found."}</WorkspaceTableEmptyState>
       ) : null}
-    </div>
+    </WorkspaceTablePanel>
   )
 }
 
 export function WorkspaceTablePanel({
   children,
+  className,
 }: {
   children: ReactNode
+  className?: string
 }) {
   return (
-    <div className="rounded-md border border-border/70 bg-card/95 shadow-sm">
+    <div className={cn(workspaceTablePanelClass, className)}>
       {children}
+    </div>
+  )
+}
+
+export function WorkspaceTableHeaderCell({
+  children,
+  className,
+  ...props
+}: ThHTMLAttributes<HTMLTableCellElement>) {
+  return (
+    <th className={cn(workspaceTableHeaderClass, className)} {...props}>
+      {children}
+    </th>
+  )
+}
+
+export function WorkspaceTableEmptyState({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn("px-6 py-14 text-center text-sm text-muted-foreground", className)}>
+      {children}
+    </div>
+  )
+}
+
+export function WorkspaceTableSkeletonRows({
+  columns,
+  rows = 5,
+}: {
+  columns: number
+  rows?: number
+}) {
+  return (
+    <div className="space-y-2 px-4 py-4">
+      {Array.from({ length: rows }).map((_, rowIndex) => (
+        <div key={rowIndex} className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.max(columns, 1)}, minmax(0, 1fr))` }}>
+          {Array.from({ length: Math.max(columns, 1) }).map((__, columnIndex) => (
+            <Skeleton key={columnIndex} className="h-5 w-full" />
+          ))}
+        </div>
+      ))}
     </div>
   )
 }

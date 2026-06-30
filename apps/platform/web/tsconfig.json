@@ -6,6 +6,7 @@
       "@codexsun/ui": ["../../../packages/ui/src/index.ts"],
       "@codexsun/ui/styles.css": ["../../../packages/ui/src/styles.css"],
       "@codexsun/ui/components/*": ["../../../packages/ui/src/components/*"],
+      "@codexsun/ui/layouts/*": ["../../../packages/ui/src/layouts/*"],
       "@codexsun/ui/workspace": ["../../../packages/ui/src/workspace/index.ts"],
       "@codexsun/ui/workspace/*": ["../../../packages/ui/src/workspace/*"],
       "@codexsun/ui/presets/*": ["../../../packages/ui/src/workspace/presets/*"],

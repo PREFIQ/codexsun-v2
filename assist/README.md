@@ -10,6 +10,16 @@ The goal is to keep the platform clean, scalable, modular, and understandable wh
 
 The second goal is to make AI-assisted development practical. CODEIT should be able to read these notes, understand the product direction, and help build features quickly without weakening enterprise safety.
 
+## CXSUN Reference Workspace
+
+Use this local CXSUN workspace as the primary UX/UI reference when matching existing product tone, flows, loaders, and page patterns:
+
+```text
+E:\Workspace\cxsun
+```
+
+Agents should inspect this reference before changing authentication screens, global loading states, workspace shell behavior, super-admin flows, tenant desk flows, and shared design-system primitives. Copy the intent and interaction rhythm into CODEXSUN through `@codexsun/ui`; do not paste unrelated business logic or old module boundaries blindly.
+
 ## Product Vision
 
 CODEXSUN should become a business operating platform where each customer receives an isolated, customizable system that matches their industry, billing flow, compliance needs, and growth stage.

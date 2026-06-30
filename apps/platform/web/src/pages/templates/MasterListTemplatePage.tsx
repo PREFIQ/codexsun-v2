@@ -107,27 +107,27 @@ export function MasterListTemplatePage() {
           <WorkspaceFormGrid columns={2}>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Name</Label>
-              <Input className="h-11 rounded-xl" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: (e.target as HTMLInputElement).value }))} />
+              <Input className="h-11 rounded-md" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: (e.target as HTMLInputElement).value }))} />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Type</Label>
-              <Input className="h-11 rounded-xl" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: (e.target as HTMLInputElement).value }))} />
+              <Input className="h-11 rounded-md" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: (e.target as HTMLInputElement).value }))} />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Phone</Label>
-              <Input className="h-11 rounded-xl font-mono" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: (e.target as HTMLInputElement).value }))} />
+              <Input className="h-11 rounded-md font-mono" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: (e.target as HTMLInputElement).value }))} />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">City</Label>
-              <Input className="h-11 rounded-xl" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: (e.target as HTMLInputElement).value }))} />
+              <Input className="h-11 rounded-md" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: (e.target as HTMLInputElement).value }))} />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">GSTIN</Label>
-              <Input className="h-11 rounded-xl font-mono uppercase" value={form.gstin} onChange={(e) => setForm((f) => ({ ...f, gstin: (e.target as HTMLInputElement).value }))} />
+              <Input className="h-11 rounded-md font-mono uppercase" value={form.gstin} onChange={(e) => setForm((f) => ({ ...f, gstin: (e.target as HTMLInputElement).value }))} />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-              <Input className="h-11 rounded-xl" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: (e.target as HTMLInputElement).value }))} />
+              <Input className="h-11 rounded-md" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: (e.target as HTMLInputElement).value }))} />
             </div>
           </WorkspaceFormGrid>
           <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border/70 pt-5">

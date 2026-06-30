@@ -1,6 +1,5 @@
 .public-page,
-.simple-page,
-.auth-page {
+.simple-page {
   min-height: 100vh;
 }
 
@@ -71,28 +70,15 @@
   padding: 0 36px 36px;
 }
 
-.simple-page,
-.auth-page {
+.simple-page {
   align-items: center;
   display: grid;
   justify-items: center;
   padding: 24px;
 }
 
-.simple-page > section,
-.auth-page > section {
+.simple-page > section {
   width: min(520px, 100%);
-}
-
-.auth-form {
-  display: grid;
-  gap: 16px;
-}
-
-.form-error {
-  color: var(--cx-danger);
-  font-weight: 700;
-  margin: 0;
 }
 
 .status-list {

@@ -1,11 +1,12 @@
 {
   "name": "@codexsun/platform-api",
-  "version": "1.0.9",
+  "version": "1.0.13",
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "npm run build -w @codexsun/framework && npm run build -w @codexsun/platform",
     "dev": "node ../../../tools/preflight.mjs platform-api",
+    "dev:skip-db": "node ../../../tools/preflight.mjs platform-api --skip-db",
+    "dev:fast": "node ../../../tools/preflight.mjs platform-api --skip-db",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src --ext .ts",
@@ -26,6 +27,3 @@
     "typescript": "^5.7.2"
   }
 }
-
-
-

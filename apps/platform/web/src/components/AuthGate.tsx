@@ -1,4 +1,6 @@
-import { Card, StatusBadge, Button } from "@codexsun/ui";
+import { Button } from "@codexsun/ui/components/button";
+import { Card } from "@codexsun/ui/components/card";
+import { StatusBadge } from "@codexsun/ui/components/StatusBadge";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";

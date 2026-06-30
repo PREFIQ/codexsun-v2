@@ -193,19 +193,19 @@ export function EntryListTemplatePage() {
           <WorkspaceFormGrid columns={2}>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Party</Label>
-              <Input className="h-11 rounded-xl" value={form.party} onChange={(e) => updateField("party", (e.target as HTMLInputElement).value)} />
+              <Input className="h-11 rounded-md" value={form.party} onChange={(e) => updateField("party", (e.target as HTMLInputElement).value)} />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Invoice no</Label>
-              <Input className="h-11 rounded-xl font-mono" value={form.number} onChange={(e) => updateField("number", (e.target as HTMLInputElement).value)} />
+              <Input className="h-11 rounded-md font-mono" value={form.number} onChange={(e) => updateField("number", (e.target as HTMLInputElement).value)} />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Date</Label>
-              <Input className="h-11 rounded-xl" type="date" value={form.date} onChange={(e) => updateField("date", (e.target as HTMLInputElement).value)} />
+              <Input className="h-11 rounded-md" type="date" value={form.date} onChange={(e) => updateField("date", (e.target as HTMLInputElement).value)} />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-              <Input className="h-11 rounded-xl" value={form.status} onChange={(e) => updateField("status", (e.target as HTMLInputElement).value)} />
+              <Input className="h-11 rounded-md" value={form.status} onChange={(e) => updateField("status", (e.target as HTMLInputElement).value)} />
             </div>
           </WorkspaceFormGrid>
 

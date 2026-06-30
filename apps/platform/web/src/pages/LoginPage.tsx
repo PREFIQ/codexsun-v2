@@ -56,10 +56,11 @@ export function LoginPage({ desk, title }: LoginPageProps) {
   }
 
   return (
-    <AuthLayout title={title}>
+    <AuthLayout surface={desk} title={title}>
       <form className="auth-form" onSubmit={submit}>
         <Field
           autoComplete="email"
+          className="auth-field"
           label="Email"
           name="email"
           disabled={loading}
@@ -69,6 +70,7 @@ export function LoginPage({ desk, title }: LoginPageProps) {
         />
         <Field
           autoComplete="current-password"
+          className="auth-field"
           label="Password"
           name="password"
           disabled={loading}
@@ -78,6 +80,7 @@ export function LoginPage({ desk, title }: LoginPageProps) {
         />
         {desk === "tenant" ? (
           <Field
+            className="auth-field"
             label="Tenant code"
             name="tenantCode"
             disabled={loading}

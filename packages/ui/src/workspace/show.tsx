@@ -29,7 +29,7 @@ export function WorkspaceShowCard({
           <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         </div>
       ) : null}
-      <div className={cn("p-4", !title && "p-0")}>{children}</div>
+      <div>{children}</div>
     </div>
   )
 }

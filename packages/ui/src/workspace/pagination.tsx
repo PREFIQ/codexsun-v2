@@ -42,12 +42,12 @@ export function WorkspacePagination({
         className,
       )}
     >
-      <div className="flex flex-wrap items-center gap-3">
-        <span>
+      <div className="flex min-w-max shrink-0 flex-nowrap items-center gap-3">
+        <span className="whitespace-nowrap">
           Total {singularLabel}: <span className="font-semibold text-foreground">{totalCount}</span>
         </span>
-        <div className="flex items-center gap-2">
-          <span>Rows per page</span>
+        <div className="flex min-w-max shrink-0 items-center gap-2 whitespace-nowrap">
+          <span className="whitespace-nowrap">Rows per page</span>
           <Select
             value={String(rowsPerPage)}
             onValueChange={(nextValue) => onRowsPerPageChange?.(Number.parseInt(nextValue, 10))}
@@ -65,9 +65,9 @@ export function WorkspacePagination({
           </Select>
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-2.5">
-        <span>{showingLabel}</span>
-        <div className="flex items-center gap-1">
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2.5">
+        <span className="whitespace-nowrap">{showingLabel}</span>
+        <div className="flex shrink-0 items-center gap-1">
           <Button
             className="h-8 rounded-md px-2 text-muted-foreground"
             disabled={page <= 1}

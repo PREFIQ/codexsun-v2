@@ -113,6 +113,270 @@ describe("Admin Endpoints", () => {
   });
 
   // ── Module Activation ──────────────────────────────────────────
+  it("POST and DELETE /admin/domains persist and force delete a tenant domain mapping", async () => {
+    const code = "domain-test-" + Date.now();
+    const tenantRes = await app.inject({
+      method: "POST",
+      url: "/admin/tenants",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: { tenantCode: code, tenantName: "Domain Test Tenant" }
+    });
+    expect(tenantRes.statusCode).toBe(200);
+    const tenant = JSON.parse(tenantRes.body).data;
+
+    const domainName = `${code}.local`;
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/admin/domains",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: {
+        domainName,
+        isPrimary: true,
+        landingApp: "Billing",
+        status: "active",
+        tenantId: tenant.id
+      }
+    });
+    expect(createRes.statusCode).toBe(200);
+    const created = JSON.parse(createRes.body).data;
+    expect(created.domainName).toBe(domainName);
+    expect(created.tenantCode).toBe(code);
+    expect(created.isPrimary).toBe(true);
+
+    const listRes = await app.inject({
+      method: "GET",
+      url: "/admin/domains",
+      headers: { Authorization: `Bearer ${saToken}` }
+    });
+    expect(listRes.statusCode).toBe(200);
+    const domains = JSON.parse(listRes.body).data;
+    expect(domains.some((item: { domainName: string }) => item.domainName === domainName)).toBe(true);
+
+    const deleteRes = await app.inject({
+      method: "DELETE",
+      url: `/admin/domains/${created.id}`,
+      headers: { Authorization: `Bearer ${saToken}` }
+    });
+    expect(deleteRes.statusCode).toBe(200);
+    expect(JSON.parse(deleteRes.body).data.deleted).toBe(true);
+
+    const afterDeleteRes = await app.inject({
+      method: "GET",
+      url: "/admin/domains",
+      headers: { Authorization: `Bearer ${saToken}` }
+    });
+    expect(afterDeleteRes.statusCode).toBe(200);
+    const domainsAfterDelete = JSON.parse(afterDeleteRes.body).data;
+    expect(domainsAfterDelete.some((item: { domainName: string }) => item.domainName === domainName)).toBe(false);
+  });
+
+  it("POST and PUT /admin/subscriptions persist tenant subscription details", async () => {
+    const code = "subscription-test-" + Date.now();
+    const tenantRes = await app.inject({
+      method: "POST",
+      url: "/admin/tenants",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: { tenantCode: code, tenantName: "Subscription Test Tenant" }
+    });
+    expect(tenantRes.statusCode).toBe(200);
+    const tenant = JSON.parse(tenantRes.body).data;
+
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/admin/subscriptions",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: {
+        amount: 2500,
+        billingCycle: "Monthly",
+        currency: "INR",
+        planName: "Professional",
+        renewsOn: "2026-07-31",
+        seats: 25,
+        startsOn: "2026-07-01",
+        status: "active",
+        tenantId: tenant.id
+      }
+    });
+    expect(createRes.statusCode).toBe(200);
+    const created = JSON.parse(createRes.body).data;
+    expect(created.planName).toBe("Professional");
+    expect(created.tenantCode).toBe(code);
+    expect(created.billingCycle).toBe("Monthly");
+    expect(created.seats).toBe(25);
+
+    const updateRes = await app.inject({
+      method: "PUT",
+      url: `/admin/subscriptions/${created.id}`,
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: {
+        billingCycle: "Yearly",
+        planName: "Enterprise",
+        seats: 50,
+        status: "trial",
+        tenantId: tenant.id
+      }
+    });
+    expect(updateRes.statusCode).toBe(200);
+    const updated = JSON.parse(updateRes.body).data;
+    expect(updated.planName).toBe("Enterprise");
+    expect(updated.billingCycle).toBe("Yearly");
+    expect(updated.status).toBe("trial");
+
+    const listRes = await app.inject({
+      method: "GET",
+      url: "/admin/subscriptions",
+      headers: { Authorization: `Bearer ${saToken}` }
+    });
+    expect(listRes.statusCode).toBe(200);
+    const subscriptions = JSON.parse(listRes.body).data;
+    expect(subscriptions.some((item: { id: string }) => item.id === created.id)).toBe(true);
+  });
+
+  it("POST and PUT /admin/subscription-plans persist reusable plans", async () => {
+    const planName = "Plan Test " + Date.now();
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/admin/subscription-plans",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: {
+        amount: 1500,
+        billingCycle: "Monthly",
+        currency: "INR",
+        description: "Reusable plan for tests",
+        planName,
+        seats: 10,
+        status: "active"
+      }
+    });
+    expect(createRes.statusCode).toBe(200);
+    const created = JSON.parse(createRes.body).data;
+    expect(created.planName).toBe(planName);
+    expect(created.billingCycle).toBe("Monthly");
+
+    const updateRes = await app.inject({
+      method: "PUT",
+      url: `/admin/subscription-plans/${created.id}`,
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: {
+        amount: 12000,
+        billingCycle: "Yearly",
+        planName,
+        seats: 25,
+        status: "trial"
+      }
+    });
+    expect(updateRes.statusCode).toBe(200);
+    const updated = JSON.parse(updateRes.body).data;
+    expect(updated.billingCycle).toBe("Yearly");
+    expect(updated.seats).toBe(25);
+    expect(updated.status).toBe("trial");
+
+    const listRes = await app.inject({
+      method: "GET",
+      url: "/admin/subscription-plans",
+      headers: { Authorization: `Bearer ${saToken}` }
+    });
+    expect(listRes.statusCode).toBe(200);
+    const plans = JSON.parse(listRes.body).data;
+    expect(plans.some((item: { id: string }) => item.id === created.id)).toBe(true);
+  });
+
+  it("POST and PUT /admin/platform-apps persist platform app records", async () => {
+    const moduleKey = "test.app." + Date.now();
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/admin/platform-apps",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: {
+        defaultEnabled: true,
+        displayName: "Test App",
+        moduleKey,
+        scope: "tenant",
+        status: "active",
+        version: "1.0.0"
+      }
+    });
+    expect(createRes.statusCode).toBe(200);
+    const created = JSON.parse(createRes.body).data;
+    expect(created.moduleKey).toBe(moduleKey);
+    expect(created.defaultEnabled).toBe(true);
+
+    const updateRes = await app.inject({
+      method: "PUT",
+      url: `/admin/platform-apps/${encodeURIComponent(moduleKey)}`,
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: {
+        defaultEnabled: false,
+        displayName: "Updated Test App",
+        moduleKey,
+        scope: "industry",
+        status: "planned",
+        version: "1.1.0"
+      }
+    });
+    expect(updateRes.statusCode).toBe(200);
+    const updated = JSON.parse(updateRes.body).data;
+    expect(updated.displayName).toBe("Updated Test App");
+    expect(updated.scope).toBe("industry");
+    expect(updated.defaultEnabled).toBe(false);
+
+    const listRes = await app.inject({
+      method: "GET",
+      url: "/admin/platform-apps",
+      headers: { Authorization: `Bearer ${saToken}` }
+    });
+    expect(listRes.statusCode).toBe(200);
+    const appRecords = JSON.parse(listRes.body).data;
+    expect(appRecords.some((item: { moduleKey: string }) => item.moduleKey === moduleKey)).toBe(true);
+  });
+
+  it("POST and PUT /admin/industries persist industry records", async () => {
+    const code = "industry-test-" + Date.now();
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/admin/industries",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: {
+        defaultTemplate: "Retail template",
+        industryCode: code,
+        industryName: "Industry Test",
+        segment: "Retail",
+        status: "active"
+      }
+    });
+    expect(createRes.statusCode).toBe(200);
+    const created = JSON.parse(createRes.body).data;
+    expect(created.industryCode).toBe(code);
+    expect(created.segment).toBe("Retail");
+
+    const updateRes = await app.inject({
+      method: "PUT",
+      url: `/admin/industries/${created.id}`,
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: {
+        defaultTemplate: "Manufacturing template",
+        industryCode: code,
+        industryName: "Updated Industry Test",
+        segment: "Manufacturing",
+        status: "planned"
+      }
+    });
+    expect(updateRes.statusCode).toBe(200);
+    const updated = JSON.parse(updateRes.body).data;
+    expect(updated.industryName).toBe("Updated Industry Test");
+    expect(updated.segment).toBe("Manufacturing");
+    expect(updated.status).toBe("planned");
+
+    const listRes = await app.inject({
+      method: "GET",
+      url: "/admin/industries",
+      headers: { Authorization: `Bearer ${saToken}` }
+    });
+    expect(listRes.statusCode).toBe(200);
+    const industries = JSON.parse(listRes.body).data;
+    expect(industries.some((item: { industryCode: string }) => item.industryCode === code)).toBe(true);
+  });
+
   it("GET /admin/modules/catalog returns module catalog", async () => {
     const res = await app.inject({
       method: "GET",
