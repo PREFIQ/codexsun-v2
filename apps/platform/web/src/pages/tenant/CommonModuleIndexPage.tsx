@@ -1,6 +1,6 @@
 import { WorkspacePage } from "@codexsun/ui/workspace"
 
-const groups: Array<{
+export const commonModuleGroups: Array<{
   label: string
   modules: Array<{ key: string; label: string; description: string }>
 }> = [
@@ -17,20 +17,21 @@ const groups: Array<{
   {
     label: "Contacts",
     modules: [
-      { key: "contactGroups", label: "Contact Groups", description: "Grouping labels for contacts" },
-      { key: "contactTypes", label: "Contact Types", description: "Customer, supplier, transporter, etc." },
-      { key: "addressTypes", label: "Address Types", description: "Billing, shipping, office, warehouse" },
-      { key: "bankNames", label: "Bank Names", description: "Bank name lookup" },
+      { key: "contact-groups", label: "Contact Groups", description: "Grouping labels for contacts" },
+      { key: "contact-types", label: "Contact Types", description: "Customer, supplier, transporter, etc." },
+      { key: "address-types", label: "Address Types", description: "Billing, shipping, office, warehouse" },
+      { key: "bank-names", label: "Bank Names", description: "Bank name lookup" },
+      { key: "bank-account-types", label: "Bank Account Types", description: "Current, CC, OD, savings, and other bank account types" },
     ],
   },
   {
     label: "Product",
     modules: [
-      { key: "productGroups", label: "Product Groups", description: "Product group definitions" },
-      { key: "productCategories", label: "Product Categories", description: "Product category definitions" },
-      { key: "productTypes", label: "Product Types", description: "Product type definitions" },
+      { key: "product-groups", label: "Product Groups", description: "Product group definitions" },
+      { key: "product-categories", label: "Product Categories", description: "Product category definitions" },
+      { key: "product-types", label: "Product Types", description: "Product type definitions" },
       { key: "units", label: "Units", description: "Pieces, kg, meter, box" },
-      { key: "hsnCodes", label: "HSN Codes", description: "HSN code lookup" },
+      { key: "hsn-codes", label: "HSN Codes", description: "HSN code lookup" },
       { key: "taxes", label: "Taxes", description: "Tax rate definitions" },
       { key: "brands", label: "Brands", description: "Brand name lookup" },
       { key: "colours", label: "Colours", description: "Colour lookup" },
@@ -41,11 +42,11 @@ const groups: Array<{
   {
     label: "Orders",
     modules: [
-      { key: "orderTypes", label: "Order Types", description: "Order type definitions" },
+      { key: "order-types", label: "Order Types", description: "Order type definitions" },
       { key: "transports", label: "Transports", description: "Transport mode lookup" },
       { key: "warehouses", label: "Warehouses", description: "Warehouse definitions" },
       { key: "destinations", label: "Destinations", description: "Destination lookup" },
-      { key: "stockRejectionTypes", label: "Stock Rejection Types", description: "Rejection reason codes" },
+      { key: "stock-rejection-types", label: "Stock Rejection Types", description: "Rejection reason codes" },
     ],
   },
   {
@@ -53,10 +54,10 @@ const groups: Array<{
     modules: [
       { key: "currencies", label: "Currencies", description: "Currency codes" },
       { key: "priorities", label: "Priorities", description: "Priority levels" },
-      { key: "paymentTerms", label: "Payment Terms", description: "Payment term definitions" },
-      { key: "accountingYear", label: "Accounting Year", description: "Financial year periods" },
+      { key: "payment-terms", label: "Payment Terms", description: "Payment term definitions" },
+      { key: "accounting-year", label: "Accounting Year", description: "Financial year periods" },
       { key: "months", label: "Months", description: "Month definitions" },
-      { key: "salesAccountTypes", label: "Sales Account Types", description: "Sales account categories" },
+      { key: "sales-account-types", label: "Sales Account Types", description: "Sales account categories" },
     ],
   },
 ]
@@ -72,7 +73,7 @@ export function CommonModuleIndexPage({ onNavigate }: Props) {
       description="Browse and manage common master data definitions grouped by category."
     >
       <div className="space-y-6">
-        {groups.map((group) => (
+        {commonModuleGroups.map((group) => (
           <div key={group.label} className="rounded-md border border-border/70 bg-card/95 shadow-sm">
             <div className="border-b border-border/70 px-5 py-3">
               <h2 className="text-base font-semibold text-foreground">{group.label}</h2>

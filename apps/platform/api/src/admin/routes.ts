@@ -3,6 +3,8 @@ import { ok } from "@codexsun/framework/http";
 import { createHash } from "node:crypto";
 import { requirePermission, requireSuperAdmin } from "../auth/guards.js";
 import { env } from "../env.js";
+import { projectManagerMaturityStore } from "../project-manager/maturity-store.js";
+import { projectManagerJsonStore } from "../project-manager/json-store.js";
 import type { FastifyInstance } from "fastify";
 
 function responseMeta(request: { correlationId?: string; id: string; tenantId?: string }) {
@@ -228,6 +230,189 @@ function toPlatformIndustry(row: Record<string, unknown>) {
   };
 }
 
+function toPlatformRegistry(row: Record<string, unknown>) {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    platform: String(row.platform),
+    description: typeof row.description === "string" ? row.description : "",
+    active: Boolean(Number(row.active ?? 1)),
+    status: Boolean(Number(row.active ?? 1)) ? "active" : "inactive",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at ?? row.created_at
+  };
+}
+
+function toPlatformModuleGroup(row: Record<string, unknown>) {
+  return {
+    id: String(row.id),
+    platformRegistryId: String(row.platform_registry_id),
+    groupKey: String(row.group_key),
+    name: String(row.name),
+    description: typeof row.description === "string" ? row.description : "",
+    sortOrder: toNumber(row.sort_order ?? 0),
+    active: Boolean(Number(row.active ?? 1)),
+    status: Boolean(Number(row.active ?? 1)) ? "active" : "inactive",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at ?? row.created_at
+  };
+}
+
+function toPlatformModuleRegistry(row: Record<string, unknown>) {
+  return {
+    id: String(row.id),
+    moduleGroupId: String(row.module_group_id),
+    moduleKey: String(row.module_key),
+    name: String(row.name),
+    routePath: typeof row.route_path === "string" ? row.route_path : "",
+    description: typeof row.description === "string" ? row.description : "",
+    sortOrder: toNumber(row.sort_order ?? 0),
+    active: Boolean(Number(row.active ?? 1)),
+    status: Boolean(Number(row.active ?? 1)) ? "active" : "inactive",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at ?? row.created_at
+  };
+}
+
+function platformRegistryInputFromBody(body: Record<string, unknown>, requireIdentity: boolean) {
+  const input: Record<string, unknown> = {};
+  if (typeof body.name === "string") input.name = body.name.trim();
+  if (typeof body.platform === "string") input.platform = body.platform.trim();
+  if (typeof body.description === "string" || body.description === null) input.description = body.description ?? null;
+  if (typeof body.active === "boolean") input.active = body.active;
+  if (typeof body.active === "number") input.active = Boolean(body.active);
+  if (typeof body.status === "string") input.active = body.status === "active";
+  if (requireIdentity && (typeof input.name !== "string" || !input.name || typeof input.platform !== "string" || !input.platform)) {
+    throw AppError.validation("name and platform are required");
+  }
+  return input;
+}
+
+function platformModuleGroupInputFromBody(body: Record<string, unknown>, requireIdentity: boolean) {
+  const input: Record<string, unknown> = {};
+  if (typeof body.platformRegistryId === "string") input.platformRegistryId = body.platformRegistryId;
+  if (typeof body.groupKey === "string") input.groupKey = body.groupKey.trim();
+  if (typeof body.name === "string") input.name = body.name.trim();
+  if (typeof body.description === "string" || body.description === null) input.description = body.description ?? null;
+  if (typeof body.sortOrder === "number") input.sortOrder = body.sortOrder;
+  if (typeof body.sortOrder === "string") input.sortOrder = Number(body.sortOrder) || 0;
+  if (typeof body.active === "boolean") input.active = body.active;
+  if (typeof body.active === "number") input.active = Boolean(body.active);
+  if (typeof body.status === "string") input.active = body.status === "active";
+  if (requireIdentity && (typeof input.platformRegistryId !== "string" || !input.platformRegistryId || typeof input.groupKey !== "string" || !input.groupKey || typeof input.name !== "string" || !input.name)) {
+    throw AppError.validation("platformRegistryId, groupKey, and name are required");
+  }
+  return input;
+}
+
+function platformModuleRegistryInputFromBody(body: Record<string, unknown>, requireIdentity: boolean) {
+  const input: Record<string, unknown> = {};
+  if (typeof body.moduleGroupId === "string") input.moduleGroupId = body.moduleGroupId;
+  if (typeof body.moduleKey === "string") input.moduleKey = body.moduleKey.trim();
+  if (typeof body.name === "string") input.name = body.name.trim();
+  if (typeof body.routePath === "string" || body.routePath === null) input.routePath = body.routePath ?? null;
+  if (typeof body.description === "string" || body.description === null) input.description = body.description ?? null;
+  if (typeof body.sortOrder === "number") input.sortOrder = body.sortOrder;
+  if (typeof body.sortOrder === "string") input.sortOrder = Number(body.sortOrder) || 0;
+  if (typeof body.active === "boolean") input.active = body.active;
+  if (typeof body.active === "number") input.active = Boolean(body.active);
+  if (typeof body.status === "string") input.active = body.status === "active";
+  if (requireIdentity && (typeof input.moduleGroupId !== "string" || !input.moduleGroupId || typeof input.moduleKey !== "string" || !input.moduleKey || typeof input.name !== "string" || !input.name)) {
+    throw AppError.validation("moduleGroupId, moduleKey, and name are required");
+  }
+  return input;
+}
+
+function platformFeatureRegistryInputFromBody(body: Record<string, unknown>, requireIdentity: boolean) {
+  const input: Record<string, unknown> = {};
+  if (typeof body.moduleId === "string") input.moduleId = body.moduleId;
+  if (typeof body.featureKey === "string") input.featureKey = body.featureKey.trim();
+  if (typeof body.name === "string") input.name = body.name.trim();
+  if (typeof body.type === "string") input.type = body.type.trim();
+  if (typeof body.routePath === "string" || body.routePath === null) input.routePath = body.routePath ?? null;
+  if (typeof body.permissionKey === "string" || body.permissionKey === null) input.permissionKey = body.permissionKey ?? null;
+  if (typeof body.description === "string" || body.description === null) input.description = body.description ?? null;
+  if (typeof body.sortOrder === "number") input.sortOrder = body.sortOrder;
+  if (typeof body.sortOrder === "string") input.sortOrder = Number(body.sortOrder) || 0;
+  if (typeof body.active === "boolean") input.active = body.active;
+  if (typeof body.active === "number") input.active = Boolean(body.active);
+  if (typeof body.status === "string") input.active = body.status === "active";
+  if (requireIdentity && (typeof input.moduleId !== "string" || !input.moduleId || typeof input.featureKey !== "string" || !input.featureKey || typeof input.name !== "string" || !input.name)) {
+    throw AppError.validation("moduleId, featureKey, and name are required");
+  }
+  return input;
+}
+
+function platformDetailRegistryInputFromBody(body: Record<string, unknown>, requireIdentity: boolean) {
+  const input: Record<string, unknown> = {};
+  const stringFields = ["auditEvent", "componentPath", "defaultValue", "description", "featureId", "fieldName", "fieldNature", "fieldType", "key", "method", "migrationId", "moduleId", "name", "operation", "ownerTeam", "pageType", "permissionKey", "relation", "richNotes", "riskLevel", "routePath", "scope", "subscriptionFlagKey", "tableName", "tableScope", "testPath", "version"];
+  for (const field of stringFields) {
+    if (typeof body[field] === "string" || body[field] === null) input[field] = body[field] ?? "";
+  }
+  if (Array.isArray(body.dependencyKeys)) input.dependencyKeys = body.dependencyKeys;
+  if (typeof body.dependencyKeys === "string") input.dependencyKeys = body.dependencyKeys.split(",").map((item) => item.trim()).filter(Boolean);
+  if (typeof body.sortOrder === "number") input.sortOrder = body.sortOrder;
+  if (typeof body.sortOrder === "string") input.sortOrder = Number(body.sortOrder) || 0;
+  for (const field of ["active", "indexed", "lifecycleAction", "nullable", "softDelete", "tenantRequired", "unique"]) {
+    if (typeof body[field] === "boolean") input[field] = body[field];
+    if (typeof body[field] === "number") input[field] = Boolean(body[field]);
+  }
+  if (typeof body.status === "string") input.active = body.status === "active";
+  if (requireIdentity && (typeof input.moduleId !== "string" || !input.moduleId || typeof input.key !== "string" || !input.key || typeof input.name !== "string" || !input.name)) {
+    throw AppError.validation("moduleId, key, and name are required");
+  }
+  return input;
+}
+
+function projectManagerDetailKind(kind: string) {
+  if (kind === "actions" || kind === "action") return "action";
+  if (kind === "apis" || kind === "api") return "api";
+  if (kind === "screens" || kind === "screen") return "screen";
+  if (kind === "database") return "database";
+  if (kind === "planning") return "planning";
+  if (kind === "notes" || kind === "note") return "note";
+  throw AppError.validation("Unsupported project manager registry kind");
+}
+
+function projectManagerMaturityKind(kind: string) {
+  if (kind === "actions" || kind === "action") return "action";
+  if (kind === "agents" || kind === "agent-notes" || kind === "agent_note") return "agent_note";
+  if (kind === "activities") return "activity";
+  if (kind === "automations") return "automation";
+  if (kind === "changelog") return "changelog";
+  if (kind === "coverage") return "coverage";
+  if (kind === "discussions" || kind === "discussion") return "discussion";
+  if (kind === "github") return "github";
+  if (kind === "issues") return "issue";
+  if (kind === "kanban") return "kanban";
+  if (kind === "pull-requests" || kind === "pull_requests" || kind === "pull-request") return "pull_request";
+  if (kind === "releases") return "release";
+  if (kind === "reviews") return "review";
+  if (kind === "security-quality" || kind === "security_quality") return "security_quality";
+  if (kind === "tasks") return "task";
+  if (kind === "timeline") return "timeline";
+  if (kind === "todos") return "todo";
+  throw AppError.validation("Unsupported project manager maturity kind");
+}
+
+function projectManagerMaturityInputFromBody(body: Record<string, unknown>, requireIdentity: boolean) {
+  const input: Record<string, unknown> = {};
+  const stringFields = ["actor", "assignee", "command", "description", "dueDate", "eventName", "githubBranch", "githubCommit", "githubIssue", "githubPr", "githubUrl", "key", "lane", "moduleGroupKey", "moduleId", "moduleKey", "ownerTeam", "platformKey", "priority", "referenceId", "referenceType", "reviewer", "richNotes", "severity", "status", "title", "type", "version"];
+  for (const field of stringFields) {
+    if (typeof body[field] === "string" || body[field] === null) input[field] = body[field] ?? "";
+  }
+  if (Array.isArray(body.labels)) input.labels = body.labels;
+  if (typeof body.labels === "string") input.labels = body.labels.split(",").map((item) => item.trim()).filter(Boolean);
+  if (typeof body.sortOrder === "number") input.sortOrder = body.sortOrder;
+  if (typeof body.sortOrder === "string") input.sortOrder = Number(body.sortOrder) || 0;
+  if (typeof body.active === "boolean") input.active = body.active;
+  if (typeof body.active === "number") input.active = Boolean(body.active);
+  if (requireIdentity && (typeof input.key !== "string" || !input.key || typeof input.title !== "string" || !input.title)) {
+    throw AppError.validation("key and title are required");
+  }
+  return input;
+}
+
 function platformIndustryInputFromBody(body: Record<string, unknown>, requireIdentity: boolean) {
   const input: Record<string, unknown> = {};
   if (typeof body.industryName === "string") input.industryName = body.industryName.trim();
@@ -340,6 +525,7 @@ function activityEventNames(module: string) {
     app: ["platform.app.added", "platform.app.updated", "platform.app.deleted"],
     domain: ["tenant.domain.added", "tenant.domain.updated", "tenant.domain.deleted"],
     industry: ["platform.industry.added", "platform.industry.updated", "platform.industry.deleted"],
+    platformRegistry: ["platform.registry.added", "platform.registry.updated", "platform.registry.deactivated", "platform.registry.restored"],
     plan: ["tenant.subscription.plan.added", "tenant.subscription.plan.updated", "tenant.subscription.plan.deleted"],
     subscription: ["tenant.subscription.added", "tenant.subscription.updated", "tenant.subscription.deleted"],
     tenant: ["tenant.created", "tenant.updated", "tenant.deleted"],
@@ -348,7 +534,7 @@ function activityEventNames(module: string) {
 }
 
 export async function registerAdminRoutes(app: FastifyInstance) {
-  // ── Console Dashboard ──────────────────────────────────────────
+  // Console Dashboard ──────────────────────────────────────────
   app.get("/admin/console", async (request) => {
     const session = await requireSuperAdmin(app, request);
     requirePermission(session, "platform.tenant.profile.view");
@@ -893,6 +1079,440 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       payload: { planId: id, planName: existing.plan_name }
     });
     return ok({ deleted: true, id, planName: existing.plan_name }, responseMeta(request));
+  });
+
+  app.get("/admin/platform-registry", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    return ok(await projectManagerJsonStore.listPlatforms(), responseMeta(request));
+  });
+
+  app.get("/admin/project-manager/result", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    return ok(await projectManagerJsonStore.result(), responseMeta(request));
+  });
+
+  app.get("/admin/project-manager/maturity/result", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    return ok(await projectManagerMaturityStore.result(), responseMeta(request));
+  });
+
+  app.get("/admin/project-manager/maturity/:kind", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { kind } = request.params as { kind: string };
+    return ok(await projectManagerMaturityStore.list(projectManagerMaturityKind(kind)), responseMeta(request));
+  });
+
+  app.post("/admin/project-manager/maturity/:kind", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { kind } = request.params as { kind: string };
+    const maturityKind = projectManagerMaturityKind(kind);
+    const input = projectManagerMaturityInputFromBody(request.body as Record<string, unknown>, true);
+    const record = await projectManagerMaturityStore.create(maturityKind, input);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `project_manager.maturity.${maturityKind}.added`, payload: { id: record.id, key: record.key } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.put("/admin/project-manager/maturity/:kind/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id, kind } = request.params as { id: string; kind: string };
+    const maturityKind = projectManagerMaturityKind(kind);
+    const input = projectManagerMaturityInputFromBody(request.body as Record<string, unknown>, false);
+    const record = await projectManagerMaturityStore.update(maturityKind, id, input);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `project_manager.maturity.${maturityKind}.updated`, payload: { id, key: record.key } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/project-manager/maturity/:kind/:id/deactivate", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id, kind } = request.params as { id: string; kind: string };
+    const maturityKind = projectManagerMaturityKind(kind);
+    const record = await projectManagerMaturityStore.setActive(maturityKind, id, false);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `project_manager.maturity.${maturityKind}.deactivated`, payload: { id } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/project-manager/maturity/:kind/:id/restore", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id, kind } = request.params as { id: string; kind: string };
+    const maturityKind = projectManagerMaturityKind(kind);
+    const record = await projectManagerMaturityStore.setActive(maturityKind, id, true);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `project_manager.maturity.${maturityKind}.restored`, payload: { id } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.delete("/admin/project-manager/maturity/:kind/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id, kind } = request.params as { id: string; kind: string };
+    const maturityKind = projectManagerMaturityKind(kind);
+    const result = await projectManagerMaturityStore.delete(maturityKind, id);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `project_manager.maturity.${maturityKind}.force_deleted`, payload: result });
+    return ok(result, responseMeta(request));
+  });
+
+  app.post("/admin/project-manager/commands", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const body = request.body as Record<string, unknown>;
+    const command = typeof body.command === "string" ? body.command : "";
+    const input = projectManagerMaturityInputFromBody({ ...body, actor: session.email, key: "command", title: "command" }, false);
+    const result = await projectManagerMaturityStore.command(command, input);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: "project_manager.command.completed", payload: { command } });
+    return ok(result, responseMeta(request));
+  });
+
+  app.get("/admin/platform-registry/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const record = (await projectManagerJsonStore.listPlatforms()).find((item) => item.id === id);
+    if (!record) throw AppError.notFound("Platform registry record not found");
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/platform-registry", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const input = platformRegistryInputFromBody(request.body as Record<string, unknown>, true);
+    const record = await projectManagerJsonStore.createPlatform(input);
+    await app.auditService.write({
+      actorType: "super_admin",
+      actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      eventName: "platform.registry.added",
+      payload: { id: record.id, name: record.name, platform: record.platform }
+    });
+    return ok(record, responseMeta(request));
+  });
+
+  app.put("/admin/platform-registry/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const input = platformRegistryInputFromBody(request.body as Record<string, unknown>, false);
+    const record = await projectManagerJsonStore.updatePlatform(id, input);
+    await app.auditService.write({
+      actorType: "super_admin",
+      actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      eventName: "platform.registry.updated",
+      payload: { id, name: record.name, platform: record.platform }
+    });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/platform-registry/:id/deactivate", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const record = await projectManagerJsonStore.setPlatformActive(id, false);
+    await app.auditService.write({
+      actorType: "super_admin",
+      actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      eventName: "platform.registry.deactivated",
+      payload: { id, name: record.name, platform: record.platform }
+    });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/platform-registry/:id/restore", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const record = await projectManagerJsonStore.setPlatformActive(id, true);
+    await app.auditService.write({
+      actorType: "super_admin",
+      actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      eventName: "platform.registry.restored",
+      payload: { id, name: record.name, platform: record.platform }
+    });
+    return ok(record, responseMeta(request));
+  });
+
+  app.delete("/admin/platform-registry/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const result = await projectManagerJsonStore.deletePlatform(id);
+    await app.auditService.write({
+      actorType: "super_admin",
+      actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      eventName: "platform.registry.force_deleted",
+      payload: result
+    });
+    return ok(result, responseMeta(request));
+  });
+
+  app.get("/admin/platform-registry/:platformId/module-groups", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { platformId } = request.params as { platformId: string };
+    return ok(await projectManagerJsonStore.listGroups(platformId), responseMeta(request));
+  });
+
+  app.post("/admin/platform-module-groups", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const input = platformModuleGroupInputFromBody(request.body as Record<string, unknown>, true);
+    const record = await projectManagerJsonStore.createGroup(input);
+    await app.auditService.write({
+      actorType: "super_admin",
+      actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      eventName: "platform.registry.group.added",
+      payload: { id: record.id, platformRegistryId: record.platformRegistryId, groupKey: record.groupKey }
+    });
+    return ok(record, responseMeta(request));
+  });
+
+  app.put("/admin/platform-module-groups/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const input = platformModuleGroupInputFromBody(request.body as Record<string, unknown>, false);
+    const record = await projectManagerJsonStore.updateGroup(id, input);
+    await app.auditService.write({
+      actorType: "super_admin",
+      actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      eventName: "platform.registry.group.updated",
+      payload: { id, platformRegistryId: record.platformRegistryId, groupKey: record.groupKey }
+    });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/platform-module-groups/:id/deactivate", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const record = await projectManagerJsonStore.setGroupActive(id, false);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: "platform.registry.group.deactivated", payload: { id } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/platform-module-groups/:id/restore", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const record = await projectManagerJsonStore.setGroupActive(id, true);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: "platform.registry.group.restored", payload: { id } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.delete("/admin/platform-module-groups/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const result = await projectManagerJsonStore.deleteGroup(id);
+    await app.auditService.write({
+      actorType: "super_admin",
+      actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      eventName: "platform.registry.group.force_deleted",
+      payload: result
+    });
+    return ok(result, responseMeta(request));
+  });
+
+  app.get("/admin/platform-module-groups/:groupId/modules", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { groupId } = request.params as { groupId: string };
+    return ok(await projectManagerJsonStore.listModules(groupId), responseMeta(request));
+  });
+
+  app.post("/admin/platform-module-registry", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const input = platformModuleRegistryInputFromBody(request.body as Record<string, unknown>, true);
+    const record = await projectManagerJsonStore.createModule(input);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: "platform.registry.module.added", payload: { id: record.id, moduleGroupId: record.moduleGroupId, moduleKey: record.moduleKey } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.put("/admin/platform-module-registry/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const input = platformModuleRegistryInputFromBody(request.body as Record<string, unknown>, false);
+    const record = await projectManagerJsonStore.updateModule(id, input);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: "platform.registry.module.updated", payload: { id, moduleGroupId: record.moduleGroupId, moduleKey: record.moduleKey } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/platform-module-registry/:id/deactivate", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const record = await projectManagerJsonStore.setModuleActive(id, false);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: "platform.registry.module.deactivated", payload: { id } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/platform-module-registry/:id/restore", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const record = await projectManagerJsonStore.setModuleActive(id, true);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: "platform.registry.module.restored", payload: { id } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.delete("/admin/platform-module-registry/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const result = await projectManagerJsonStore.deleteModule(id);
+    await app.auditService.write({
+      actorType: "super_admin",
+      actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      eventName: "platform.registry.module.force_deleted",
+      payload: result
+    });
+    return ok(result, responseMeta(request));
+  });
+
+  app.get("/admin/platform-module-registry/:moduleId/features", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { moduleId } = request.params as { moduleId: string };
+    return ok(await projectManagerJsonStore.listFeatures(moduleId), responseMeta(request));
+  });
+
+  app.post("/admin/platform-feature-registry", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const input = platformFeatureRegistryInputFromBody(request.body as Record<string, unknown>, true);
+    const record = await projectManagerJsonStore.createFeature(input);
+    await app.auditService.write({
+      actorType: "super_admin",
+      actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      eventName: "platform.registry.feature.added",
+      payload: { id: record.id, moduleId: record.moduleId, featureKey: record.featureKey }
+    });
+    return ok(record, responseMeta(request));
+  });
+
+  app.put("/admin/platform-feature-registry/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const input = platformFeatureRegistryInputFromBody(request.body as Record<string, unknown>, false);
+    const record = await projectManagerJsonStore.updateFeature(id, input);
+    await app.auditService.write({
+      actorType: "super_admin",
+      actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      eventName: "platform.registry.feature.updated",
+      payload: { id, moduleId: record.moduleId, featureKey: record.featureKey }
+    });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/platform-feature-registry/:id/deactivate", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const record = await projectManagerJsonStore.setFeatureActive(id, false);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: "platform.registry.feature.deactivated", payload: { id } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/platform-feature-registry/:id/restore", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const record = await projectManagerJsonStore.setFeatureActive(id, true);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: "platform.registry.feature.restored", payload: { id } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.delete("/admin/platform-feature-registry/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id } = request.params as { id: string };
+    const result = await projectManagerJsonStore.deleteFeature(id);
+    await app.auditService.write({
+      actorType: "super_admin",
+      actorEmail: session.email,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      eventName: "platform.registry.feature.force_deleted",
+      payload: result
+    });
+    return ok(result, responseMeta(request));
+  });
+
+  app.get("/admin/platform-module-registry/:moduleId/:kind", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { moduleId, kind } = request.params as { moduleId: string; kind: string };
+    const detailKind = projectManagerDetailKind(kind);
+    return ok(await projectManagerJsonStore.listDetails(detailKind, moduleId), responseMeta(request));
+  });
+
+  app.post("/admin/project-manager/:kind", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { kind } = request.params as { kind: string };
+    const detailKind = projectManagerDetailKind(kind);
+    const input = platformDetailRegistryInputFromBody(request.body as Record<string, unknown>, true);
+    const record = await projectManagerJsonStore.createDetail(detailKind, input);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `project_manager.${detailKind}.added`, payload: { id: record.id, moduleId: record.moduleId, key: record.key } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.put("/admin/project-manager/:kind/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { kind, id } = request.params as { kind: string; id: string };
+    const detailKind = projectManagerDetailKind(kind);
+    const input = platformDetailRegistryInputFromBody(request.body as Record<string, unknown>, false);
+    const record = await projectManagerJsonStore.updateDetail(detailKind, id, input);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `project_manager.${detailKind}.updated`, payload: { id, moduleId: record.moduleId, key: record.key } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/project-manager/:kind/:id/deactivate", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { kind, id } = request.params as { kind: string; id: string };
+    const detailKind = projectManagerDetailKind(kind);
+    const record = await projectManagerJsonStore.setDetailActive(detailKind, id, false);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `project_manager.${detailKind}.deactivated`, payload: { id } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/project-manager/:kind/:id/restore", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { kind, id } = request.params as { kind: string; id: string };
+    const detailKind = projectManagerDetailKind(kind);
+    const record = await projectManagerJsonStore.setDetailActive(detailKind, id, true);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `project_manager.${detailKind}.restored`, payload: { id } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.delete("/admin/project-manager/:kind/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { kind, id } = request.params as { kind: string; id: string };
+    const detailKind = projectManagerDetailKind(kind);
+    const result = await projectManagerJsonStore.deleteDetail(detailKind, id);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `project_manager.${detailKind}.force_deleted`, payload: result });
+    return ok(result, responseMeta(request));
   });
 
   app.get("/admin/platform-apps", async (request) => {

@@ -7,6 +7,7 @@ export interface CommonModuleService {
   update(input: Record<string, unknown>): Promise<CommonRecord>;
   archive(tenantId: string, id: string): Promise<void>;
   restore(tenantId: string, id: string): Promise<void>;
+  forceDelete?: (tenantId: string, id: string) => Promise<void>;
 }
 
 export type CommonModuleServiceMap = Record<string, CommonModuleService>;

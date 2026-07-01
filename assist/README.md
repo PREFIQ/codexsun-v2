@@ -27,6 +27,9 @@ Agents must read and follow these standards before changing module UI, backend c
 - UI and backend module standard: `assist/documentation/design-system-helper.md`
 - Governance rule book: `assist/governance/rules.md`
 - Changelog and version state: `assist/documentation/CHANGELOG.md`
+- Tenant/common/master form regression guardrails: `assist/devops/ui-form-regression-guardrails.md`
+
+For tenant/common/master form, lookup, placeholder, switch-card, or shared form-control changes, the guardrail file is mandatory. Run `npm run verify:tenant-ui` during development and `npm run verify:platform-ui` before finishing shared UI changes.
 
 ## Product Vision
 

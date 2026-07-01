@@ -34,7 +34,7 @@ export function TenantDomains({ onBack }: { onBack: () => void }) {
   })
 
   return (
-    <div className="desk-grid" style={{ maxWidth: "960px", margin: "0 auto" }}>
+    <div className="desk-grid" style={{ maxWidth: "92rem", margin: "0 auto" }}>
       <Card title="Tenant Domain Mappings" description="Manage custom domains per tenant"
         action={<Button variant="secondary" size="sm" onClick={onBack}>Back</Button>}>
         <div style={{ display: "flex", gap: "1rem", alignItems: "center", margin: "1rem 0" }}>

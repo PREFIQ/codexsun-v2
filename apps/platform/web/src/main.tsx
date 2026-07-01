@@ -88,6 +88,24 @@ const tenantRoute = createRoute({
   path: "/tenant"
 });
 
+const tenantModuleRoute = createRoute({
+  component: TenantDesk,
+  getParentRoute: () => rootRoute,
+  path: "/tenant/$tenantPage"
+});
+
+const appRoute = createRoute({
+  component: TenantDesk,
+  getParentRoute: () => rootRoute,
+  path: "/app"
+});
+
+const appModuleRoute = createRoute({
+  component: TenantDesk,
+  getParentRoute: () => rootRoute,
+  path: "/app/$tenantPage"
+});
+
 const workspaceRoute = createRoute({
   component: import.meta.env.DEV ? Dashboard01 : () => <div>Not Found</div>,
   getParentRoute: () => rootRoute,
@@ -123,6 +141,9 @@ const routeTree = rootRoute.addChildren([
   saModuleRoute,
   adminRoute,
   tenantRoute,
+  tenantModuleRoute,
+  appRoute,
+  appModuleRoute,
   workspaceRoute,
   commonListRoute,
   masterListRoute,

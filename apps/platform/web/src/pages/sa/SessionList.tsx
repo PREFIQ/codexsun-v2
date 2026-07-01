@@ -18,7 +18,7 @@ export function SessionList({ onBack }: { onBack: () => void }) {
   })
 
   return (
-    <div className="desk-grid" style={{ maxWidth: "960px", margin: "0 auto" }}>
+    <div className="desk-grid" style={{ maxWidth: "92rem", margin: "0 auto" }}>
       <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "1rem" }}>
         <Button variant="secondary" onClick={onBack}>Back</Button>
         <h2 style={{ margin: 0, fontSize: "1.25rem" }}>Active Sessions</h2>

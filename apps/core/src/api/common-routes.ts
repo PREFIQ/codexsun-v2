@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { AppError } from "@codexsun/framework/errors";
 import { type CoreRouteContext, auditRecordEvent } from "./index.js";
 import { commonModuleDefinitions } from "../common-modules/base/setup.js";
-import type { CommonModuleServiceMap } from "../common-modules/base/service-types.js";
+import type { CommonModuleService, CommonModuleServiceMap } from "../common-modules/base/service-types.js";
 
 function getService(map: CommonModuleServiceMap, key: string) {
   const svc = map[key];
@@ -137,6 +137,40 @@ export async function registerCoreCommonRoutes(app: FastifyInstance, ctx: CoreRo
     });
     return ok({ restored: true }, responseMeta(request));
   });
+
+  app.delete("/core/common/records/:id", async (request) => {
+    const session = await ctx.guardSession(app, request);
+    const tenantId = requireTenantContext(request, session);
+    await ctx.guardActiveTenant(app, tenantId);
+    await ctx.guardFeatureEnabled(app, tenantId, "core");
+    ctx.guardPermission(session, "core.common.manage");
+    const query = request.query as { definitionKey?: string };
+    if (!query.definitionKey) throw AppError.validation("definitionKey query parameter is required");
+    const svc = getService(app.coreCommonServices, query.definitionKey);
+    const { id } = request.params as { id: string };
+    await forceDeleteRecord(svc, tenantId, id);
+    await auditRecordEvent(app, {
+      actorType: "tenant", actorEmail: session.email,
+      eventName: "core.record.deleted",
+      payload: { recordId: id, definitionKey: query.definitionKey },
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      ...(request.tenantId ? { tenantId: request.tenantId } : {}),
+    });
+    return ok({ deleted: true }, responseMeta(request));
+  });
+}
+
+async function forceDeleteRecord(svc: CommonModuleService, tenantId: string, id: string) {
+  if (svc.forceDelete) {
+    await svc.forceDelete(tenantId, id);
+    return;
+  }
+  const serviceWithRepository = svc as CommonModuleService & {
+    repository?: { forceDelete?: (tenantId: string, id: string) => Promise<boolean> };
+  };
+  const deleted = await serviceWithRepository.repository?.forceDelete?.(tenantId, id);
+  if (deleted) return;
+  throw AppError.notFound("Common record not found");
 }
 
 function requireTenantContext(request: { tenantId?: string }, session: { tenantId?: string }): string {

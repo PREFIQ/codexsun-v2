@@ -53,7 +53,7 @@ export const defaultWorkspaceItems: TopMenuWorkspaceItem[] = [
     title: "ZETRO",
     description: "Business assistance chat for teams.",
     icon: SparklesIcon,
-    url: "/tenant"
+    url: "/app"
   },
   {
     title: "Billing",
@@ -66,19 +66,19 @@ export const defaultWorkspaceItems: TopMenuWorkspaceItem[] = [
     title: "Mail",
     description: "Reusable workspace mail services.",
     icon: MailIcon,
-    url: "/tenant"
+    url: "/app"
   },
   {
     title: "Blog",
     description: "Tenant-scoped posts, categories, and updates.",
     icon: NewspaperIcon,
-    url: "/tenant"
+    url: "/app"
   },
   {
     title: "Sites",
     description: "Public tenant site content and pages.",
     icon: Globe2Icon,
-    url: "/tenant"
+    url: "/app"
   }
 ];
 
@@ -99,13 +99,13 @@ export const defaultAppMenuItems: SidemenuItem[] = [
       },
       {
         title: "Security Surface",
-        url: "/tenant"
+        url: "/app"
       }
     ]
   },
   {
-    title: "Tenant",
-    url: "/tenant",
+    title: "Application",
+    url: "/app",
     icon: UsersRoundIcon
   },
   {

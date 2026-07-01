@@ -37,7 +37,7 @@ export function WorkspaceFilters({
   onFilterValueChange?: (value: string) => void
   onSearchValueChange: (value: string) => void
   onShowAllColumns?: () => void
-  searchPlaceholder: string
+  searchPlaceholder?: string
   searchValue: string
   toolbarAction?: ReactNode
 }) {
@@ -52,7 +52,7 @@ export function WorkspaceFilters({
         <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           className="h-8 rounded-md border-border/80 bg-background/95 pl-9 text-sm shadow-none"
-          placeholder={searchPlaceholder}
+          {...(searchPlaceholder ? { placeholder: searchPlaceholder } : {})}
           value={searchValue}
           onChange={(event: ChangeEvent<HTMLInputElement>) => onSearchValueChange(event.target.value)}
         />

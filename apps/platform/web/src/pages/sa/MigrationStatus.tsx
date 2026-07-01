@@ -24,7 +24,7 @@ export function MigrationStatus({ onBack }: { onBack: () => void }) {
   const failed = migrations?.filter((migration) => migration.status === "failed" || migration.status === "error").length ?? 0;
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-4">
+    <div className="mx-auto grid w-[calc(100%-2rem)] max-w-[92rem] gap-4 py-4 lg:w-[calc(100%-3rem)] lg:py-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-normal">Migration Status</h1>

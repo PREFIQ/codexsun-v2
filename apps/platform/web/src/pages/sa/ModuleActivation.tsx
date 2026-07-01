@@ -40,7 +40,7 @@ export function ModuleActivation({ onBack }: { onBack: () => void }) {
   const enabledKeys = new Set(enabledModules?.map((m) => m.moduleKey) ?? [])
 
   return (
-    <div className="desk-grid" style={{ maxWidth: "960px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+    <div className="desk-grid" style={{ maxWidth: "92rem", margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
       <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
         <Button variant="secondary" onClick={onBack}>Back</Button>
         <h2 style={{ margin: 0, fontSize: "1.25rem" }}>Module Activation</h2>

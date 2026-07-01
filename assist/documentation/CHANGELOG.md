@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.19
+Current version: 1.0.22
 
-Release tag: v-1.0.19
+Release tag: v-1.0.22
 
-Changelog label: v 1.0.19
+Changelog label: v 1.0.22
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -19,6 +19,63 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 #### App Codebase Changes
 
 Records UI, API, service logic, tooling, and documentation changes.
+
+## v-1.0.22
+
+### [v 1.0.22] 2026-07-01 11:50 am - Project Manager Magic Fill Rules
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+- Project Manager magic fill writes only through the existing JSON-backed Project Manager APIs and keeps existing keys de-duplicated.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.22`.
+- Added compact `Sparkles` magic-fill icon buttons to the Platform Registry module workspace tabs for Features, Actions, APIs, Screens, Database, Planning, and Model Notes.
+- Added bulk magic-fill rules that create missing registry rows from the selected module: standard list/create/show/edit/delete API contracts, action rows, screen rows, database field rows, planning coverage, and model notes.
+- Added form-level magic-fill buttons for Module Registry, Feature Registry, and detail registry dialogs so users can infer module keys, routes, permission keys, API fields, database field metadata, component paths, test paths, and notes before saving.
+- Kept magic-fill idempotent by checking existing feature/detail keys before creating JSON records.
+- Aligned generated permission keys to the existing platform profile pattern, for example `platform.tenant.profile.view` and `platform.tenant.profile.manage`.
+
+## v-1.0.21
+
+### [v 1.0.21] 2026-07-01 11:38 am - Project Manager Live Control Dashboard
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+- Reset the JSON-backed Project Manager data store to a clean live seed baseline for registry, work, discussions, releases, automation, activity, agent notes, security, and reference reporting.
+- Removed the old manual insight-record JSON store so Insights is generated from connected Project Manager references instead of separate duplicated data.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.21`.
+- Added the Project Manager dashboard as the live control entry point for open work, blockers, reviews, release state, GitHub activity, automation status, and registry coverage.
+- Reorganized the Project Manager side menu into the production set: Dashboard, Platform Registry, Work & Automation, Discussions, Agent & Security, Release Notes, and Insights.
+- Refined Platform Registry into the drill-down development map: Platform -> App/Area -> Module Group -> Module -> Feature/Action/API/Screen/Database/Planning, with reference IDs and lookup-based relationships.
+- Reworked Work & Automation as the operational area for issues, tasks, reviews, commands, automation events, activity, timeline, and board-style planning, with popup forms for compact records and dedicated pages for larger records.
+- Reworked Discussions into focused Discussion and Reviews tabs, and merged Agent Notes with Security and Quality into one Agent & Security page.
+- Rebuilt Release Notes as the release control area with separate Deployed Release, Working Release/Changelog, and GitHub tabs; `github:now` now writes connected pull-request snapshots for release references.
+- Changed Insights into a generated report page only, binding Platform Registry, work, discussion, release, security, agent, automation, and activity records by module and reference number.
+- Standardized Project Manager forms with design-system autocomplete lookups, select controls, date picker fields, tag chips, switches, and rich text editors where longer working notes are needed.
+- Removed the manual insight-record UI tab, backend kind, and API route alias to avoid duplicated reporting data.
+- Added the Project Manager maturity guide and connected the UI to the JSON Project Manager store for read/write development planning without depending on the live application database.
+
+## v-1.0.20
+
+### [v 1.0.20] 2026-07-01 7:59 am - Remove Deprecated Admin Surface
+
+#### Database Changes
+
+- Database update: No schema changes.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.20`.
+- Removed the deprecated Super Admin menu group, route, and page so the workflow can be rebuilt from scratch later.
+- Removed the deprecated JSON-backed admin API endpoints and helper code.
+- Deleted the old deprecated JSON storage files.
 
 ## v-1.0.19
 

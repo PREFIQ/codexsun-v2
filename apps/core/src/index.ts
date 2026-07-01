@@ -13,6 +13,7 @@ export * from "./common-modules/contact-groups/index.js";
 export * from "./common-modules/contact-types/index.js";
 export * from "./common-modules/address-types/index.js";
 export * from "./common-modules/bank-names/index.js";
+export * from "./common-modules/bank-account-types/index.js";
 export * from "./common-modules/product-groups/index.js";
 export * from "./common-modules/product-categories/index.js";
 export * from "./common-modules/product-types/index.js";

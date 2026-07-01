@@ -138,6 +138,15 @@ async function migrateMasterDatabase() {
     "SELECT id FROM tenants WHERE tenant_code = 'test' LIMIT 1"
   );
   const tenantId = Number(tenantRows[0]?.id);
+  const seedTenantModuleKeys = ["core", "core.contact", "core.company", "core.product", "business.billing"];
+  for (const moduleKey of seedTenantModuleKeys) {
+    await db.execute(
+      `INSERT INTO tenant_module_activation (tenant_id, module_key, status)
+       VALUES (?, ?, 'enabled')
+       ON DUPLICATE KEY UPDATE status = 'enabled'`,
+      [tenantId, moduleKey]
+    );
+  }
 
   await db.execute(
     `INSERT INTO tenant_databases (tenant_id, db_type, db_host, db_port, database_name, db_user, db_secret_ref)

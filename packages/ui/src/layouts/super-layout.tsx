@@ -33,8 +33,8 @@ const superMenuItems: SidemenuItem[] = [
         url: "/sa"
       },
       {
-        title: "Tenant",
-        url: "/tenant"
+        title: "Application",
+        url: "/app"
       },
       {
         title: "Domain",
@@ -79,10 +79,10 @@ const superWorkspaceItems = [
     url: "/sa"
   },
   {
-    title: "Tenant",
-    description: "Tenant workspace and customer-facing operations.",
+    title: "Application",
+    description: "Application workspace and billing operations.",
     icon: UsersRoundIcon,
-    url: "/tenant"
+    url: "/app"
   },
   {
     title: "Staff",
@@ -118,7 +118,7 @@ export function SuperLayout({
         fallback: "S",
         name: "SUNDAR"
       }}
-      versionLabel={versionLabel}
+      {...(versionLabel ? { versionLabel } : {})}
       userMenuItems={[
         {
           icon: SparklesIcon,

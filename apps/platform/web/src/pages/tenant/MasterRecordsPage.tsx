@@ -148,7 +148,6 @@ export function MasterRecordsPage({ definitionKey, onBack }: Props) {
         filterValue="all"
         onFilterValueChange={() => setCurrentPage(1)}
         onSearchValueChange={(value: string) => { setSearchValue(value); setCurrentPage(1) }}
-        searchPlaceholder="Search records..."
         searchValue={searchValue}
       />
       <div className="overflow-hidden rounded-md border border-border/70 bg-card/95 shadow-sm">

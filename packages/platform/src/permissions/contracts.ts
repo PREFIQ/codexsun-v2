@@ -50,7 +50,9 @@ export const corePermissions = [
   "core.company.view",
   "core.company.manage",
   "core.product.view",
-  "core.product.manage"
+  "core.product.manage",
+  "core.work-order.view",
+  "core.work-order.manage"
 ] as const;
 
 export const platformPermissionsAll = [...platformBasePermissions];

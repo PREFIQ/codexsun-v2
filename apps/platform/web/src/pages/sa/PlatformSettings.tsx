@@ -14,7 +14,7 @@ export function PlatformSettings({ onBack }: { onBack: () => void }) {
   })
 
   return (
-    <div className="desk-grid" style={{ maxWidth: "960px", margin: "0 auto" }}>
+    <div className="desk-grid" style={{ maxWidth: "92rem", margin: "0 auto" }}>
       <Card title="Platform Settings" description="Global platform configuration and runtime info"
         action={<Button variant="secondary" onClick={onBack}>Back</Button>}>
         {sections && sections.length > 0 ? (

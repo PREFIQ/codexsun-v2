@@ -17,7 +17,7 @@ export function DevDocs({ onBack }: { onBack: () => void }) {
   const current = sections.find((s) => s.key === activeSection)!
 
   return (
-    <div className="desk-grid" style={{ maxWidth: "960px", margin: "0 auto" }}>
+    <div className="desk-grid" style={{ maxWidth: "92rem", margin: "0 auto" }}>
       <Card title="Developer Documentation" description="Architecture, conventions, and API references"
         action={<Button variant="secondary" size="sm" onClick={onBack}>Back</Button>}>
         <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: "1rem", marginTop: "1rem" }}>

@@ -40,7 +40,7 @@ export function WorkspaceLookup({
   onTextChange,
   onValueChange,
   options,
-  placeholder = "Search...",
+  placeholder = "",
   renderCreateForm,
   required = false,
   value,
@@ -102,7 +102,10 @@ export function WorkspaceLookup({
   const optionCount = filteredOptions.length + (canCreate ? 1 : 0)
 
   useEffect(() => {
-    if (!isOpen) setQuery(selectedOption?.label ?? selectedDisplayValue ?? value)
+    if (!isOpen) {
+      const nextQuery = selectedOption?.label ?? selectedDisplayValue ?? value
+      setQuery((current) => (current === nextQuery ? current : nextQuery))
+    }
   }, [allowTextValue, isOpen, selectedDisplayValue, selectedOption, value])
 
   useEffect(() => {

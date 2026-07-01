@@ -26,7 +26,7 @@ export function LoginPage({ desk, title }: LoginPageProps) {
       return "/admin";
     }
 
-    return "/tenant";
+    return "/app";
   }, [desk]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {

@@ -44,8 +44,8 @@ const adminMenuItems: SidemenuItem[] = [
     ]
   },
   {
-    title: "Tenants",
-    url: "/tenant",
+    title: "Application",
+    url: "/app",
     icon: UsersRoundIcon
   },
   {
@@ -79,10 +79,10 @@ const adminWorkspaceItems = [
     url: "/admin"
   },
   {
-    title: "Tenant",
-    description: "Tenant workspace and customer-facing operations.",
+    title: "Application",
+    description: "Application workspace and billing operations.",
     icon: UsersRoundIcon,
-    url: "/tenant"
+    url: "/app"
   },
   {
     title: "Billing",
@@ -145,7 +145,7 @@ export function AdminLayout({
       workspaceItems={adminWorkspaceItems}
     >
       {actions ? <div className="px-4 pt-4 lg:px-6">{actions}</div> : null}
-      <div className="p-5 md:p-7">{children}</div>
+      <div>{children}</div>
     </AppLayout>
   );
 }

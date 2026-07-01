@@ -33,7 +33,7 @@ export function FeatureFlags({ onBack }: { onBack: () => void }) {
   })
 
   return (
-    <div className="desk-grid" style={{ maxWidth: "960px", margin: "0 auto" }}>
+    <div className="desk-grid" style={{ maxWidth: "92rem", margin: "0 auto" }}>
       <Card title="Feature Flags" description="Manage platform and tenant feature flags"
         action={<Button variant="secondary" onClick={onBack}>Back</Button>}>
         <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem", alignItems: "end" }}>

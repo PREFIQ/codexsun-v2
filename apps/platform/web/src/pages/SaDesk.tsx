@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   BotIcon,
   CircleGaugeIcon,
+  ClipboardListIcon,
   DatabaseIcon,
   KeyRoundIcon,
   WalletCardsIcon
@@ -11,10 +12,15 @@ import { AuthGate } from "../components/AuthGate";
 import { ConsoleHome } from "./sa/ConsoleHome";
 import { DatabaseManager } from "./sa/DatabaseManager";
 import { MigrationStatus } from "./sa/MigrationStatus";
+import { PlatformRegistry } from "./sa/PlatformRegistry";
+import { ProjectManagerDashboard } from "./sa/ProjectManagerDashboard";
+import { ProjectManagerAgentNotes, ProjectManagerDiscussions, ProjectManagerMaturity } from "./sa/ProjectManagerMaturity";
+import { ProjectManagerInsights } from "./sa/ProjectManagerReferenceReport";
+import { ProjectManagerReleaseNotes } from "./sa/ProjectManagerReleaseNotes";
 import { TenantList } from "./sa/TenantList";
 import { SuperAdminModulePage, superAdminModuleConfigs, type SuperAdminModuleKey } from "./sa/SuperAdminModulePage";
 
-type SaPage = "home" | "tenants" | "domains" | "modules" | "audit" | "migrations" | "health" | "users" | "roles" | "permissions" | "sessions" | "settings" | "features" | "workbench" | "plans" | "subscriptions" | "industries" | "queue" | "database" | "devdocs" | "support" | "zetro" | "gst";
+type SaPage = "home" | "tenants" | "domains" | "modules" | "audit" | "migrations" | "health" | "users" | "roles" | "permissions" | "sessions" | "settings" | "features" | "workbench" | "plans" | "subscriptions" | "industries" | "platform-registry" | "project-manager-dashboard" | "project-manager-work" | "project-manager-discussions" | "project-manager-agent-security" | "project-manager-release-notes" | "project-manager-insights" | "queue" | "database" | "devdocs" | "support" | "zetro" | "gst";
 
 const pageToMenuKey: Record<SaPage, string> = {
   audit: "audit",
@@ -29,6 +35,13 @@ const pageToMenuKey: Record<SaPage, string> = {
   migrations: "migrations",
   modules: "modules",
   permissions: "permissions",
+  "platform-registry": "platform-registry",
+  "project-manager-dashboard": "project-manager-dashboard",
+  "project-manager-agent-security": "project-manager-agent-security",
+  "project-manager-discussions": "project-manager-discussions",
+  "project-manager-release-notes": "project-manager-release-notes",
+  "project-manager-insights": "project-manager-insights",
+  "project-manager-work": "project-manager-work",
   plans: "plans",
   queue: "queue",
   roles: "roles",
@@ -113,6 +126,20 @@ export function SaDesk() {
         { key: "health", page: "health", label: "Health" },
         { key: "settings", page: "settings", label: "Settings" },
         { key: "features", page: "features", label: "Features" }
+      ]
+    },
+    {
+      key: "project-manager",
+      label: "Project Manager",
+      icon: ClipboardListIcon,
+      items: [
+        { key: "project-manager-dashboard", page: "project-manager-dashboard", label: "Dashboard" },
+        { key: "platform-registry", page: "platform-registry", label: "Platform Registry" },
+        { key: "project-manager-work", page: "project-manager-work", label: "Work & Automation" },
+        { key: "project-manager-discussions", page: "project-manager-discussions", label: "Discussions" },
+        { key: "project-manager-agent-security", page: "project-manager-agent-security", label: "Agent & Security" },
+        { key: "project-manager-release-notes", page: "project-manager-release-notes", label: "Release Notes" },
+        { key: "project-manager-insights", page: "project-manager-insights", label: "Insights" }
       ]
     },
     {
@@ -205,6 +232,13 @@ export function SaDesk() {
       <SuperLayout menuItems={menuItems} versionLabel={`v ${__APP_VERSION__}`}>
         {page === "home" && <ConsoleHome onNavigate={(p) => selectPage(p as SaPage)} />}
         {page === "tenants" && <TenantList onBack={() => selectPage("home")} />}
+        {page === "project-manager-dashboard" && <ProjectManagerDashboard />}
+        {page === "platform-registry" && <PlatformRegistry onBack={() => selectPage("home")} />}
+        {page === "project-manager-work" && <ProjectManagerMaturity />}
+        {page === "project-manager-discussions" && <ProjectManagerDiscussions />}
+        {page === "project-manager-agent-security" && <ProjectManagerAgentNotes />}
+        {page === "project-manager-release-notes" && <ProjectManagerReleaseNotes />}
+        {page === "project-manager-insights" && <ProjectManagerInsights />}
         {page === "database" && <DatabaseManager onBack={() => selectPage("home")} />}
         {page === "migrations" && <MigrationStatus onBack={() => selectPage("home")} />}
         {activeModuleKey ? (

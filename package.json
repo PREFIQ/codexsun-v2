@@ -1,6 +1,6 @@
 {
   "name": "codexsun",
-  "version": "1.0.17",
+  "version": "1.0.22",
   "private": true,
   "packageManager": "npm@11.17.0",
   "description": "CODEXSUN",
@@ -20,6 +20,8 @@
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
     "e2e:platform": "playwright test apps/platform/web/e2e",
+    "verify:tenant-ui": "npm run typecheck -w @codexsun/platform-web && playwright test apps/platform/web/e2e/tenant-modules.spec.ts",
+    "verify:platform-ui": "npm run typecheck -w @codexsun/platform-web && playwright test apps/platform/web/e2e/tenant-modules.spec.ts && npm run e2e:platform",
     "check": "npm run typecheck && npm run lint",
     "version:show": "node tools/version/version.mjs show",
     "version:bump": "node tools/version-bump.mjs",

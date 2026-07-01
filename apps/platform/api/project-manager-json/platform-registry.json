@@ -1,0 +1,29 @@
+[
+  {
+    "active": true,
+    "description": "Super Admin Desk development reference.",
+    "id": "platform-super-admin",
+    "name": "SUPER ADMIN",
+    "platform": "super-admin",
+    "updatedAt": "2026-07-01T03:20:23.793Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Staff Admin Desk development reference.",
+    "id": "platform-admin",
+    "name": "ADMIN",
+    "platform": "admin",
+    "updatedAt": "2026-07-01T03:20:23.793Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant workspace development reference.",
+    "id": "platform-tenants",
+    "name": "TENANTS",
+    "platform": "tenants",
+    "updatedAt": "2026-07-01T03:20:23.793Z",
+    "status": "active"
+  }
+]

@@ -16,6 +16,8 @@ import { AddressTypeService } from "../address-types/service.js";
 import { AddressTypeRepository } from "../address-types/repository.js";
 import { BankNameService } from "../bank-names/service.js";
 import { BankNameRepository } from "../bank-names/repository.js";
+import { BankAccountTypeService } from "../bank-account-types/service.js";
+import { BankAccountTypeRepository } from "../bank-account-types/repository.js";
 import { ProductGroupService } from "../product-groups/service.js";
 import { ProductGroupRepository } from "../product-groups/repository.js";
 import { ProductCategoryService } from "../product-categories/service.js";
@@ -71,6 +73,7 @@ export function createAllCommonModuleServices(): CommonModuleServiceMap {
     "contact-types": new ContactTypeService(new ContactTypeRepository()) as any,
     "address-types": new AddressTypeService(new AddressTypeRepository()) as any,
     "bank-names": new BankNameService(new BankNameRepository()) as any,
+    "bank-account-types": new BankAccountTypeService(new BankAccountTypeRepository()) as any,
     "product-groups": new ProductGroupService(new ProductGroupRepository()) as any,
     "product-categories": new ProductCategoryService(new ProductCategoryRepository()) as any,
     "product-types": new ProductTypeService(new ProductTypeRepository()) as any,
@@ -105,6 +108,7 @@ export const commonModuleDefinitions: CommonModuleDefinition[] = [
   { key: "contact-types", label: "Contact Types" },
   { key: "address-types", label: "Address Types" },
   { key: "bank-names", label: "Bank Names" },
+  { key: "bank-account-types", label: "Bank Account Types" },
   { key: "product-groups", label: "Product Groups" },
   { key: "product-categories", label: "Product Categories" },
   { key: "product-types", label: "Product Types" },

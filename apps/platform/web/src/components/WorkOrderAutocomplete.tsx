@@ -35,7 +35,8 @@ export function WorkOrderAutocomplete({ value, onChange }: Props) {
       value={value}
       onChange={(val) => onChange(val)}
       loading={loading}
-      placeholder="Search work orders..."
+      placeholder=""
     />
   )
 }
+

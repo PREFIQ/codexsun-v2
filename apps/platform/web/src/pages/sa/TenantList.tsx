@@ -65,8 +65,6 @@ type AuditEventDTO = {
   id: number | string
 }
 
-const statusOptions = ["active", "inactive", "provisioning", "suspended"]
-
 const filterOptions = [
   { id: "all", label: "All tenants" },
   { id: "active", label: "Active" },

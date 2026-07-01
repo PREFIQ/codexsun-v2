@@ -38,7 +38,7 @@ export async function registerCoreProductRoutes(app: FastifyInstance, ctx: CoreR
     ctx.guardPermission(session, "core.product.manage");
     const body = request.body as {
       code: string; name: string;
-      productTypeId?: number; hsnCodeId?: number; unitId?: number; taxId?: number;
+      productTypeId?: string; hsnCodeId?: string; unitId?: string; taxId?: string;
     };
     const product = await app.coreProductService.create({
       tenantId, code: body.code, name: body.name,
@@ -67,7 +67,7 @@ export async function registerCoreProductRoutes(app: FastifyInstance, ctx: CoreR
     const { id } = request.params as { id: string };
     const body = request.body as {
       name?: string;
-      productTypeId?: number; hsnCodeId?: number; unitId?: number; taxId?: number;
+      productTypeId?: string; hsnCodeId?: string; unitId?: string; taxId?: string;
     };
     const product = await app.coreProductService.update({
       tenantId, itemId: id,

@@ -3,6 +3,18 @@
   min-height: 100vh;
 }
 
+@keyframes project-tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .public-page {
   background:
     linear-gradient(120deg, rgba(15, 118, 110, 0.1), rgba(37, 99, 235, 0.08)),
@@ -96,8 +108,22 @@
 
 .desk-grid {
   display: grid;
-  gap: 18px;
+  gap: 1rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 auto;
+  max-width: 92rem;
+  padding-bottom: 1rem;
+  padding-top: 1rem;
+  width: calc(100% - 2rem);
+}
+
+.desk-grid > * {
+  border-radius: 0.375rem;
+}
+
+.desk-grid [class*="rounded-lg"],
+.desk-grid [class*="rounded-xl"] {
+  border-radius: 0.375rem;
 }
 
 .design-page {
@@ -338,6 +364,10 @@
 
   .public-grid {
     padding: 0 18px 18px;
+  }
+
+  .desk-grid {
+    width: calc(100% - 2rem);
   }
 
   .design-page {

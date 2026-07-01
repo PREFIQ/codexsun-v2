@@ -6,17 +6,24 @@ const pageTitles: Record<string, string> = {
   "/": "Home",
   "/admin": "Admin Desk",
   "/admin/login": "Staff Admin Login",
+  "/app": "Application Desk",
   "/login": "Tenant Login",
   "/sa": "Super Admin Desk",
   "/sa/login": "Super Admin Login",
   "/status": "Status",
-  "/tenant": "Tenant Desk",
+  "/tenant": "Application Desk",
   "/workspace": "Dashboard"
 };
 
 function resolvePageTitle(pathname: string) {
   if (pathname.startsWith("/sa/") && pathname !== "/sa/login") {
     return "Super Admin Desk";
+  }
+  if (pathname.startsWith("/app/")) {
+    return "Application Desk";
+  }
+  if (pathname.startsWith("/tenant/")) {
+    return "Application Desk";
   }
 
   return pageTitles[pathname] ?? "Dashboard";

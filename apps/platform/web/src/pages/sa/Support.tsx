@@ -11,7 +11,7 @@ export function Support({ onBack }: { onBack: () => void }) {
   })
 
   return (
-    <div className="desk-grid" style={{ maxWidth: "960px", margin: "0 auto" }}>
+    <div className="desk-grid" style={{ maxWidth: "92rem", margin: "0 auto" }}>
       <Card title="Support & Helpdesk" description="Tenant support operations, issue tracking, and escalation"
         action={<Button variant="secondary" size="sm" onClick={onBack}>Back</Button>}>
         <p style={{ color: "var(--cx-muted)", margin: "1rem 0" }}>

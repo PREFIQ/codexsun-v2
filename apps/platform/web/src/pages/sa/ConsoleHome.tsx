@@ -27,13 +27,11 @@ export function ConsoleHome({ onNavigate }: { onNavigate: (page: string) => void
   ]
 
   return (
-    <section className="mx-auto w-[calc(100%-2rem)] max-w-[92rem] space-y-5 py-4 lg:w-[calc(100%-3rem)] lg:py-5">
-      <div className="relative overflow-hidden rounded-lg border border-border/70 bg-card/95 shadow-sm">
-        <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-emerald-100/75 via-teal-50/55 to-transparent" />
-        <div className="absolute right-24 top-1/2 hidden size-36 -translate-y-1/2 rounded-full bg-emerald-200/25 blur-2xl lg:block" />
+    <section className="mx-auto w-[calc(100%-2rem)] max-w-[92rem] space-y-4 py-4 lg:w-[calc(100%-3rem)] lg:py-5">
+      <div className="relative overflow-hidden rounded-md border border-border/70 bg-card/95 shadow-sm">
         <div className="relative flex min-h-34 flex-col justify-between gap-5 px-5 py-5 lg:flex-row lg:items-center">
           <div className="flex min-w-0 items-center gap-4">
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
+            <div className="flex size-14 shrink-0 items-center justify-center rounded-md bg-foreground text-background shadow-sm">
               <ReceiptTextIcon className="size-7" />
             </div>
             <div className="min-w-0">

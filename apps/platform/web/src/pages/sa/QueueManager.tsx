@@ -5,7 +5,7 @@ export function QueueManager({ onBack }: { onBack: () => void }) {
   const [filter, setFilter] = useState("")
 
   return (
-    <div className="desk-grid" style={{ maxWidth: "960px", margin: "0 auto" }}>
+    <div className="desk-grid" style={{ maxWidth: "92rem", margin: "0 auto" }}>
       <Card title="Queue Manager" description="Background job queue, pending operations, and failed task tracking"
         action={<Button variant="secondary" size="sm" onClick={onBack}>Back</Button>}>
         <p style={{ color: "var(--cx-muted)", margin: "1rem 0" }}>

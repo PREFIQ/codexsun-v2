@@ -3,10 +3,10 @@ export type ProductItem = {
   tenantId: string;
   code: string;
   name: string;
-  productTypeId?: number;
-  hsnCodeId?: number;
-  unitId?: number;
-  taxId?: number;
+  productTypeId?: string;
+  hsnCodeId?: string;
+  unitId?: string;
+  taxId?: string;
   status: "active" | "archived";
   createdBy: string;
   createdAt: string;
@@ -19,10 +19,10 @@ export type ProductCreateInput = {
   tenantId: string;
   code: string;
   name: string;
-  productTypeId?: number;
-  hsnCodeId?: number;
-  unitId?: number;
-  taxId?: number;
+  productTypeId?: string;
+  hsnCodeId?: string;
+  unitId?: string;
+  taxId?: string;
   createdBy: string;
 };
 
@@ -30,10 +30,10 @@ export type ProductUpdateInput = {
   tenantId: string;
   itemId: string;
   name?: string;
-  productTypeId?: number;
-  hsnCodeId?: number;
-  unitId?: number;
-  taxId?: number;
+  productTypeId?: string;
+  hsnCodeId?: string;
+  unitId?: string;
+  taxId?: string;
   updatedBy: string;
 };
 

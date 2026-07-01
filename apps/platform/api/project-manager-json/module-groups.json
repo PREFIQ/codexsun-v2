@@ -1,0 +1,79 @@
+[
+  {
+    "active": true,
+    "description": "Tenant, domain, subscription, app, and industry references.",
+    "groupKey": "admin",
+    "id": "group-sa-admin",
+    "name": "Admin",
+    "platformRegistryId": "platform-super-admin",
+    "sortOrder": 10,
+    "updatedAt": "2026-07-01T03:20:23.794Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Audit, health, settings, and feature references.",
+    "groupKey": "platform-foundation",
+    "id": "group-sa-foundation",
+    "name": "Platform Foundation",
+    "platformRegistryId": "platform-super-admin",
+    "sortOrder": 20,
+    "updatedAt": "2026-07-01T03:20:23.794Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Development planning and debug reference map.",
+    "groupKey": "project-manager",
+    "id": "group-sa-project-manager",
+    "name": "Project Manager",
+    "platformRegistryId": "platform-super-admin",
+    "sortOrder": 30,
+    "updatedAt": "2026-07-01T03:20:23.794Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Database operation references.",
+    "groupKey": "database",
+    "id": "group-sa-database",
+    "name": "Database",
+    "platformRegistryId": "platform-super-admin",
+    "sortOrder": 40,
+    "updatedAt": "2026-07-01T03:20:23.794Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "User, role, permission, and session references.",
+    "groupKey": "access-control",
+    "id": "group-sa-access",
+    "name": "Access Control",
+    "platformRegistryId": "platform-super-admin",
+    "sortOrder": 50,
+    "updatedAt": "2026-07-01T03:20:23.794Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Queue, support, workbench, and docs references.",
+    "groupKey": "operations",
+    "id": "group-sa-operations",
+    "name": "Operations",
+    "platformRegistryId": "platform-super-admin",
+    "sortOrder": 60,
+    "updatedAt": "2026-07-01T03:20:23.794Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "ZETRO and GST references.",
+    "groupKey": "apps-compliance",
+    "id": "group-sa-apps-compliance",
+    "name": "Apps & Compliance",
+    "platformRegistryId": "platform-super-admin",
+    "sortOrder": 70,
+    "updatedAt": "2026-07-01T03:20:23.794Z",
+    "status": "active"
+  }
+]

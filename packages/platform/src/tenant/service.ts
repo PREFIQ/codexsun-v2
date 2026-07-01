@@ -54,6 +54,8 @@ export type TenantDTO = {
   status: string;
 };
 
+const defaultTenantModuleKeys = ["core", "core.contact", "core.company", "core.product", "business.billing"];
+
 export class TenantService {
   constructor(private readonly repository: TenantRepository) {}
 
@@ -229,6 +231,8 @@ function buildPayloadSettings(
   const settings = { ...(current ?? {}) };
   if (enabledModuleKeys !== undefined) {
     settings.apps = { enabled: enabledModuleKeys };
+  } else if (!settings.apps) {
+    settings.apps = { enabled: defaultTenantModuleKeys };
   }
   return settings;
 }

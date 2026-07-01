@@ -2,120 +2,113 @@ import type { ReactNode } from "react";
 import {
   BookOpenIcon,
   CreditCardIcon,
-  FileTextIcon,
   LifeBuoyIcon,
   LogOutIcon,
   MailIcon,
   ReceiptTextIcon,
   Settings2Icon,
-  ShoppingCartIcon,
-  StoreIcon,
-  UsersRoundIcon
+  StoreIcon
 } from "lucide-react";
 
 import { AppLayout } from "./app-layout";
+import type { SidebarBrand } from "../blocks/menu/sidemenu/app-sidebar";
+import type { TopMenuWorkspaceItem } from "../blocks/menu/sidemenu/top-menu";
 import type { SidemenuItem } from "../blocks/menu/sidemenu/sub/sidemenu-section";
 
 type TenantLayoutProps = {
   actions?: ReactNode;
+  brand?: SidebarBrand;
   children: ReactNode;
+  menuItems?: SidemenuItem[];
+  headerTitle?: ReactNode;
   subtitle?: ReactNode;
   title?: ReactNode;
+  workspaceItems?: TopMenuWorkspaceItem[];
 };
 
 const tenantMenuItems: SidemenuItem[] = [
   {
-    title: "Dashboard",
-    url: "/tenant",
+    title: "Application",
+    url: "/app",
     icon: StoreIcon,
     isActive: true,
     items: [
       {
-        title: "Overview",
-        url: "/tenant"
+        title: "Landing Desk",
+        url: "/app"
       },
       {
-        title: "Activity",
-        url: "/tenant"
+        title: "Company",
+        url: "/app/company"
       },
       {
-        title: "Reports",
-        url: "/tenant"
+        title: "Settings",
+        url: "/app/settings"
       }
     ]
   },
   {
-    title: "Customers",
-    url: "/tenant",
-    icon: UsersRoundIcon
-  },
-  {
-    title: "Items",
-    url: "/tenant",
-    icon: ShoppingCartIcon
-  },
-  {
     title: "Billing",
-    url: "/tenant",
+    url: "/app",
     icon: ReceiptTextIcon
   },
   {
-    title: "Documents",
-    url: "/tenant",
-    icon: FileTextIcon
-  },
-  {
     title: "Settings",
-    url: "/tenant",
+    url: "/app/settings",
     icon: Settings2Icon
   }
 ];
 
 const tenantWorkspaceItems = [
   {
-    title: "Tenant",
-    description: "Customer-facing workspace and tenant operations.",
+    title: "Application",
+    description: "Company setup, users, roles, settings, and landing desk.",
     icon: StoreIcon,
     active: true,
-    url: "/tenant"
+    url: "/app"
   },
   {
     title: "Billing",
     description: "Sales, purchase, receipt, payment, and reports.",
     icon: ReceiptTextIcon,
-    url: "/tenant"
+    url: "/app/sales"
   },
   {
     title: "Mail",
     description: "Reusable workspace mail services.",
     icon: MailIcon,
-    url: "/tenant"
+    url: "/app"
   },
   {
     title: "Knowledge",
-    description: "Tenant documents, guides, and shared notes.",
+    description: "Application documents, guides, and shared notes.",
     icon: BookOpenIcon,
-    url: "/tenant"
+    url: "/app"
   }
 ];
 
 export function TenantLayout({
   actions,
+  brand,
   children,
-  subtitle = "Customer-facing workspace for the test tenant.",
-  title = "Tenant Desk"
+  headerTitle = "Overview",
+  menuItems = tenantMenuItems,
+  subtitle = "Application workspace for the test tenant.",
+  title = "Application Desk",
+  workspaceItems = tenantWorkspaceItems
 }: TenantLayoutProps) {
   return (
     <AppLayout
       brand={{
-        href: "/tenant",
-        subtitle: "tenant workspace",
-        title: "Tenant Desk"
+        ...brand,
+        href: "/app",
+        subtitle: brand?.subtitle ?? "application workspace",
+        title: brand?.title ?? "Application Desk"
       }}
-      headerTitle="Tenant"
-      homeHref="/tenant"
+      headerTitle={headerTitle}
+      homeHref="/app"
       logoutHref="/login"
-      menuItems={tenantMenuItems}
+      menuItems={menuItems}
       subtitle={subtitle}
       title={title}
       user={{
@@ -127,7 +120,7 @@ export function TenantLayout({
         {
           icon: CreditCardIcon,
           title: "Billing",
-          url: "/tenant"
+          url: "/app/sales"
         },
         {
           icon: LifeBuoyIcon,
@@ -136,7 +129,8 @@ export function TenantLayout({
         },
         {
           icon: Settings2Icon,
-          title: "Account"
+          title: "Account",
+          url: "/app/settings"
         },
         {
           icon: LogOutIcon,
@@ -144,10 +138,10 @@ export function TenantLayout({
           url: "/login"
         }
       ]}
-      workspaceItems={tenantWorkspaceItems}
+      workspaceItems={workspaceItems}
     >
       {actions ? <div className="px-4 pt-4 lg:px-6">{actions}</div> : null}
-      <div className="p-5 md:p-7">{children}</div>
+      <div>{children}</div>
     </AppLayout>
   );
 }

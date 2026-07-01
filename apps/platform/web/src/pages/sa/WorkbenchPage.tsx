@@ -26,7 +26,7 @@ export function WorkbenchPage({ onBack }: { onBack: () => void }) {
   ]
 
   return (
-    <div className="desk-grid" style={{ maxWidth: "960px", margin: "0 auto" }}>
+    <div className="desk-grid" style={{ maxWidth: "92rem", margin: "0 auto" }}>
       <Card title="Developer Workbench" description="Agent tools, prompt templates, action audit, and provider settings"
         action={
           <div style={{ display: "flex", gap: "0.25rem" }}>

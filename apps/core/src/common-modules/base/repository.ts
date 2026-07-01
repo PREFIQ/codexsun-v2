@@ -7,6 +7,7 @@ export interface CommonRepository<T extends CommonRecord> {
   update(record: T): Promise<void>;
   archive(tenantId: string, id: string): Promise<void>;
   restore(tenantId: string, id: string): Promise<void>;
+  forceDelete(tenantId: string, id: string): Promise<boolean>;
 }
 
 export class BaseInMemoryRepository<T extends CommonRecord> implements CommonRepository<T> {
@@ -14,7 +15,7 @@ export class BaseInMemoryRepository<T extends CommonRecord> implements CommonRep
 
   async list(tenantId: string): Promise<T[]> {
     return this.records
-      .filter((r) => r.tenantId === tenantId && !r.deletedAt)
+      .filter((r) => r.tenantId === tenantId)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt)) as T[];
   }
 
@@ -35,7 +36,6 @@ export class BaseInMemoryRepository<T extends CommonRecord> implements CommonRep
     const record = await this.getById(tenantId, id);
     if (record) {
       record.isActive = false;
-      record.deletedAt = new Date().toISOString();
     }
   }
 
@@ -45,5 +45,12 @@ export class BaseInMemoryRepository<T extends CommonRecord> implements CommonRep
       record.isActive = true;
       delete (record as { deletedAt?: unknown }).deletedAt;
     }
+  }
+
+  async forceDelete(tenantId: string, id: string): Promise<boolean> {
+    const index = this.records.findIndex((r) => r.id === id && r.tenantId === tenantId);
+    if (index === -1) return false;
+    this.records.splice(index, 1);
+    return true;
   }
 }

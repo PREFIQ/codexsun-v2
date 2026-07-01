@@ -50,7 +50,6 @@ export function MasterDataPage({ onNavigate }: MasterDataPageProps) {
         filterValue="all"
         onFilterValueChange={() => { setCurrentPage(1) }}
         onSearchValueChange={(value: string) => { setSearchValue(value); setCurrentPage(1) }}
-        searchPlaceholder="Search definitions..."
         searchValue={searchValue}
       />
       <div className="overflow-hidden rounded-md border border-border/70 bg-card/95 shadow-sm">

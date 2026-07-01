@@ -1,195 +1,94 @@
-import { ArrowLeft, Plus } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ReactNode } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { ArrowLeft, CheckCircle2, Plus, RefreshCw, Save, X } from "lucide-react"
 import { Button } from "@codexsun/ui/components/button"
 import { Input } from "@codexsun/ui/components/input"
-import { Switch } from "@codexsun/ui/components/switch"
+import { Label } from "@codexsun/ui/components/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@codexsun/ui/components/tabs"
 import { WorkspacePage } from "@codexsun/ui/workspace"
 import { WorkspaceFilters } from "@codexsun/ui/workspace/filters"
+import { WorkspaceLookup, type WorkspaceLookupOption } from "@codexsun/ui/workspace/lookup"
 import { WorkspacePagination } from "@codexsun/ui/workspace/pagination"
 import { WorkspaceRowActions } from "@codexsun/ui/workspace/row-actions"
 import { WorkspaceStatusBadge } from "@codexsun/ui/workspace/status"
-import { WorkspaceShowLayout, WorkspaceShowCard, WorkspaceDetailTable } from "@codexsun/ui/workspace/show"
-import { WorkspaceUpsertPage, WorkspaceFormPanel, WorkspaceFormGrid } from "@codexsun/ui/workspace/upsert"
-import { buildShowingLabel } from "@codexsun/ui/workspace/utils"
 import { cn } from "@codexsun/ui/lib/utils"
+import { apiGet, apiPost, apiPut } from "../../api"
 
-type ProductView =
-  | { mode: "list" }
-  | { mode: "show"; id: string; code: string; name: string; productType: string; hsnCode: string; unit: string; tax: string; status: string }
-  | { mode: "upsert"; record: {
-      id: string; code: string; name: string; productType: string; hsnCode: string; unit: string; tax: string; status: string
-    } | null }
+type ProductRecord = {
+  code: string
+  hsnCodeId?: string
+  itemId: string
+  name: string
+  productTypeId?: string
+  status: "active" | "archived"
+  taxId?: string
+  unitId?: string
+  createdAt?: string
+  updatedAt?: string
+}
 
-const sampleProducts = [
-  { id: "prd_1", code: "SRV-001", name: "Consulting Service", productType: "service", hsnCode: "9983", unit: "hours", tax: "18%", status: "active" },
-  { id: "prd_2", code: "PRD-001", name: "Widget Alpha", productType: "goods", hsnCode: "8471", unit: "pcs", tax: "12%", status: "active" },
-  { id: "prd_3", code: "PRD-002", name: "Widget Beta", productType: "goods", hsnCode: "8471", unit: "pcs", tax: "12%", status: "archived" },
-]
+type ProductForm = {
+  code: string
+  hsnCodeId: string
+  isActive: boolean
+  name: string
+  productTypeId: string
+  taxId: string
+  unitId: string
+}
 
 export function ProductListPage({ onBack }: { onBack?: () => void }) {
-  const [view, setView] = useState<ProductView>({ mode: "list" })
+  const queryClient = useQueryClient()
+  const [mode, setMode] = useState<"list" | "form">("list")
+  const [editing, setEditing] = useState<ProductRecord | null>(null)
   const [searchValue, setSearchValue] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [rowsPerPage, setRowsPerPage] = useState(100)
-
-  const filtered = useMemo(() => {
-    let items = [...sampleProducts]
-    if (searchValue.trim()) {
-      const term = searchValue.toLowerCase()
-      items = items.filter((p) =>
-        [p.code, p.name, p.productType, p.hsnCode, p.unit].some((v) => v.toLowerCase().includes(term))
+  const productsQuery = useQuery({
+    queryKey: ["tenant", "products"],
+    queryFn: () => apiGet<ProductRecord[]>("/core/products", "tenant"),
+  })
+  const productLookupsQuery = useQuery({
+    queryKey: ["tenant", "product-list-lookups"],
+    queryFn: async () => {
+      const definitionKeys = ["product-types", "hsn-codes", "units", "taxes"] as const
+      const entries = await Promise.all(
+        definitionKeys.map(async (definitionKey) => {
+          const records = await apiGet<Array<{ id: string; code?: string; description?: string; name?: string; ratePercent?: number }>>(
+            `/core/common/records?definitionKey=${definitionKey}`,
+            "tenant",
+          )
+          return [definitionKey, new Map(records.map((record) => [record.id, productLookupLabel(record)]))] as const
+        }),
       )
-    }
-    if (statusFilter !== "all") items = items.filter((p) => p.status === statusFilter)
-    return items
-  }, [searchValue, statusFilter])
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage))
-  const pageItems = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
-
-  if (view.mode === "show") {
-    return (
-      <WorkspacePage
-        title={view.name}
-        description={`${view.code} \u00B7 ${view.productType}`}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" className="h-9 rounded-md" onClick={() => setView({ mode: "list" })}>
-              <ArrowLeft className="size-4" />Back
-            </Button>
-          </div>
-        }
-      >
-        <WorkspaceShowLayout>
-          <div className="space-y-4">
-            <WorkspaceShowCard title="Product">
-              <WorkspaceDetailTable
-                rows={[
-                  ["Code", view.code],
-                  ["Name", view.name],
-                  ["Status", <WorkspaceStatusBadge key="s" label={view.status} tone={view.status === "active" ? "success" : "danger"} />],
-                ]}
-              />
-            </WorkspaceShowCard>
-          </div>
-          <div className="space-y-4">
-            <WorkspaceShowCard title="Details">
-              <WorkspaceDetailTable
-                rows={[
-                  ["Product Type", view.productType],
-                  ["HSN Code", view.hsnCode],
-                  ["Unit", view.unit],
-                  ["Tax", view.tax],
-                ]}
-              />
-            </WorkspaceShowCard>
-          </div>
-        </WorkspaceShowLayout>
-      </WorkspacePage>
+      return Object.fromEntries(entries) as Record<(typeof definitionKeys)[number], Map<string, string>>
+    },
+  })
+  const products = productsQuery.data ?? []
+  const filteredProducts = useMemo(() => {
+    const term = searchValue.trim().toLowerCase()
+    if (!term) return products
+    return products.filter((product) =>
+      [product.name, product.code, product.productTypeId, product.hsnCodeId, product.unitId, product.taxId, product.status]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term)),
     )
-  }
+  }, [products, searchValue])
 
-  if (view.mode === "upsert") {
-    const isEdit = view.record !== null
-    const [form, setForm] = useState({
-      code: view.record?.code ?? "",
-      name: view.record?.name ?? "",
-      productType: view.record?.productType ?? "goods",
-      hsnCode: view.record?.hsnCode ?? "",
-      unit: view.record?.unit ?? "pcs",
-      tax: view.record?.tax ?? "0%",
-      status: view.record?.status ?? "active",
-    })
-
+  if (mode === "form") {
     return (
-      <WorkspaceUpsertPage
-        title={isEdit ? "Edit Product" : "New Product"}
-        description="Manage product or service definition."
-        onBack={() => setView(view.record ? {
-          mode: "show",
-          id: view.record.id,
-          code: view.record.code,
-          name: view.record.name,
-          productType: view.record.productType,
-          hsnCode: view.record.hsnCode,
-          unit: view.record.unit,
-          tax: view.record.tax,
-          status: view.record.status,
-        } : { mode: "list" })}
-      >
-        <WorkspaceFormPanel title="Product details">
-          <WorkspaceFormGrid columns={2}>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-muted-foreground">Code</label>
-              <Input className="h-11 rounded-md" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: (e.target as HTMLInputElement).value }))} />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-muted-foreground">Name</label>
-              <Input className="h-11 rounded-md" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: (e.target as HTMLInputElement).value }))} />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-muted-foreground">Product Type</label>
-              <Input className="h-11 rounded-md" value={form.productType} onChange={(e) => setForm((f) => ({ ...f, productType: (e.target as HTMLInputElement).value }))} />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-muted-foreground">HSN Code</label>
-              <Input className="h-11 rounded-md font-mono" value={form.hsnCode} onChange={(e) => setForm((f) => ({ ...f, hsnCode: (e.target as HTMLInputElement).value }))} />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-muted-foreground">Unit</label>
-              <Input className="h-11 rounded-md" value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: (e.target as HTMLInputElement).value }))} />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-muted-foreground">Tax</label>
-              <Input className="h-11 rounded-md" value={form.tax} onChange={(e) => setForm((f) => ({ ...f, tax: (e.target as HTMLInputElement).value }))} />
-            </div>
-          </WorkspaceFormGrid>
-          <div className="mt-4 flex items-center justify-between rounded-lg border border-border/70 px-4 py-3">
-            <span className="text-sm font-medium text-muted-foreground">Active</span>
-            <Switch checked={form.status === "active"} onCheckedChange={(checked: boolean) => setForm((f) => ({ ...f, status: checked ? "active" : "suspended" }))} />
-          </div>
-        </WorkspaceFormPanel>
-        <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border/70 pt-5">
-          <Button
-            type="button"
-            className="rounded-md"
-            onClick={() => {
-              setView({
-                mode: "show",
-                id: view.record?.id ?? `prd_${Date.now()}`,
-                code: form.code,
-                name: form.name,
-                productType: form.productType,
-                hsnCode: form.hsnCode,
-                unit: form.unit,
-                tax: form.tax,
-                status: form.status,
-              })
-            }}
-          >
-            Save product
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-md"
-            onClick={() => setView(view.record ? {
-              mode: "show",
-              id: view.record.id,
-              code: view.record.code,
-              name: view.record.name,
-              productType: view.record.productType,
-              hsnCode: view.record.hsnCode,
-              unit: view.record.unit,
-              tax: view.record.tax,
-              status: view.record.status,
-            } : { mode: "list" })}
-          >
-            Cancel
-          </Button>
-        </div>
-      </WorkspaceUpsertPage>
+      <ProductUpsertPage
+        key={editing?.itemId ?? "new"}
+        record={editing}
+        onCancel={() => {
+          setEditing(null)
+          setMode("list")
+        }}
+        onSaved={() => {
+          void queryClient.invalidateQueries({ queryKey: ["tenant", "products"] })
+          setEditing(null)
+          setMode("list")
+        }}
+      />
     )
   }
 
@@ -198,93 +97,389 @@ export function ProductListPage({ onBack }: { onBack?: () => void }) {
       title="Products"
       description="Manage products and services."
       actions={
-        <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" className="h-9 rounded-md" onClick={onBack}>
-            <ArrowLeft className="size-4" />
-            Back
+        <>
+          {onBack ? (
+            <Button type="button" variant="outline" onClick={onBack}>
+              <ArrowLeft className="size-4" />
+              Back
+            </Button>
+          ) : null}
+          <Button type="button" variant="outline" disabled={productsQuery.isFetching} onClick={() => void productsQuery.refetch()}>
+            <RefreshCw className={cn("size-4", productsQuery.isFetching && "animate-spin")} />
+            Refresh
           </Button>
-          <Button type="button" className="h-9 rounded-md" onClick={() => setView({ mode: "upsert", record: null })}>
+          <Button type="button" onClick={() => setMode("form")}>
             <Plus className="size-4" />
             New product
           </Button>
-        </div>
+        </>
       }
     >
-      <WorkspaceFilters
-        filterOptions={[
-          { id: "all", label: "All products" },
-          { id: "active", label: "Active" },
-          { id: "archived", label: "Archived" },
-        ]}
-        filterValue={statusFilter}
-        onFilterValueChange={(value: string) => { setStatusFilter(value); setCurrentPage(1) }}
-        onSearchValueChange={(value: string) => { setSearchValue(value); setCurrentPage(1) }}
-        searchPlaceholder="Search products..."
-        searchValue={searchValue}
-      />
-      <div className="overflow-hidden rounded-md border border-border/70 bg-card/95 shadow-sm">
+      <WorkspaceFilters searchValue={searchValue} onSearchValueChange={setSearchValue} />
+      <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] border-collapse text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="border-b border-border/70 px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Code</th>
-                <th className="border-b border-border/70 px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</th>
-                <th className="border-b border-border/70 px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</th>
-                <th className="border-b border-border/70 px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">HSN</th>
-                <th className="border-b border-border/70 px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Unit</th>
-                <th className="border-b border-border/70 px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
-                <th className="border-b border-border/70 px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Action</th>
+          <table className="w-full min-w-[920px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b bg-muted/45 text-left text-xs font-semibold uppercase text-muted-foreground">
+                <th className="w-16 px-4 py-3">#</th>
+                <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Code</th>
+                <th className="px-4 py-3">Product Type</th>
+                <th className="px-4 py-3">HSN Code</th>
+                <th className="px-4 py-3">Unit</th>
+                <th className="px-4 py-3">GST %</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Updated</th>
+                <th className="w-24 px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
-              {pageItems.map((item) => (
-                <tr key={item.id} className={cn("border-b border-border/70", item.status === "archived" && "bg-muted/20 text-muted-foreground")}>
-                  <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{item.code}</td>
-                  <td className="px-4 py-2">
-                    <button className="font-semibold hover:underline" type="button" onClick={() => setView({
-                      mode: "show", id: item.id, code: item.code, name: item.name,
-                      productType: item.productType, hsnCode: item.hsnCode, unit: item.unit, tax: item.tax, status: item.status
-                    })}>
-                      {item.name}
+              {filteredProducts.map((product, index) => (
+                <tr key={product.itemId} className="border-b last:border-0">
+                  <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
+                  <td className="px-4 py-3">
+                    <button className="cursor-pointer text-left font-semibold text-primary underline-offset-4 hover:underline" type="button" onClick={() => { setEditing(product); setMode("form") }}>
+                      {product.name}
                     </button>
                   </td>
-                  <td className="px-4 py-2 text-muted-foreground">{item.productType}</td>
-                  <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{item.hsnCode}</td>
-                  <td className="px-4 py-2 text-muted-foreground">{item.unit}</td>
-                  <td className="px-4 py-2">
-                    <WorkspaceStatusBadge label={item.status} tone={item.status === "active" ? "success" : "danger"} />
+                  <td className="px-4 py-3">{product.code}</td>
+                  <td className="px-4 py-3">{lookupLabel(productLookupsQuery.data?.["product-types"], product.productTypeId)}</td>
+                  <td className="px-4 py-3">{lookupLabel(productLookupsQuery.data?.["hsn-codes"], product.hsnCodeId)}</td>
+                  <td className="px-4 py-3">{lookupLabel(productLookupsQuery.data?.units, product.unitId)}</td>
+                  <td className="px-4 py-3">{lookupLabel(productLookupsQuery.data?.taxes, product.taxId)}</td>
+                  <td className="px-4 py-3">
+                    <WorkspaceStatusBadge label={product.status} tone={product.status === "active" ? "success" : "danger"} />
                   </td>
-                  <td className="px-4 py-1.5 text-right">
+                  <td className="px-4 py-3 text-muted-foreground">{formatDate(product.updatedAt ?? product.createdAt)}</td>
+                  <td className="px-4 py-3 text-right">
                     <WorkspaceRowActions
-                      title={item.name}
-                      isSuspended={item.status === "archived"}
-                      onView={() => setView({
-                        mode: "show", id: item.id, code: item.code, name: item.name,
-                        productType: item.productType, hsnCode: item.hsnCode, unit: item.unit, tax: item.tax, status: item.status
-                      })}
+                      title={product.name}
+                      onEdit={() => {
+                        setEditing(product)
+                        setMode("form")
+                      }}
+                      onDelete={() => archiveProduct(product, queryClient)}
+                      onRestore={() => restoreProduct(product, queryClient)}
+                      isSuspended={product.status === "archived"}
                     />
                   </td>
                 </tr>
               ))}
+              {!filteredProducts.length ? (
+                <tr>
+                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    {productsQuery.isLoading ? "Loading products..." : "No products found."}
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
-        {pageItems.length === 0 ? (
-          <div className="px-6 py-14 text-center text-sm text-muted-foreground">No products found.</div>
-        ) : null}
       </div>
       <WorkspacePagination
-        page={currentPage}
-        rowsPerPage={rowsPerPage}
-        showingLabel={buildShowingLabel(currentPage, rowsPerPage, filtered.length)}
+        page={1}
+        rowsPerPage={100}
+        showingLabel={`Showing ${filteredProducts.length ? 1 : 0} to ${filteredProducts.length} of ${filteredProducts.length}`}
         singularLabel="products"
-        totalCount={filtered.length}
-        totalPages={totalPages}
-        onNextPage={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-        onPageChange={setCurrentPage}
-        onPreviousPage={() => setCurrentPage((p) => Math.max(1, p - 1))}
-        onRowsPerPageChange={(v: number) => { setRowsPerPage(v); setCurrentPage(1) }}
+        totalCount={filteredProducts.length}
+        totalPages={1}
+        onPageChange={() => undefined}
+        onRowsPerPageChange={() => undefined}
       />
     </WorkspacePage>
   )
+}
+
+function ProductUpsertPage({
+  onCancel,
+  onSaved,
+  record,
+}: {
+  onCancel: () => void
+  onSaved: () => void
+  record: ProductRecord | null
+}) {
+  const queryClient = useQueryClient()
+  const [form, setForm] = useState<ProductForm>(() => ({
+    code: record?.code ?? "",
+    hsnCodeId: record?.hsnCodeId ?? "",
+    isActive: record?.status !== "archived",
+    name: record?.name ?? "",
+    productTypeId: record?.productTypeId ?? "",
+    taxId: record?.taxId ?? "",
+    unitId: record?.unitId ?? "",
+  }))
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const mutation = useMutation({
+    mutationFn: async () => {
+      if (!form.name.trim()) {
+        setErrors({ name: "Name is required" })
+        toast.error("Name is required")
+        throw new Error("Validation failed")
+      }
+      setErrors({})
+      const payload = {
+        code: form.code.trim() || codeFromName(form.name),
+        name: form.name.trim(),
+        productTypeId: optional(form.productTypeId),
+        hsnCodeId: optional(form.hsnCodeId),
+        unitId: optional(form.unitId),
+        taxId: optional(form.taxId),
+      }
+      const saved = record
+        ? await apiPut<ProductRecord>(`/core/products/${record.itemId}`, payload, "tenant")
+        : await apiPost<ProductRecord>("/core/products", payload, "tenant")
+      if (record && record.status === "archived" && form.isActive) await apiPost(`/core/products/${record.itemId}/restore`, undefined, "tenant")
+      if (record && record.status === "active" && !form.isActive) await apiPost(`/core/products/${record.itemId}/archive`, undefined, "tenant")
+      if (!record && !form.isActive) await apiPost(`/core/products/${saved.itemId}/archive`, undefined, "tenant")
+      return saved
+    },
+    onSuccess: () => {
+      toast.success(record ? "Product updated" : "Product created")
+      void queryClient.invalidateQueries({ queryKey: ["tenant", "products"] })
+      onSaved()
+    },
+    onError: (error) => {
+      if (error instanceof Error && error.message === "Validation failed") return
+      toast.error(error instanceof Error ? error.message : "Product save failed")
+    },
+  })
+
+  return (
+    <WorkspacePage
+      title={record ? "Edit Product" : "New Product"}
+      description="Save tenant product master data with product-specific fields."
+      actions={
+        <Button type="button" variant="outline" onClick={onCancel}>
+          <ArrowLeft className="size-4" />
+          Back
+        </Button>
+      }
+    >
+      <form
+        onSubmit={(event) => {
+          event.preventDefault()
+          mutation.mutate()
+        }}
+      >
+        <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
+          <Tabs defaultValue="details">
+            <div className="border-b border-border px-6 pt-2">
+              <TabsList className="h-auto rounded-none bg-transparent p-0">
+                <TabsTrigger
+                  value="details"
+                  className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                >
+                  Details
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="details" className="m-0">
+              <SectionShell>
+                <div className="grid items-end gap-5 md:grid-cols-2">
+                  <TextField label="Name" required value={form.name} {...(errors.name ? { error: errors.name } : {})} onChange={(name) => setForm((current) => ({ ...current, name }))} />
+                  <TextField label="Code" value={form.code} onChange={(code) => setForm((current) => ({ ...current, code: code.toUpperCase() }))} />
+                  <LookupField definitionKey="product-types" label="Product Type" value={form.productTypeId} onChange={(productTypeId) => setForm((current) => ({ ...current, productTypeId }))} />
+                  <LookupField definitionKey="hsn-codes" label="HSN Code" value={form.hsnCodeId} onChange={(hsnCodeId) => setForm((current) => ({ ...current, hsnCodeId }))} />
+                  <LookupField definitionKey="units" label="Unit" value={form.unitId} onChange={(unitId) => setForm((current) => ({ ...current, unitId }))} />
+                  <LookupField definitionKey="taxes" label="GST %" value={form.taxId} onChange={(taxId) => setForm((current) => ({ ...current, taxId }))} />
+                  <StatusCard label="Active" checked={form.isActive} onChange={(isActive) => setForm((current) => ({ ...current, isActive }))} className="md:col-span-2" />
+                </div>
+              </SectionShell>
+            </TabsContent>
+          </Tabs>
+          <div className="flex flex-wrap items-center gap-3 border-t border-border bg-muted/20 px-6 py-4">
+            <Button type="submit" disabled={mutation.isPending}>
+              <Save className={cn("size-4", mutation.isPending && "animate-spin")} />
+              Save
+            </Button>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              <X className="size-4" />
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </form>
+    </WorkspacePage>
+  )
+}
+
+function LookupField({
+  definitionKey,
+  label,
+  onChange,
+  value,
+}: {
+  definitionKey: string
+  label: string
+  onChange: (value: string) => void
+  value: string
+}) {
+  const queryClient = useQueryClient()
+  const lookupQuery = useQuery({
+    queryKey: ["tenant", "common-lookup", definitionKey],
+    queryFn: () => apiGet<Array<{ id: string; code?: string; description?: string; name?: string }>>(`/core/common/records?definitionKey=${definitionKey}`, "tenant"),
+  })
+  const options = useMemo<WorkspaceLookupOption[]>(
+    () =>
+      (lookupQuery.data ?? []).map((record) => ({
+        value: record.id,
+        label: record.name ?? record.description ?? record.code ?? record.id,
+        ...(record.code ? { meta: record.code } : {}),
+      })),
+    [lookupQuery.data],
+  )
+
+  return (
+    <div className="grid gap-2">
+      <Label>{label}</Label>
+      <WorkspaceLookup
+        createLabel="Create"
+        createMode="inline"
+        loading={lookupQuery.isLoading}
+        options={options}
+        placeholder=""
+        value={value}
+        onCreate={async (name) => {
+          const created = await apiPost<{ id: string; code?: string; description?: string; name?: string }>("/core/common/records", { definitionKey, name }, "tenant")
+          void queryClient.invalidateQueries({ queryKey: ["tenant", "common-lookup", definitionKey] })
+          return {
+            value: created.id,
+            label: created.name ?? created.description ?? created.code ?? name,
+            ...(created.code ? { meta: created.code } : {}),
+          }
+        }}
+        onValueChange={(nextValue) => onChange(nextValue)}
+      />
+    </div>
+  )
+}
+
+function TextField({
+  className,
+  error,
+  label,
+  onChange,
+  required,
+  value,
+}: {
+  className?: string | undefined
+  error?: string | undefined
+  label: string
+  onChange: (value: string) => void
+  required?: boolean | undefined
+  value: string
+}) {
+  return (
+    <div className={cn("grid gap-2", className)}>
+      <Label>
+        {label}
+        {required ? <span className="ml-1 text-destructive">*</span> : null}
+      </Label>
+      <Input className="h-11 rounded-md" value={value} onChange={(event) => onChange(event.target.value)} />
+      {error ? <p className="text-xs font-medium text-destructive">{error}</p> : null}
+    </div>
+  )
+}
+
+function StatusCard({
+  checked,
+  className,
+  label,
+  onChange,
+}: {
+  checked: boolean
+  className?: string | undefined
+  label: string
+  onChange: (value: boolean) => void
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className={cn(
+        "flex h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-md border px-3 text-left transition-colors",
+        checked
+          ? "border-emerald-200 bg-emerald-50 hover:bg-emerald-100/70"
+          : "border-border bg-muted/55 hover:bg-muted/75",
+        className,
+      )}
+      onClick={() => onChange(!checked)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          onChange(!checked)
+        }
+      }}
+    >
+      <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+        <CheckCircle2 className={cn("size-4 shrink-0", checked ? "text-emerald-600" : "text-muted-foreground")} />
+        <span className="block leading-none">{label}</span>
+      </span>
+      <VisualSwitch checked={checked} />
+    </div>
+  )
+}
+
+function VisualSwitch({ checked }: { checked: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+        checked ? "bg-emerald-600" : "bg-muted-foreground/35",
+      )}
+    >
+      <span
+        className={cn(
+          "block size-4 rounded-full bg-background shadow-sm transition-transform",
+          checked ? "translate-x-4" : "translate-x-0.5",
+        )}
+      />
+    </span>
+  )
+}
+
+function SectionShell({ children, className }: { children: ReactNode; className?: string | undefined }) {
+  return <div className={cn("p-6", className)}>{children}</div>
+}
+
+async function archiveProduct(product: ProductRecord, queryClient: ReturnType<typeof useQueryClient>) {
+  await apiPost(`/core/products/${product.itemId}/archive`, undefined, "tenant")
+  toast.success("Product suspended")
+  void queryClient.invalidateQueries({ queryKey: ["tenant", "products"] })
+}
+
+async function restoreProduct(product: ProductRecord, queryClient: ReturnType<typeof useQueryClient>) {
+  await apiPost(`/core/products/${product.itemId}/restore`, undefined, "tenant")
+  toast.success("Product restored")
+  void queryClient.invalidateQueries({ queryKey: ["tenant", "products"] })
+}
+
+function optional(value: string) {
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
+}
+
+function productLookupLabel(record: { code?: string; description?: string; id: string; name?: string; ratePercent?: number }) {
+  if (record.ratePercent !== undefined && record.ratePercent !== null) return `${record.ratePercent}%`
+  if (record.code && record.description) return `${record.code} - ${record.description}`
+  if (record.code && record.name) return `${record.code} - ${record.name}`
+  return record.name ?? record.description ?? record.code ?? record.id
+}
+
+function lookupLabel(labels: Map<string, string> | undefined, value: string | undefined) {
+  if (!value) return ""
+  return labels?.get(value) ?? value
+}
+
+function codeFromName(name: string) {
+  return name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "PRODUCT"
+}
+
+function formatDate(value: string | undefined) {
+  if (!value) return ""
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(date)
 }

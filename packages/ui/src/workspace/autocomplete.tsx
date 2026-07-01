@@ -20,7 +20,7 @@ export function WorkspaceAutocomplete({
   onChange,
   onCreate,
   options,
-  placeholder = "Search...",
+  placeholder = "",
   value,
 }: {
   className?: string

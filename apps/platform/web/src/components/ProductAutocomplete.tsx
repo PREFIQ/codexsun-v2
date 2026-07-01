@@ -35,7 +35,8 @@ export function ProductAutocomplete({ value, onChange }: Props) {
       value={value}
       onChange={(val) => onChange(val)}
       loading={loading}
-      placeholder="Search products..."
+      placeholder=""
     />
   )
 }
+
