@@ -16,16 +16,22 @@ export class ContactService {
     return contact;
   }
 
+  async nextCode(tenantId: string): Promise<{ code: string }> {
+    if (!tenantId) throw AppError.validation("tenantId is required");
+    return { code: await this.repository.nextCode(tenantId) };
+  }
+
   async create(input: ContactCreateInput): Promise<ContactProfile> {
     if (!input.tenantId) throw AppError.validation("tenantId is required");
-    if (!input.code?.trim()) throw AppError.validation("code is required");
     if (!input.name?.trim()) throw AppError.validation("name is required");
+    const code = input.code?.trim() || (await this.repository.nextCode(input.tenantId));
     const contact: ContactProfile = {
       contactId: crypto.randomUUID(),
       tenantId: input.tenantId,
-      code: input.code,
+      code,
       name: input.name,
       ...(input.contactTypeId !== undefined ? { contactTypeId: input.contactTypeId } : {}),
+      ...(input.contactGroupId !== undefined ? { contactGroupId: input.contactGroupId } : {}),
       ...(input.ledgerId !== undefined ? { ledgerId: input.ledgerId } : {}),
       ...(input.ledgerName !== undefined ? { ledgerName: input.ledgerName } : {}),
       ...(input.legalName !== undefined ? { legalName: input.legalName } : {}),
@@ -66,6 +72,7 @@ export class ContactService {
       ...(input.code !== undefined ? { code: input.code } : {}),
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.contactTypeId !== undefined ? { contactTypeId: input.contactTypeId } : {}),
+      ...(input.contactGroupId !== undefined ? { contactGroupId: input.contactGroupId } : {}),
       ...(input.ledgerId !== undefined ? { ledgerId: input.ledgerId } : {}),
       ...(input.ledgerName !== undefined ? { ledgerName: input.ledgerName } : {}),
       ...(input.legalName !== undefined ? { legalName: input.legalName } : {}),

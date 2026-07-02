@@ -75,6 +75,7 @@ export type ContactProfile = {
   code: string;
   name: string;
   contactTypeId?: string;
+  contactGroupId?: string;
   ledgerId?: string;
   ledgerName?: string;
   legalName?: string;
@@ -108,9 +109,10 @@ export type ContactProfile = {
 
 export type ContactCreateInput = {
   tenantId: string;
-  code: string;
+  code?: string;
   name: string;
   contactTypeId?: string;
+  contactGroupId?: string;
   ledgerId?: string;
   ledgerName?: string;
   legalName?: string;
@@ -143,6 +145,7 @@ export type ContactUpdateInput = {
   code?: string;
   name?: string;
   contactTypeId?: string;
+  contactGroupId?: string;
   ledgerId?: string;
   ledgerName?: string;
   legalName?: string;

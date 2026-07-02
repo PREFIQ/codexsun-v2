@@ -12,6 +12,14 @@ export async function registerCoreContactRoutes(app: FastifyInstance, ctx: CoreR
     return ok(contacts, responseMeta(request));
   });
 
+  app.get("/core/contacts/next-code", async (request) => {
+    const session = await ctx.guardSession(app, request);
+    const tenantId = requireTenantContext(request, session);
+    ctx.guardPermission(session, "core.contact.view");
+    const code = await app.coreContactService.nextCode(tenantId);
+    return ok(code, responseMeta(request));
+  });
+
   app.get("/core/contacts/:id", async (request) => {
     const session = await ctx.guardSession(app, request);
     const tenantId = requireTenantContext(request, session);
@@ -28,7 +36,7 @@ export async function registerCoreContactRoutes(app: FastifyInstance, ctx: CoreR
     await ctx.guardFeatureEnabled(app, tenantId, "core");
     ctx.guardPermission(session, "core.contact.manage");
     const body = request.body as {
-      code: string; name: string; contactTypeId?: string;
+      code: string; name: string; contactTypeId?: string; contactGroupId?: string;
       ledgerId?: string; ledgerName?: string; legalName?: string;
       pan?: string; gstin?: string; msmeType?: string; msmeNo?: string;
       tan?: string; tdsAvailable?: boolean; tcsAvailable?: boolean;
@@ -40,6 +48,7 @@ export async function registerCoreContactRoutes(app: FastifyInstance, ctx: CoreR
     const contact = await app.coreContactService.create({
       tenantId, code: body.code, name: body.name,
       ...(body.contactTypeId !== undefined ? { contactTypeId: body.contactTypeId } : {}),
+      ...(body.contactGroupId !== undefined ? { contactGroupId: body.contactGroupId } : {}),
       ...(body.ledgerId !== undefined ? { ledgerId: body.ledgerId } : {}),
       ...(body.ledgerName !== undefined ? { ledgerName: body.ledgerName } : {}),
       ...(body.legalName !== undefined ? { legalName: body.legalName } : {}),
@@ -83,7 +92,7 @@ export async function registerCoreContactRoutes(app: FastifyInstance, ctx: CoreR
     ctx.guardPermission(session, "core.contact.manage");
     const { id } = request.params as { id: string };
     const body = request.body as {
-      code?: string; name?: string; contactTypeId?: string;
+      code?: string; name?: string; contactTypeId?: string; contactGroupId?: string;
       ledgerId?: string; ledgerName?: string; legalName?: string;
       pan?: string; gstin?: string; msmeType?: string; msmeNo?: string;
       tan?: string; tdsAvailable?: boolean; tcsAvailable?: boolean;
@@ -97,6 +106,7 @@ export async function registerCoreContactRoutes(app: FastifyInstance, ctx: CoreR
       ...(body.code !== undefined ? { code: body.code } : {}),
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.contactTypeId !== undefined ? { contactTypeId: body.contactTypeId } : {}),
+      ...(body.contactGroupId !== undefined ? { contactGroupId: body.contactGroupId } : {}),
       ...(body.ledgerId !== undefined ? { ledgerId: body.ledgerId } : {}),
       ...(body.ledgerName !== undefined ? { ledgerName: body.ledgerName } : {}),
       ...(body.legalName !== undefined ? { legalName: body.legalName } : {}),

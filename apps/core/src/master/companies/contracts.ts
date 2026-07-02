@@ -8,6 +8,7 @@ export type CompanyProfile = {
   tenantId: string;
   legalName: string;
   tradeName?: string;
+  companyGroupId?: string;
   phone: PhoneBlock[];
   email: EmailBlock[];
   addresses: AddressBlock[];
@@ -28,6 +29,7 @@ export type CompanyCreateInput = {
   tenantId: string;
   legalName: string;
   tradeName?: string;
+  companyGroupId?: string;
   phone?: PhoneBlock[];
   email?: EmailBlock[];
   addresses?: AddressBlock[];
@@ -44,6 +46,7 @@ export type CompanyUpdateInput = {
   companyId: string;
   legalName?: string;
   tradeName?: string;
+  companyGroupId?: string;
   phone?: PhoneBlock[];
   email?: EmailBlock[];
   addresses?: AddressBlock[];

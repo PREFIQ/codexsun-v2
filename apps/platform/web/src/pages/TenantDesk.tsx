@@ -85,25 +85,11 @@ const tenantModuleGroups: TenantMenuGroup[] = [
         key: "contacts",
         label: "Contacts",
         routePath: "/tenant/master/contacts",
-        children: [
-          { key: "contact-emails", label: "Contact Emails", routePath: "/tenant/master/contacts/contact-emails" },
-          { key: "contact-phones", label: "Contact Phones", routePath: "/tenant/master/contacts/contact-phones" },
-          { key: "contact-social-links", label: "Contact Social Links", routePath: "/tenant/master/contacts/contact-social-links" },
-          { key: "contact-bank-accounts", label: "Contact Bank Accounts", routePath: "/tenant/master/contacts/contact-bank-accounts" },
-          { key: "contact-gst-details", label: "Contact GST Details", routePath: "/tenant/master/contacts/contact-gst-details" },
-        ],
       },
       {
         key: "companies",
         label: "Companies",
         routePath: "/tenant/master/companies",
-        children: [
-          { key: "company-logos", label: "Company Logos", routePath: "/tenant/master/companies/company-logos" },
-          { key: "company-emails", label: "Company Emails", routePath: "/tenant/master/companies/company-emails" },
-          { key: "company-phones", label: "Company Phones", routePath: "/tenant/master/companies/company-phones" },
-          { key: "company-social-links", label: "Company Social Links", routePath: "/tenant/master/companies/company-social-links" },
-          { key: "company-bank-accounts", label: "Company Bank Accounts", routePath: "/tenant/master/companies/company-bank-accounts" },
-        ],
       },
       {
         key: "products",

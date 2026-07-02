@@ -39,6 +39,7 @@ type CompanyRecord = {
   tenantId: string
   legalName: string
   tradeName?: string
+  companyGroupId?: string
   phone: Array<{ phoneId: string; label: string; number: string; isPrimary: boolean }>
   email: Array<{ emailId: string; label: string; address: string; isPrimary: boolean }>
   addresses: Array<{
@@ -92,6 +93,7 @@ type CompanySocialLink = {
 type CompanyForm = {
   legalName: string
   tradeName: string
+  companyGroupId: string
   tenantId: string
   industry: string
   gstin: string
@@ -291,8 +293,9 @@ const defaultSettingsRecord: ApplicationSettingsRecord = {
 
 export function ApplicationCompanyPage({ onBack }: { onBack?: () => void }) {
   const queryClient = useQueryClient()
-  const [mode, setMode] = useState<"list" | "form">("list")
+  const [mode, setMode] = useState<"list" | "show" | "form">("list")
   const [editing, setEditing] = useState<CompanyRecord | null>(null)
+  const [viewing, setViewing] = useState<CompanyRecord | null>(null)
   const [query, setQuery] = useState("")
   const companiesQuery = useQuery({
     queryKey: ["tenant", "companies"],
@@ -303,11 +306,30 @@ export function ApplicationCompanyPage({ onBack }: { onBack?: () => void }) {
     const term = query.trim().toLowerCase()
     if (!term) return companies
     return companies.filter((company) =>
-      [company.legalName, company.tradeName, company.tenantId, company.email?.[0]?.address, company.phone?.[0]?.number, company.status]
+      [company.legalName, company.tradeName, company.companyGroupId, company.tenantId, company.email?.[0]?.address, company.phone?.[0]?.number, company.status]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term)),
     )
   }, [companies, query])
+
+  if (mode === "show" && viewing) {
+    return (
+      <CompanyShowPage
+        record={viewing}
+        onBack={() => {
+          setViewing(null)
+          setMode("list")
+        }}
+        onEdit={() => {
+          setEditing(viewing)
+          setViewing(null)
+          setMode("form")
+        }}
+        onArchive={() => archiveCompany(viewing, queryClient)}
+        onRestore={() => restoreCompany(viewing, queryClient)}
+      />
+    )
+  }
 
   if (mode === "form") {
     return (
@@ -316,11 +338,13 @@ export function ApplicationCompanyPage({ onBack }: { onBack?: () => void }) {
         record={editing}
         onCancel={() => {
           setEditing(null)
+          setViewing(null)
           setMode("list")
         }}
         onSaved={() => {
           void queryClient.invalidateQueries({ queryKey: ["tenant", "companies"] })
           setEditing(null)
+          setViewing(null)
           setMode("list")
         }}
       />
@@ -343,7 +367,7 @@ export function ApplicationCompanyPage({ onBack }: { onBack?: () => void }) {
             <RefreshCw className={cn("size-4", companiesQuery.isFetching && "animate-spin")} />
             Refresh
           </Button>
-          <Button type="button" onClick={() => setMode("form")}>
+          <Button type="button" onClick={() => { setEditing(null); setViewing(null); setMode("form") }}>
             <Plus className="size-4" />
             New company
           </Button>
@@ -376,8 +400,9 @@ export function ApplicationCompanyPage({ onBack }: { onBack?: () => void }) {
                       className="cursor-pointer text-left font-semibold text-primary underline-offset-4 hover:underline"
                       type="button"
                       onClick={() => {
-                        setEditing(company)
-                        setMode("form")
+                        setViewing(company)
+                        setEditing(null)
+                        setMode("show")
                       }}
                     >
                       {company.tradeName || company.legalName}
@@ -428,6 +453,118 @@ export function ApplicationCompanyPage({ onBack }: { onBack?: () => void }) {
         onRowsPerPageChange={() => undefined}
       />
     </WorkspacePage>
+  )
+}
+
+function CompanyShowPage({
+  onArchive,
+  onBack,
+  onEdit,
+  onRestore,
+  record,
+}: {
+  onArchive: () => void
+  onBack: () => void
+  onEdit: () => void
+  onRestore: () => void
+  record: CompanyRecord
+}) {
+  const meta = readMeta(record.notes)
+  const isArchived = record.status === "archived"
+  return (
+    <WorkspacePage
+      title={record.tradeName || record.legalName}
+      description={record.legalName}
+      actions={
+        <>
+          <Button type="button" variant="outline" onClick={onBack}>
+            <ArrowLeft className="size-4" />
+            Back
+          </Button>
+          <Button type="button" onClick={onEdit}>
+            <Save className="size-4" />
+            Edit
+          </Button>
+          <Button type="button" variant={isArchived ? "outline" : "destructive"} onClick={isArchived ? onRestore : onArchive}>
+            <Trash2 className="size-4" />
+            {isArchived ? "Restore" : "Suspend"}
+          </Button>
+        </>
+      }
+    >
+      <div className="grid gap-4">
+        <CompanyDetailCard
+          title="Company profile"
+          rows={[
+            ["Legal name", record.legalName],
+            ["Trade name", record.tradeName],
+            ["Company group", record.companyGroupId],
+            ["Industry", meta.industry || "General"],
+            ["Website", record.website],
+            ["Status", <WorkspaceStatusBadge key="status" label={record.status} tone={record.status === "active" ? "success" : "danger"} />],
+          ]}
+        />
+        <CompanyDetailCard
+          title="Compliance"
+          rows={[
+            ["GSTIN", record.taxIdentities.find((tax) => tax.type === "gstin")?.value],
+            ["PAN", record.taxIdentities.find((tax) => tax.type === "pan")?.value],
+            ["TAN", record.taxIdentities.find((tax) => tax.type === "tan")?.value],
+            ["CIN", record.taxIdentities.find((tax) => tax.type === "cin")?.value],
+            ["MSME", [meta.msmeType, meta.msmeNo].filter(Boolean).join(" - ")],
+            ["TDS", meta.tdsAvailable ? "Yes" : "No"],
+            ["TCS", meta.tcsAvailable ? "Yes" : "No"],
+          ]}
+        />
+        <CompanyMiniList title="Emails" rows={record.email.map((email) => [email.address, email.label, email.isPrimary ? "Primary" : ""])} />
+        <CompanyMiniList title="Phones" rows={record.phone.map((phone) => [phone.number, phone.label, phone.isPrimary ? "Primary" : ""])} />
+        <CompanyMiniList title="Addresses" rows={record.addresses.map((address) => [address.line1 || "-", [address.city, address.state, address.pincode].filter(Boolean).join(", "), address.isDefault ? "Default" : ""])} />
+        <CompanyMiniList title="Bank accounts" rows={record.bankAccounts.map((bank) => [bank.bankName || "-", bank.accountNumber, bank.isDefault ? "Primary" : ""])} />
+        <CompanyMiniList title="Social links" rows={meta.socialLinks.map((link) => [link.platform, link.url, link.isActive ? "Active" : "Inactive"])} />
+        <CompanyDetailCard title="Timestamps" rows={[["Created", formatDate(record.createdAt)], ["Updated", formatDate(record.updatedAt)]]} />
+      </div>
+    </WorkspacePage>
+  )
+}
+
+function CompanyDetailCard({ rows, title }: { rows: Array<[string, ReactNode]>; title: string }) {
+  return (
+    <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
+      <div className="border-b border-border px-4 py-3 text-base font-semibold">{title}</div>
+      <table className="w-full border-collapse text-sm">
+        <tbody>
+          {rows.map(([label, value]) => (
+            <tr key={label} className="border-b border-border last:border-0">
+              <th className="w-44 bg-muted/35 px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">{label}</th>
+              <td className="px-4 py-3">{value || "Not set"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function CompanyMiniList({ rows, title }: { rows: string[][]; title: string }) {
+  return (
+    <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
+      <div className="border-b border-border px-4 py-3 text-base font-semibold">{title}</div>
+      {rows.length ? (
+        <div className="divide-y divide-border">
+          {rows.map((row, index) => (
+            <div key={`${title}-${index}`} className="grid gap-2 px-4 py-3 text-sm md:grid-cols-3">
+              {row.map((cell, cellIndex) => (
+                <span key={cellIndex} className={cellIndex === 0 ? "font-medium" : "text-muted-foreground"}>
+                  {cell || "-"}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="px-4 py-8 text-center text-sm text-muted-foreground">No records found.</div>
+      )}
+    </div>
   )
 }
 
@@ -626,6 +763,7 @@ function CompanyUpsertPage({ onCancel, onSaved, record }: { onCancel: () => void
                 <div className="grid items-end gap-5 md:grid-cols-2">
                   <TextField label="Legal name" required value={form.legalName} error={errors.legalName} onChange={(legalName) => updateForm(setForm, { legalName })} />
                   <TextField label="Trade name" value={form.tradeName} onChange={(tradeName) => updateForm(setForm, { tradeName })} />
+                  <LookupField definitionKey="company-groups" label="Company Group" value={form.companyGroupId} onChange={(companyGroupId) => updateForm(setForm, { companyGroupId })} />
                   <TextField label="GSTIN" value={form.gstin} onChange={(gstin) => updateForm(setForm, { gstin: gstin.toUpperCase() })} />
                   <TextField label="Tenant" value={form.tenantId} onChange={(tenantId) => updateForm(setForm, { tenantId })} />
                   <TextField label="Industry" value={form.industry} onChange={(industry) => updateForm(setForm, { industry })} />
@@ -2003,6 +2141,7 @@ function companyToForm(record: CompanyRecord | null): CompanyForm {
   return {
     legalName: record?.legalName ?? "",
     tradeName: record?.tradeName ?? "",
+    companyGroupId: record?.companyGroupId ?? "",
     tenantId: record?.tenantId ?? getTenantId() ?? "",
     industry: meta.industry || "General",
     gstin,
@@ -2098,6 +2237,7 @@ function companyPayload(form: CompanyForm, record: CompanyRecord | null) {
   return {
     legalName: form.legalName.trim(),
     tradeName: form.tradeName.trim() || undefined,
+    companyGroupId: form.companyGroupId.trim() || undefined,
     phone: phones,
     email: emails,
     addresses,

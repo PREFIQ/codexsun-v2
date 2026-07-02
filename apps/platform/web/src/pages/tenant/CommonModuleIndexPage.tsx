@@ -17,7 +17,6 @@ export const commonModuleGroups: Array<{
   {
     label: "Contacts",
     modules: [
-      { key: "contact-groups", label: "Contact Groups", description: "Grouping labels for contacts" },
       { key: "contact-types", label: "Contact Types", description: "Customer, supplier, transporter, etc." },
       { key: "address-types", label: "Address Types", description: "Billing, shipping, office, warehouse" },
       { key: "bank-names", label: "Bank Names", description: "Bank name lookup" },

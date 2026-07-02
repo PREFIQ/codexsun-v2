@@ -261,7 +261,7 @@ export const projectManagerMaturityStore = {
     ].join("\n");
     await ensureCommunicationFiles();
     await appendFile(automationInboxFile, block, "utf8");
-    await appendFile(automationLogFile, `${timestamp} | queued | ${stage} | ${key} | ${title}\n`, "utf8");
+    await appendFile(automationLogFile, `${timestamp} | queued | ${stage} | ${referenceNo} | ${key} | ${title}\n`, "utf8");
     const timeline = normalizeRecord("timeline", {
       ...input,
       active: true,
@@ -271,7 +271,7 @@ export const projectManagerMaturityStore = {
       eventName: "project_manager.communication.queued",
       id: nextId("timeline"),
       key: `timeline.communication.${kind}.${key}.${Date.now()}`,
-      referenceId: key,
+      referenceId: referenceNo,
       referenceType: kind,
       sortOrder: nextSortOrder(db.timeline),
       startDate: input.startDate || input.dueDate || input.endDate || "",
@@ -353,13 +353,9 @@ async function ensureFilesReady() {
 
 async function ensureJson(kind: ProjectManagerMaturityKind, filePath: string, fallback: ProjectManagerMaturityRecord[]) {
   try {
-    const existing = (await readJson<ProjectManagerMaturityRecord[]>(filePath)).map((record) => normalizeRecord(kind, record));
-    const existingKeys = new Set(existing.map((record) => record.key.toLowerCase()));
-    const missing = fallback.filter((record) => !existingKeys.has(record.key.toLowerCase()));
-    if (missing.length) {
-      await writeJson(filePath, [...existing, ...missing]);
-    }
-  } catch {
+    await readJson<ProjectManagerMaturityRecord[]>(filePath);
+  } catch (error) {
+    if (!isMissingFile(error)) throw error;
     await writeJson(filePath, fallback);
   }
 }
@@ -370,6 +366,10 @@ async function readJson<T>(filePath: string): Promise<T> {
 
 async function writeJson(filePath: string, data: unknown) {
   await writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
+}
+
+function isMissingFile(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
 
 function normalizeRecord(kind: ProjectManagerMaturityKind, input: Partial<ProjectManagerMaturityRecord>): ProjectManagerMaturityRecord {

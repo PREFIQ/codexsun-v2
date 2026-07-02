@@ -28,7 +28,7 @@ export async function registerCoreCompanyRoutes(app: FastifyInstance, ctx: CoreR
     await ctx.guardFeatureEnabled(app, tenantId, "core");
     ctx.guardPermission(session, "core.company.manage");
     const body = request.body as {
-      legalName: string; tradeName?: string;
+      legalName: string; tradeName?: string; companyGroupId?: string;
       phone?: any[]; email?: any[]; addresses?: any[];
       bankAccounts?: any[]; taxIdentities?: any[];
       website?: string; logoUrl?: string; notes?: string;
@@ -36,6 +36,7 @@ export async function registerCoreCompanyRoutes(app: FastifyInstance, ctx: CoreR
     const company = await app.coreCompanyService.create({
       tenantId, legalName: body.legalName,
       ...(body.tradeName !== undefined ? { tradeName: body.tradeName } : {}),
+      ...(body.companyGroupId !== undefined ? { companyGroupId: body.companyGroupId } : {}),
       ...(body.phone !== undefined ? { phone: body.phone } : {}),
       ...(body.email !== undefined ? { email: body.email } : {}),
       ...(body.addresses !== undefined ? { addresses: body.addresses } : {}),
@@ -64,7 +65,7 @@ export async function registerCoreCompanyRoutes(app: FastifyInstance, ctx: CoreR
     ctx.guardPermission(session, "core.company.manage");
     const { id } = request.params as { id: string };
     const body = request.body as {
-      legalName?: string; tradeName?: string;
+      legalName?: string; tradeName?: string; companyGroupId?: string;
       phone?: any[]; email?: any[]; addresses?: any[];
       bankAccounts?: any[]; taxIdentities?: any[];
       website?: string; logoUrl?: string; notes?: string;
@@ -73,6 +74,7 @@ export async function registerCoreCompanyRoutes(app: FastifyInstance, ctx: CoreR
       tenantId, companyId: id,
       ...(body.legalName !== undefined ? { legalName: body.legalName } : {}),
       ...(body.tradeName !== undefined ? { tradeName: body.tradeName } : {}),
+      ...(body.companyGroupId !== undefined ? { companyGroupId: body.companyGroupId } : {}),
       ...(body.phone !== undefined ? { phone: body.phone } : {}),
       ...(body.email !== undefined ? { email: body.email } : {}),
       ...(body.addresses !== undefined ? { addresses: body.addresses } : {}),

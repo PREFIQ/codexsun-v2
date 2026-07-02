@@ -91,12 +91,8 @@ async function migrateMasterDatabase() {
 
   if (hasSeedUser(env.SUPER_ADMIN_NAME, env.SUPER_ADMIN_EMAIL, env.SUPER_ADMIN_PASSWORD)) {
     await db.execute(
-      `INSERT INTO super_admin_users (display_name, email, password_hash)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         display_name = VALUES(display_name),
-         password_hash = VALUES(password_hash),
-         status = 'active'`,
+      `INSERT IGNORE INTO super_admin_users (display_name, email, password_hash)
+       VALUES (?, ?, ?)`,
       [
         env.SUPER_ADMIN_NAME,
         env.SUPER_ADMIN_EMAIL,
@@ -107,12 +103,8 @@ async function migrateMasterDatabase() {
 
   if (hasSeedUser(env.SOFTWARE_ADMIN_NAME, env.SOFTWARE_ADMIN_EMAIL, env.SOFTWARE_ADMIN_PASSWORD)) {
     await db.execute(
-      `INSERT INTO staff_users (display_name, email, password_hash)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         display_name = VALUES(display_name),
-         password_hash = VALUES(password_hash),
-         status = 'active'`,
+      `INSERT IGNORE INTO staff_users (display_name, email, password_hash)
+       VALUES (?, ?, ?)`,
       [
         env.SOFTWARE_ADMIN_NAME,
         env.SOFTWARE_ADMIN_EMAIL,
@@ -122,15 +114,8 @@ async function migrateMasterDatabase() {
   }
 
   await db.execute(
-    `INSERT INTO tenants (tenant_code, tenant_name, corporate_id, mobile, slug, payload_settings)
-     VALUES ('test', 'Test Tenant', 'TEST', '9655227738', 'test', ?)
-     ON DUPLICATE KEY UPDATE
-       tenant_name = VALUES(tenant_name),
-       corporate_id = VALUES(corporate_id),
-       mobile = VALUES(mobile),
-       slug = VALUES(slug),
-       payload_settings = VALUES(payload_settings),
-       status = 'active'`,
+    `INSERT IGNORE INTO tenants (tenant_code, tenant_name, corporate_id, mobile, slug, payload_settings)
+     VALUES ('test', 'Test Tenant', 'TEST', '9655227738', 'test', ?)`,
     [JSON.stringify({ apps: { enabled: ["core", "business.billing"] } })]
   );
 
@@ -141,9 +126,8 @@ async function migrateMasterDatabase() {
   const seedTenantModuleKeys = ["core", "core.contact", "core.company", "core.product", "business.billing"];
   for (const moduleKey of seedTenantModuleKeys) {
     await db.execute(
-      `INSERT INTO tenant_module_activation (tenant_id, module_key, status)
-       VALUES (?, ?, 'enabled')
-       ON DUPLICATE KEY UPDATE status = 'enabled'`,
+      `INSERT IGNORE INTO tenant_module_activation (tenant_id, module_key, status)
+       VALUES (?, ?, 'enabled')`,
       [tenantId, moduleKey]
     );
   }
@@ -151,21 +135,14 @@ async function migrateMasterDatabase() {
   await db.execute(
     `INSERT INTO tenant_databases (tenant_id, db_type, db_host, db_port, database_name, db_user, db_secret_ref)
      VALUES (?, 'mariadb', 'localhost', 3306, ?, 'root', 'DB_PASSWORD')
-     ON DUPLICATE KEY UPDATE
-       tenant_id = VALUES(tenant_id),
-       db_type = VALUES(db_type),
-       db_host = VALUES(db_host),
-       db_port = VALUES(db_port),
-       db_user = VALUES(db_user),
-       db_secret_ref = VALUES(db_secret_ref),
-       status = 'ready'`,
+     ON DUPLICATE KEY UPDATE tenant_id = tenant_id`,
     [tenantId, env.TENANT_TEST_DB_NAME]
   );
 
   await db.execute(
     `INSERT INTO tenant_domain_mappings (tenant_id, domain_name)
      VALUES (?, 'test.localhost')
-     ON DUPLICATE KEY UPDATE tenant_id = VALUES(tenant_id), status = 'active'`,
+     ON DUPLICATE KEY UPDATE tenant_id = tenant_id`,
     [tenantId]
   );
 
@@ -296,6 +273,279 @@ async function repairMasterTenantSchema(db: ServerConnection) {
   await ensureColumn(db, "platform_industries", "default_template", "VARCHAR(180) NULL");
   await ensureColumn(db, "platform_industries", "status", "VARCHAR(30) NOT NULL DEFAULT 'active'");
   await ensureColumn(db, "platform_industries", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_common_records (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      module_key VARCHAR(120) NOT NULL,
+      record_id VARCHAR(80) NOT NULL,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      payload_json JSON NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP NULL,
+      UNIQUE KEY uq_tenant_common_records_record (tenant_id, module_key, record_id),
+      KEY ix_tenant_common_records_module (tenant_id, module_key),
+      KEY ix_tenant_common_records_active (tenant_id, module_key, is_active)
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_contacts (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      contact_id VARCHAR(80) NOT NULL,
+      code VARCHAR(80) NOT NULL,
+      name VARCHAR(180) NOT NULL,
+      contact_type_id VARCHAR(80) NULL,
+      contact_group_id VARCHAR(80) NULL,
+      ledger_id VARCHAR(80) NULL,
+      ledger_name VARCHAR(180) NULL,
+      legal_name VARCHAR(180) NULL,
+      pan VARCHAR(40) NULL,
+      gstin VARCHAR(40) NULL,
+      msme_type VARCHAR(40) NULL,
+      msme_no VARCHAR(80) NULL,
+      tan VARCHAR(40) NULL,
+      tds_available TINYINT(1) NOT NULL DEFAULT 0,
+      tcs_available TINYINT(1) NOT NULL DEFAULT 0,
+      opening_balance DECIMAL(14,2) NOT NULL DEFAULT 0,
+      balance_type VARCHAR(40) NULL,
+      credit_limit DECIMAL(14,2) NOT NULL DEFAULT 0,
+      website VARCHAR(220) NULL,
+      primary_email VARCHAR(190) NULL,
+      primary_phone VARCHAR(50) NULL,
+      description TEXT NULL,
+      status VARCHAR(30) NOT NULL DEFAULT 'active',
+      created_by VARCHAR(190) NOT NULL,
+      updated_by VARCHAR(190) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP NULL,
+      UNIQUE KEY uq_tenant_contacts_contact (tenant_id, contact_id),
+      UNIQUE KEY uq_tenant_contacts_code (tenant_id, code),
+      KEY ix_tenant_contacts_name (tenant_id, name),
+      KEY ix_tenant_contacts_status (tenant_id, status)
+    )
+  `);
+  await ensureColumn(db, "tenant_contacts", "contact_group_id", "VARCHAR(80) NULL");
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_contact_code_sequences (
+      tenant_id VARCHAR(120) NOT NULL PRIMARY KEY,
+      next_number INT UNSIGNED NOT NULL DEFAULT 1,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_contact_emails (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      contact_id VARCHAR(80) NOT NULL,
+      uuid VARCHAR(80) NOT NULL,
+      email VARCHAR(190) NOT NULL,
+      email_type VARCHAR(40) NULL,
+      is_primary TINYINT(1) NOT NULL DEFAULT 0,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY ix_tenant_contact_emails_contact (tenant_id, contact_id)
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_contact_phones (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      contact_id VARCHAR(80) NOT NULL,
+      uuid VARCHAR(80) NOT NULL,
+      phone_number VARCHAR(50) NOT NULL,
+      phone_type VARCHAR(40) NULL,
+      is_primary TINYINT(1) NOT NULL DEFAULT 0,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY ix_tenant_contact_phones_contact (tenant_id, contact_id)
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_contact_addresses (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      contact_id VARCHAR(80) NOT NULL,
+      uuid VARCHAR(80) NOT NULL,
+      address_type_id VARCHAR(80) NULL,
+      address_line1 VARCHAR(240) NULL,
+      address_line2 VARCHAR(240) NULL,
+      country_id VARCHAR(80) NULL,
+      state_id VARCHAR(80) NULL,
+      district_id VARCHAR(80) NULL,
+      city_id VARCHAR(80) NULL,
+      pincode_id VARCHAR(80) NULL,
+      latitude DECIMAL(12,8) NULL,
+      longitude DECIMAL(12,8) NULL,
+      is_default TINYINT(1) NOT NULL DEFAULT 0,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY ix_tenant_contact_addresses_contact (tenant_id, contact_id)
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_contact_bank_accounts (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      contact_id VARCHAR(80) NOT NULL,
+      uuid VARCHAR(80) NOT NULL,
+      bank_name VARCHAR(180) NULL,
+      account_number VARCHAR(80) NULL,
+      account_holder_name VARCHAR(180) NULL,
+      ifsc VARCHAR(40) NULL,
+      branch VARCHAR(180) NULL,
+      is_primary TINYINT(1) NOT NULL DEFAULT 0,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY ix_tenant_contact_bank_accounts_contact (tenant_id, contact_id)
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_contact_social_links (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      contact_id VARCHAR(80) NOT NULL,
+      uuid VARCHAR(80) NOT NULL,
+      platform VARCHAR(80) NOT NULL,
+      url VARCHAR(240) NOT NULL,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY ix_tenant_contact_social_links_contact (tenant_id, contact_id)
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_contact_gst_details (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      contact_id VARCHAR(80) NOT NULL,
+      uuid VARCHAR(80) NOT NULL,
+      gstin VARCHAR(40) NOT NULL,
+      state VARCHAR(80) NULL,
+      is_default TINYINT(1) NOT NULL DEFAULT 0,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY ix_tenant_contact_gst_details_contact (tenant_id, contact_id)
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_companies (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      company_id VARCHAR(80) NOT NULL,
+      legal_name VARCHAR(180) NOT NULL,
+      trade_name VARCHAR(180) NULL,
+      company_group_id VARCHAR(80) NULL,
+      website VARCHAR(220) NULL,
+      logo_url VARCHAR(260) NULL,
+      notes TEXT NULL,
+      status VARCHAR(30) NOT NULL DEFAULT 'active',
+      created_by VARCHAR(190) NOT NULL,
+      updated_by VARCHAR(190) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP NULL,
+      UNIQUE KEY uq_tenant_companies_company (tenant_id, company_id),
+      KEY ix_tenant_companies_name (tenant_id, legal_name),
+      KEY ix_tenant_companies_status (tenant_id, status)
+    )
+  `);
+  await ensureColumn(db, "tenant_companies", "company_group_id", "VARCHAR(80) NULL");
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_company_phones (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      company_id VARCHAR(80) NOT NULL,
+      phone_id VARCHAR(80) NOT NULL,
+      label VARCHAR(80) NULL,
+      phone_number VARCHAR(50) NOT NULL,
+      is_primary TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY ix_tenant_company_phones_company (tenant_id, company_id)
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_company_emails (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      company_id VARCHAR(80) NOT NULL,
+      email_id VARCHAR(80) NOT NULL,
+      label VARCHAR(80) NULL,
+      email_address VARCHAR(190) NOT NULL,
+      is_primary TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY ix_tenant_company_emails_company (tenant_id, company_id)
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_company_addresses (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      company_id VARCHAR(80) NOT NULL,
+      address_id VARCHAR(80) NOT NULL,
+      label VARCHAR(80) NULL,
+      line1 VARCHAR(240) NULL,
+      line2 VARCHAR(240) NULL,
+      country VARCHAR(120) NULL,
+      state VARCHAR(120) NULL,
+      district VARCHAR(120) NULL,
+      city VARCHAR(120) NULL,
+      pincode VARCHAR(30) NULL,
+      gst_state_code VARCHAR(20) NULL,
+      is_default TINYINT(1) NOT NULL DEFAULT 0,
+      address_type VARCHAR(80) NOT NULL DEFAULT 'Registered',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY ix_tenant_company_addresses_company (tenant_id, company_id)
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_company_bank_accounts (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      company_id VARCHAR(80) NOT NULL,
+      account_id VARCHAR(80) NOT NULL,
+      account_holder_name VARCHAR(180) NULL,
+      account_number VARCHAR(80) NULL,
+      account_type_id VARCHAR(80) NULL,
+      ifsc_code VARCHAR(40) NULL,
+      bank_name VARCHAR(180) NULL,
+      branch_name VARCHAR(180) NULL,
+      is_default TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY ix_tenant_company_bank_accounts_company (tenant_id, company_id)
+    )
+  `);
+  await ensureColumn(db, "tenant_company_bank_accounts", "account_type_id", "VARCHAR(80) NULL");
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_company_tax_identities (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      company_id VARCHAR(80) NOT NULL,
+      tax_id VARCHAR(80) NOT NULL,
+      type VARCHAR(40) NOT NULL,
+      tax_value VARCHAR(80) NOT NULL,
+      is_default TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY ix_tenant_company_tax_identities_company (tenant_id, company_id)
+    )
+  `);
 }
 
 async function ensureColumn(db: ServerConnection, tableName: string, columnName: string, definition: string) {
@@ -374,13 +624,8 @@ async function migrateTenantDatabase() {
 
   if (hasSeedUser(env.TENANT_ADMIN_NAME, env.TENANT_ADMIN_EMAIL, env.TENANT_ADMIN_PASSWORD)) {
     await db.execute(
-      `INSERT INTO tenant_users (display_name, email, password_hash, role_key)
-       VALUES (?, ?, ?, 'owner')
-       ON DUPLICATE KEY UPDATE
-         display_name = VALUES(display_name),
-         password_hash = VALUES(password_hash),
-         role_key = 'owner',
-         status = 'active'`,
+      `INSERT IGNORE INTO tenant_users (display_name, email, password_hash, role_key)
+       VALUES (?, ?, ?, 'owner')`,
       [
         env.TENANT_ADMIN_NAME,
         env.TENANT_ADMIN_EMAIL,

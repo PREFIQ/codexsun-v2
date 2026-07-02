@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.60
+Current version: 1.0.65
 
-Release tag: v-1.0.60
+Release tag: v-1.0.65
 
-Changelog label: v 1.0.60
+Changelog label: v 1.0.65
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -19,6 +19,106 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 #### App Codebase Changes
 
 Records UI, API, service logic, tooling, and documentation changes.
+
+## v-1.0.65
+
+### [v 1.0.65] 2026-07-02 10:23 pm - Company Master Database Form
+
+#### Database Changes
+
+- Database update: Yes (auto-check).
+- Added tenant-scoped Company master persistence tables for companies, phones, emails, addresses, bank accounts, and tax identities.
+- Added `company_group_id` to Company storage so Company Groups work as a lookup inside the Company master form.
+- Added `company-groups` to the common-record lookup registry.
+- Wired Company bootstrap schema repair to create missing tables and columns without deleting or reseeding existing Company data.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.65`.
+- Replaced the in-memory Company repository with a database-backed Company repository.
+- Kept the frontend as one Company master with list, show, and upsert flows while storing child data across backend child tables.
+- Added Company Group lookup/create support inside the Company Details tab.
+- Removed separate Company child menu navigation so logos, emails, phones, social links, and bank accounts stay under the Company form.
+- Preserved bank account type values through Company save and reload.
+- Verified core, API, web, and tenant module e2e checks after the Company master wiring.
+
+## v-1.0.64
+
+### [v 1.0.64] 2026-07-02 10:05 pm - Contact Master Database Form
+
+#### Database Changes
+
+- Database update: Yes (auto-check).
+- Added tenant-scoped Contact master persistence tables for contacts, contact code sequences, addresses, emails, phones, bank accounts, social links, and GST details.
+- Added `contact_group_id` to Contact storage so Contact Groups work as a lookup inside the Contact master form.
+- Wired Contact bootstrap schema repair to create missing tables without deleting or reseeding existing Contact data.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.64`.
+- Replaced the in-memory Contact repository with a database-backed Contact repository.
+- Added Contact next-code support for `C-0001` style tenant-local numbering.
+- Kept the frontend as one Contact master with list, show, and upsert flows while storing child data across backend child tables.
+- Added Contact Group lookup/create support inside the Contact Details tab.
+- Removed separate Contact child menu navigation so emails, phones, addresses, finance, social links, and GST details stay under the Contact form.
+- Removed Contact Groups from the common module index card so it acts as a Contact-form lookup instead of a separate user workflow.
+- Verified core, API, web, and tenant module e2e checks after the Contact master wiring.
+
+## v-1.0.63
+
+### [v 1.0.63] 2026-07-02 9:34 pm - Persistent Tenant Data Storage
+
+#### Database Changes
+
+- Database update: Yes (auto-check).
+- Added the `tenant_common_records` persistence table through the platform bootstrap repair path for tenant-scoped common module data.
+- Changed demo/bootstrap tenant, user, tenant database, domain mapping, and module activation seed writes to preserve existing rows on restart instead of refreshing them back to defaults.
+- Hardened the platform registry drill-down seed migration so reruns insert missing defaults without overwriting edited platform, group, or module registry records.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.63`.
+- Added a database-backed common module repository and wired tenant common module services to the master database pool.
+- Kept common module archive, restore, and force-delete behavior working through the persistent store.
+- Changed Project Manager and design-system JSON stores to create seed data only when the backing file is missing, so deleted or edited records are not silently re-added on restart.
+- Made corrupt JSON files fail loudly instead of being replaced with seed data, preventing accidental data loss.
+- Verified core, API, web, JSON, and tenant module e2e checks after the persistence hardening.
+
+## v-1.0.62
+
+### [v 1.0.62] 2026-07-02 9:20 pm - Project Manager Short Reference Numbers
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.62`.
+- Added visible issue `Reference no` editing in Work & Automation issue upsert pages.
+- Auto-suggested the next short work reference number for new issues, starting from `001` and continuing as `002`, `003`, and so on.
+- Allowed issue save and Ask AI automation to derive a working title from the reference number when the user has not entered a title.
+- Updated reference lookups to show short reference numbers with issue titles while preserving parent-child drill-down keys.
+- Updated automation inbox logging and timeline records to use the short reference number as the primary reference.
+- Extended Project Manager e2e coverage to verify the next reference number appears on new issues and Ask AI queues `001`.
+
+## v-1.0.61
+
+### [v 1.0.61] 2026-07-02 9:04 pm - Automation 001 Tenant Foundation Completion
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.61`.
+- Completed Project Manager automation reference `001` for TENANTS Foundation registry coverage.
+- Normalized the pending automation task, review, automation, activity, timeline, Gantt, and discussion records to short reference `001`.
+- Cleaned `automation.md` back to no pending automation and appended the completion note to `automation-log.md`.
+- Fixed Work & Automation issue drill-down so a root issue also recognizes its short reference number when loading related stages.
+- Fixed Ask AI queueing so issue automation inbox blocks use the short reference number when one exists.
+- Updated Project Manager e2e coverage to follow the live `001` reference chain and verify the cleaned automation flow.
 
 ## v-1.0.60
 

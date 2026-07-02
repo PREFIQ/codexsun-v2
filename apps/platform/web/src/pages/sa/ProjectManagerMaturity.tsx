@@ -188,6 +188,7 @@ export function ProjectManagerMaturity({
   const issueContextReferenceKeys = useMemo(() => {
     if (!rootIssue?.key) return new Set<string>();
     const keys = new Set<string>([rootIssue.key]);
+    if (rootIssue.referenceId) keys.add(rootIssue.referenceId);
     for (const query of workContextQueries) {
       for (const record of query.data ?? []) {
         if (keys.has(record.referenceId)) keys.add(record.key);
@@ -255,12 +256,15 @@ export function ProjectManagerMaturity({
   });
 
   const automationMdMutation = useMutation({
-    mutationFn: ({ form, itemKind }: { form: MaturityForm; itemKind: MaturityKind }) =>
-      apiPost<{ file: string; referenceNo: string }>(
+    mutationFn: ({ form, itemKind }: { form: MaturityForm; itemKind: MaturityKind }) => {
+      const payload = maturityPayload(prepareMaturitySubmit(form, itemKind));
+      const shortReference = itemKind === "issues" && form.referenceId.trim() ? form.referenceId.trim() : payload.referenceId;
+      return apiPost<{ file: string; referenceNo: string }>(
         "/admin/project-manager/automation-md/reference",
-        { ...maturityPayload(prepareMaturitySubmit(form, itemKind)), kind: itemKind },
+        { ...payload, kind: itemKind, referenceId: shortReference },
         "sa"
-      ),
+      );
+    },
     onSuccess: async (result) => {
       await Promise.all([invalidateKind(queryClient, "timeline"), invalidateKind(queryClient, "gantt")]);
       toast.success("Queued for AI", { description: result.referenceNo });
@@ -357,7 +361,7 @@ export function ProjectManagerMaturity({
 
   function openNewRecord() {
     const draftParent = workDrillMode && workSupportKinds.includes(kind) ? rootIssue : activeParent;
-    const draft = workDrillMode && draftParent ? childDraftForStage(kind, draftParent, draftParent.kind) : null;
+    const draft = workDrillMode && draftParent ? childDraftForStage(kind, draftParent, draftParent.kind) : kind === "issues" ? { referenceId: nextWorkReference(records) } : null;
     setUpsertDraft(draft);
     if (isLargeKind(kind)) {
       setUpsertRecord(null);
@@ -895,12 +899,13 @@ function MaturityDialog({
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
-            if (!form.title.trim()) {
+            const prepared = prepareMaturitySubmit(form, kind);
+            if (!prepared.title.trim()) {
               setLocalBanner("Title is required.");
               return;
             }
             setLocalBanner("");
-            onSubmit(prepareMaturitySubmit(form, kind));
+            onSubmit(prepared);
           }}
         >
           <div className="max-h-[68vh] overflow-y-auto px-5 py-4">
@@ -928,12 +933,13 @@ function MaturityDialog({
               className="rounded-md"
               disabled={loading}
               onClick={() => {
-                if (!form.title.trim()) {
+                const prepared = prepareMaturitySubmit(form, kind);
+                if (!prepared.title.trim()) {
                   setLocalBanner("Title is required.");
                   return;
                 }
                 setLocalBanner("");
-                onAskAi(prepareMaturitySubmit(form, kind));
+                onAskAi(prepared);
               }}
             >
               <Bot className="size-4" />
@@ -1000,12 +1006,13 @@ function MaturityUpsertPage({
             className="h-9 rounded-md"
             disabled={loading}
             onClick={() => {
-              if (!form.title.trim()) {
+              const prepared = prepareMaturitySubmit(form, kind);
+              if (!prepared.title.trim()) {
                 setLocalBanner("Title is required.");
                 return;
               }
               setLocalBanner("");
-              onAskAi(prepareMaturitySubmit(form, kind));
+              onAskAi(prepared);
             }}
           >
             <Bot className="size-4" />
@@ -1018,11 +1025,12 @@ function MaturityUpsertPage({
               className="h-9 rounded-md"
               disabled={loading}
               onClick={() => {
-                if (!form.title.trim()) {
+                const prepared = prepareMaturitySubmit(form, kind);
+                if (!prepared.title.trim()) {
                   setLocalBanner("Title is required.");
                   return;
                 }
-                onNextStage(nextStage.kind, prepareMaturitySubmit(form, kind));
+                onNextStage(nextStage.kind, prepared);
               }}
             >
               {nextStage.label}
@@ -1039,12 +1047,13 @@ function MaturityUpsertPage({
         noValidate
           onSubmit={(event) => {
             event.preventDefault();
-            if (!form.title.trim()) {
+            const prepared = prepareMaturitySubmit(form, kind);
+            if (!prepared.title.trim()) {
               setLocalBanner("Title is required.");
               return;
             }
             setLocalBanner("");
-            onSubmit(prepareMaturitySubmit(form, kind));
+            onSubmit(prepared);
           }}
       >
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -1080,12 +1089,13 @@ function MaturityUpsertPage({
                 className="rounded-md"
                 disabled={loading}
                 onClick={() => {
-                  if (!form.title.trim()) {
+                  const prepared = prepareMaturitySubmit(form, kind);
+                  if (!prepared.title.trim()) {
                     setLocalBanner("Title is required.");
                     return;
                   }
                   setLocalBanner("");
-                  onAskAi(prepareMaturitySubmit(form, kind));
+                  onAskAi(prepared);
                 }}
               >
                 <Bot className="size-4" />
@@ -1137,6 +1147,8 @@ function MaturityField({ compact = false, field, form, lookups, setForm, setLoca
     <WorkspaceDatePicker value={String(form[field] ?? "")} placeholder={`Select ${fieldLabel(field).toLowerCase()}`} onValueChange={(value) => updateForm(setForm, { [field]: value } as Partial<MaturityForm>, setLocalBanner)} />
   ) : field === "labels" ? (
     <MaturityTagsField value={form.labels} onChange={(labels) => updateForm(setForm, { labels }, setLocalBanner)} />
+  ) : field === "referenceId" && form.kind === "issues" ? (
+    <Input className="h-10 rounded-md font-mono" value={form.referenceId} onChange={(event) => updateForm(setForm, { referenceId: event.target.value }, setLocalBanner)} />
   ) : isLookupField(field) ? (
     <WorkspaceAutocomplete
       createLabel="Use value"
@@ -1345,7 +1357,7 @@ function fieldsForKind(kind: MaturityKind): Array<keyof MaturityForm> {
   if (kind === "github") return ["githubBranch", "githubCommit", "githubPr", "githubIssue", "githubUrl", ...references, "referenceType", "referenceId", "version", "sortOrder"];
   if (kind === "automations") return ["command", "status", "referenceId"];
   if (kind === "changelog" || kind === "releases") return ["version", "type", "status", "ownerTeam", ...references, "githubPr", "githubCommit", "sortOrder"];
-  if (kind === "issues") return ["assignee", "reviewer", "labels", "type", "status", "priority", "severity", "moduleId", "dueDate"];
+  if (kind === "issues") return ["referenceId", "assignee", "reviewer", "labels", "type", "status", "priority", "severity", "moduleId", "dueDate"];
   if (kind === "tasks") return ["assignee", "status", "priority", "dueDate", "referenceId"];
   if (kind === "reviews") return ["reviewer", "status", "dueDate", "referenceId"];
   if (kind === "gantt") return ["assignee", "status", "priority", "startDate", "endDate", "referenceId"];
@@ -1363,7 +1375,7 @@ function metadataFieldsForKind(kind: MaturityKind): Array<keyof MaturityForm> {
   if (kind === "discussions") return ["referenceId", "assignee", "labels", "type", "status", "priority", ...references, "dueDate"];
   if (kind === "actions") return ["command", "eventName", "actor", "status", ...references, "referenceType", "referenceId"];
   if (kind === "security-quality") return ["type", "severity", "status", "ownerTeam", "priority", ...references, "referenceType", "referenceId", "dueDate"];
-  if (kind === "issues") return ["assignee", "reviewer", "labels", "type", "status", "priority", "severity", "moduleId", "dueDate"];
+  if (kind === "issues") return ["referenceId", "assignee", "reviewer", "labels", "type", "status", "priority", "severity", "moduleId", "dueDate"];
   if (kind === "tasks") return ["assignee", "status", "priority", "dueDate", "referenceId"];
   if (kind === "reviews") return ["reviewer", "status", "dueDate", "referenceId"];
   if (kind === "automations") return ["command", "status", "referenceId"];
@@ -1580,10 +1592,23 @@ function maturityPayload(form: MaturityForm) {
 }
 
 function prepareMaturitySubmit(form: MaturityForm, kind: MaturityKind): MaturityForm {
-  const key = form.key.trim() || `${kind}.${slugKey(form.title)}.${Date.now()}`;
-  const referenceId = kind === "issues" ? key : form.referenceId.trim() || key;
+  const typedReference = form.referenceId.trim();
+  const title = form.title.trim() || (kind === "issues" && typedReference ? `Work ${typedReference}` : form.title);
+  const key = form.key.trim() || `${kind}.${slugKey(title || typedReference)}.${Date.now()}`;
+  const referenceId = kind === "issues" ? typedReference || key : typedReference || key;
   const referenceType = kind === "issues" ? "issue" : form.referenceType.trim() || "issue";
-  return { ...form, key, referenceId, referenceType };
+  return { ...form, key, referenceId, referenceType, title };
+}
+
+function nextWorkReference(records: MaturityRecord[]) {
+  const used = new Set(records.map((record) => record.referenceId).filter(isShortWorkReference));
+  let next = 1;
+  while (used.has(String(next).padStart(3, "0"))) next += 1;
+  return String(next).padStart(3, "0");
+}
+
+function isShortWorkReference(value: string): value is string {
+  return /^\d{3,}$/.test(value.trim());
 }
 
 function childDraftForStage(kind: MaturityKind, parent: MaturityRecord, parentKind: MaturityKind): Partial<MaturityRecord> {
@@ -1638,7 +1663,7 @@ function inferReferenceFromCommand(command: string, lookups: ReferenceLookups) {
 function buildReferenceLookups(result?: RegistryResult, issues: MaturityRecord[] = []): ReferenceLookups {
   const issueOptions = issues.map((issue) => ({
     value: issue.key,
-    label: `${issue.key} - ${issue.title}`
+    label: `${issue.referenceId || issue.key} - ${issue.title}`
   }));
   const platformOptions: ReferenceLookups["platformOptions"] = [];
   const groupOptions: ReferenceLookups["groupOptions"] = [];

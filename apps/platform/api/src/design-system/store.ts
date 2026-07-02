@@ -127,21 +127,18 @@ async function ensureFiles() {
 async function ensureJson<T>(filePath: string, fallback: T) {
   try {
     await readFile(filePath, "utf8");
-  } catch {
+  } catch (error) {
+    if (!isMissingFile(error)) throw error;
     await writeJson(filePath, fallback);
   }
 }
 
 async function ensureRecordJson(filePath: string, fallback: DesignSystemRecord[]) {
   try {
-    const existing = await readJson<DesignSystemRecord[]>(filePath);
-    const existingKeys = new Set(existing.map((record) => `${record.kind}:${record.componentKey}`));
-    const missing = fallback.filter((record) => !existingKeys.has(`${record.kind}:${record.componentKey}`));
-    if (missing.length) {
-      await writeJson(filePath, [...existing, ...missing]);
-    }
-  } catch {
-    await ensureJson(filePath, fallback);
+    await readJson<DesignSystemRecord[]>(filePath);
+  } catch (error) {
+    if (!isMissingFile(error)) throw error;
+    await writeJson(filePath, fallback);
   }
 }
 
@@ -152,6 +149,10 @@ async function readJson<T>(filePath: string): Promise<T> {
 
 async function writeJson(filePath: string, value: unknown) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function isMissingFile(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
 
 function bucket(db: DesignSystemDatabase, kind: DesignSystemItemKind) {

@@ -40,14 +40,11 @@ export const migration: Migration = {
     `);
 
     await db.execute(`
-      INSERT INTO platform_registry (name, platform, description, active)
+      INSERT IGNORE INTO platform_registry (name, platform, description, active)
       VALUES
         ('SUPER ADMIN', 'super-admin', 'Super Admin Desk platform modules and controls.', 1),
         ('ADMIN', 'admin', 'Staff admin platform modules and controls.', 1),
         ('TENANTS', 'tenants', 'Tenant workspace platform modules and controls.', 1)
-      ON DUPLICATE KEY UPDATE
-        description = VALUES(description),
-        active = VALUES(active)
     `);
 
     await seedSuperAdmin(db);
@@ -75,13 +72,8 @@ async function seedSuperAdmin(db: Db) {
 
   for (const [groupKey, name, description, sortOrder] of groups) {
     await db.execute(
-      `INSERT INTO platform_module_groups (platform_registry_id, group_key, name, description, sort_order, active)
-       VALUES (?, ?, ?, ?, ?, 1)
-       ON DUPLICATE KEY UPDATE
-         name = VALUES(name),
-         description = VALUES(description),
-         sort_order = VALUES(sort_order),
-         active = 1`,
+      `INSERT IGNORE INTO platform_module_groups (platform_registry_id, group_key, name, description, sort_order, active)
+       VALUES (?, ?, ?, ?, ?, 1)`,
       [platformId, groupKey, name, description, sortOrder]
     );
   }
@@ -137,14 +129,8 @@ async function seedSuperAdmin(db: Db) {
 
     for (const [moduleKey, name, routePath, description, sortOrder] of modules) {
       await db.execute(
-        `INSERT INTO platform_module_registry (module_group_id, module_key, name, route_path, description, sort_order, active)
-         VALUES (?, ?, ?, ?, ?, ?, 1)
-         ON DUPLICATE KEY UPDATE
-           name = VALUES(name),
-           route_path = VALUES(route_path),
-           description = VALUES(description),
-           sort_order = VALUES(sort_order),
-           active = 1`,
+        `INSERT IGNORE INTO platform_module_registry (module_group_id, module_key, name, route_path, description, sort_order, active)
+         VALUES (?, ?, ?, ?, ?, ?, 1)`,
         [groupId, moduleKey, name, routePath, description, sortOrder]
       );
     }

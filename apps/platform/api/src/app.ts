@@ -18,8 +18,8 @@ import { TemplateService, InMemoryTemplateRepository } from "@codexsun/platform/
 import { AgentService, InMemoryAgentRepository } from "@codexsun/platform/agents";
 import {
   CoreDefinitionService, CoreRecordService, InMemoryCoreRecordRepository,
-  ContactService as CoreContactService, InMemoryContactRepository as CoreInMemoryContactRepository,
-  CompanyService, InMemoryCompanyRepository,
+  ContactService as CoreContactService, DatabaseContactRepository as CoreDatabaseContactRepository,
+  CompanyService, DatabaseCompanyRepository,
   ProductService, InMemoryProductRepository,
   WorkOrderService, InMemoryWorkOrderRepository,
   createAllCommonModuleServices,
@@ -167,15 +167,15 @@ export async function createApp() {
   const coreDefinitionService = new CoreDefinitionService();
   const coreRecordRepository = new InMemoryCoreRecordRepository();
   const coreRecordService = new CoreRecordService(coreRecordRepository);
-  const coreContactRepository = new CoreInMemoryContactRepository();
+  const coreContactRepository = new CoreDatabaseContactRepository(masterDbPool);
   const coreContactService = new CoreContactService(coreContactRepository);
-  const coreCompanyRepository = new InMemoryCompanyRepository();
+  const coreCompanyRepository = new DatabaseCompanyRepository(masterDbPool);
   const coreCompanyService = new CompanyService(coreCompanyRepository);
   const coreProductRepository = new InMemoryProductRepository();
   const coreProductService = new ProductService(coreProductRepository);
   const coreWorkOrderRepository = new InMemoryWorkOrderRepository();
   const coreWorkOrderService = new WorkOrderService(coreWorkOrderRepository);
-  const coreCommonServices = createAllCommonModuleServices();
+  const coreCommonServices = createAllCommonModuleServices({ pool: masterDbPool });
 
   const app = await createApiApp({
     appName: "CODEXSUN Platform API",

@@ -13,67 +13,66 @@ test("work and automation drill-down keeps references, timeline, and gantt in sc
   await page.goto("/sa/project-manager-work")
   await page.waitForLoadState("networkidle")
 
-  await expect(page.getByRole("heading", { name: "Issues" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Issue 1", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Tasks" })).toHaveCount(0)
+  const automationIssueTitle = "Complete TENANTS Foundation registry coverage"
+  const automationIssueKey = "issue.platform-registry.foundation-coverage"
+  const automationTaskTitle = "Complete TENANTS Foundation registry coverage - task"
 
-  await page.getByRole("button", { name: "issue-1", exact: true }).click()
-  await expect(page.getByRole("heading", { name: "Issue 1" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Issues" })).toBeVisible()
+  await expect(page.getByRole("button", { name: automationIssueTitle, exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Tasks" })).toHaveCount(0)
+  await page.getByRole("button", { name: "New issues" }).click()
+  await expect(page.getByText("Reference no")).toBeVisible()
+  await expect(page.getByRole("textbox").nth(1)).toHaveValue("002")
+  await page.getByRole("button", { name: "Cancel" }).first().click()
+  await expect(page.getByRole("heading", { name: "Issues" })).toBeVisible()
+
+  await page.getByRole("button", { name: "001", exact: true }).click()
+  await expect(page.getByRole("heading", { name: automationIssueTitle })).toBeVisible()
   await expect(page.getByRole("button", { name: "Task" })).toBeVisible()
   await page.getByRole("button", { name: "Cancel" }).first().click()
   await expect(page.getByRole("heading", { name: "Issues" })).toBeVisible()
 
-  await page.getByRole("button", { name: "Issue 1 actions" }).click()
+  await page.getByRole("button", { name: `${automationIssueTitle} actions` }).click()
   await page.getByRole("menuitem", { name: "Ask AI" }).click()
   await expect(page.getByText("Queued for AI")).toBeVisible()
-  await expect.poll(() => readFileSync(join(process.cwd(), "apps/platform/api/project-manager-json/automation.md"), "utf8")).toContain("## Issue: issue-1")
-  cleanupIssueOneAutomationQueue()
+  await expect.poll(() => readFileSync(join(process.cwd(), "apps/platform/api/project-manager-json/automation.md"), "utf8")).toContain(`## Issue: ${automationIssueKey}`)
+  await expect.poll(() => readFileSync(join(process.cwd(), "apps/platform/api/project-manager-json/automation.md"), "utf8")).toContain("Reference no: `001`")
+  cleanupAutomation001Queue()
 
-  await page.getByRole("button", { name: "Issue 1", exact: true }).click()
+  await page.getByRole("button", { name: automationIssueTitle, exact: true }).click()
   await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Task 1.1", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Task 1.2", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: automationTaskTitle, exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Implement Foundation registry coverage from platform registry review", exact: true })).toBeVisible()
 
   await page.getByRole("button", { name: "Reviews" }).click()
   await expect(page.getByRole("heading", { name: "Reviews" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Review 1.1.1", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Review 1.1.2", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Review 1.2.1", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Review Foundation registry coverage", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Review automation 001 tenant foundation completion", exact: true })).toBeVisible()
 
-  await page.getByRole("button", { name: "Tasks" }).click()
-  await page.getByRole("button", { name: "Task 1.1", exact: true }).click()
-  await expect(page.getByRole("heading", { name: "Reviews" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Review 1.1.1", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Review 1.1.2", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Review 1.2.1", exact: true })).toHaveCount(0)
-
-  await page.getByRole("button", { name: "Review 1.1.1", exact: true }).click()
+  await page.getByRole("button", { name: "Automation", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Automation" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Automation 1.1.1.1", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Automation 1.1.2.1", exact: true })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Validate Foundation registry coverage", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Verify automation 001 tenant UI flow", exact: true })).toBeVisible()
 
-  await page.getByRole("button", { name: "Automation 1.1.1.1", exact: true }).click()
+  await page.getByRole("button", { name: "Activity", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Activity 1.1.1.1", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Activity 1.1.2.1", exact: true })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Foundation registry coverage completed", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Automation 001 completed live", exact: true })).toBeVisible()
 
   await page.getByRole("button", { name: "Timeline" }).click()
   await expect(page.getByRole("heading", { name: "Timeline" })).toBeVisible()
-  await expect(page.getByText("Issue snapshot: Issue 1")).toBeVisible()
-  await expect(page.getByText("Task snapshot: Task 1.1")).toBeVisible()
-  await expect(page.getByText("Review snapshot: Review 1.1.1")).toBeVisible()
-  await expect(page.getByText("Activity snapshot: Activity 1.1.1.1")).toBeVisible()
+  await expect(page.getByText("Foundation registry coverage completed").first()).toBeVisible()
+  await expect(page.getByText("Automation 001 completed live").first()).toBeVisible()
 
   await page.getByRole("button", { name: "Gantt" }).click()
   await expect(page.getByRole("heading", { name: "Gantt" })).toBeVisible()
-  await expect(page.getByText("Issue: Issue 1")).toBeVisible()
-  await expect(page.getByText("Task: Task 1.1")).toBeVisible()
-  await expect(page.getByText("Review: Review 1.1.1")).toBeVisible()
-  await expect(page.getByText("Activity: Activity 1.1.1.1")).toBeVisible()
+  await expect(page.getByText(`Issue: ${automationIssueTitle}`)).toBeVisible()
+  await expect(page.getByText(`Task: ${automationTaskTitle}`)).toBeVisible()
+  await expect(page.getByText("Automation 001 completed live")).toBeVisible()
 
   await page.getByRole("button", { name: "Issues" }).click()
   await expect(page.getByRole("heading", { name: "Issues" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Issue 1", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: automationIssueTitle, exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Tasks" })).toHaveCount(0)
 
   await verifyRandomWorkflowPersistence(page)
@@ -169,7 +168,7 @@ async function verifyStandaloneDiscussions(page: Page) {
   await expect(page.getByRole("heading", { name: "Discussions" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Discussion", exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Reviews" })).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "issue-1", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "001", exact: true })).toBeVisible()
 }
 
 async function verifyPlatformRegistryIssueBridge(page: Page) {
@@ -292,18 +291,18 @@ function cleanupRandomWorkflowArtifacts(suffix: string) {
   safeWriteFile(resultPath, `${JSON.stringify(result, null, 2)}\n`)
 }
 
-function cleanupIssueOneAutomationQueue() {
+function cleanupAutomation001Queue() {
   const dir = join(process.cwd(), "apps/platform/api/project-manager-json")
   const inboxPath = join(dir, "automation.md")
   const inbox = readFileSync(inboxPath, "utf8")
-  writeFileSync(inboxPath, inbox.replace(/\n## Issue: issue-1\n\n- \[ \] Reference no: `issue-1`\n- \[ \] Stage: Issue\n- \[ \] Title: Issue 1\n- \[ \] Status: in-progress\n- \[ \] Source: Project Manager \/ Work & Automation\n- \[ \] Requested at: [^\n]+\n\n### Codex Plan\n\n- Read this reference from Project Manager\.\n- Solve or update the related work\.\n- Update Timeline and Gantt after work is done\.\n- Move completed notes into `automation-log\.md` and clean this pending block\.\n/g, ""), "utf8")
+  writeFileSync(inboxPath, inbox.replace(/\n## Issue: issue\.platform-registry\.foundation-coverage\n\n- \[ \] Reference no: `001`\n- \[ \] Stage: Issue\n- \[ \] Title: Complete TENANTS Foundation registry coverage\n- \[ \] Status: closed\n- \[ \] Source: Project Manager \/ Work & Automation\n- \[ \] Requested at: [^\n]+\n\n### Codex Plan\n\n- Read this reference from Project Manager\.\n- Solve or update the related work\.\n- Update Timeline and Gantt after work is done\.\n- Move completed notes into `automation-log\.md` and clean this pending block\.\n/g, ""), "utf8")
   const logPath = join(dir, "automation-log.md")
-  writeFileSync(logPath, readFileSync(logPath, "utf8").split(/\r?\n/).filter((line) => !line.includes("| queued | Issue | issue-1 | Issue 1")).join("\n").replace(/\n*$/, "\n"), "utf8")
+  writeFileSync(logPath, readFileSync(logPath, "utf8").split(/\r?\n/).filter((line) => !line.includes("| queued | Issue | 001 | issue.platform-registry.foundation-coverage | Complete TENANTS Foundation registry coverage")).join("\n").replace(/\n*$/, "\n"), "utf8")
   const timelinePath = join(dir, "timeline-registry.json")
-  const timeline = JSON.parse(readFileSync(timelinePath, "utf8")).filter((record: any) => record.eventName !== "project_manager.communication.queued" && !String(record.key || "").startsWith("timeline.communication."))
+  const timeline = JSON.parse(readFileSync(timelinePath, "utf8")).filter((record: any) => !(record.eventName === "project_manager.communication.queued" && record.status === "queued"))
   writeFileSync(timelinePath, `${JSON.stringify(timeline, null, 2)}\n`, "utf8")
   const ganttPath = join(dir, "gantt-registry.json")
-  const gantt = JSON.parse(readFileSync(ganttPath, "utf8")).map((record: any) => record.key === "gantt.issue.issue-1" ? { ...record, updatedAt: "2026-07-01T23:45:01.730Z" } : record)
+  const gantt = JSON.parse(readFileSync(ganttPath, "utf8")).map((record: any) => record.key === "gantt.issue.issue.platform-registry.foundation-coverage" ? { ...record, status: "completed", updatedAt: "2026-07-02T15:45:00.000Z" } : record)
   writeFileSync(ganttPath, `${JSON.stringify(gantt, null, 2)}\n`, "utf8")
   refreshMaturityResult()
 }

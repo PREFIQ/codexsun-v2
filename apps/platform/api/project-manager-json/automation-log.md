@@ -3,7 +3,6 @@
 - 2026-07-02 19:55 IST: Released tenant registry module wiring as `v-1.0.60` and recorded release/changelog notes for work reference `002`.
 - 2026-07-02 08:30 IST: Ran Foundation registry coverage audit, verified platform API/web typechecks, and recorded completed work/automation entries.
 - 2026-07-02 08:45 IST: Introduced short work reference `001` for issue.platform-registry.foundation-coverage; use `do automation 001`.
-2026-07-02T13:47:34.193Z | queued | Issue | 001 | issue.platform-registry.foundation-coverage | Complete TENANTS Foundation registry coverage
 - 2026-07-02 09:00 IST: Resolved automation `001`; cleaned the inbox block and marked related timeline/gantt records complete.
 
 ## Completed Work Chain
@@ -39,3 +38,6 @@ Automations:
 
 - `automation.tenant-registry.verify-tenant-ui` - Ran `npm run verify:tenant-ui`; 3 Playwright tests passed - completed.
 - `automation.tenant-registry.typecheck` - Ran core, platform API, and platform web typechecks - completed.
+2026-07-02T15:30:23.845Z | queued | Task | tasks.complete.tenants.foundation.registry.coverage.task.1783006204320 | Complete TENANTS Foundation registry coverage - task
+
+- 2026-07-02 21:15 IST: Completed automation `001`; verified TENANTS Foundation implementation with `npm run verify:tenant-ui`, normalized the pending task reference to `001`, marked timeline/Gantt complete, and cleaned `automation.md`.

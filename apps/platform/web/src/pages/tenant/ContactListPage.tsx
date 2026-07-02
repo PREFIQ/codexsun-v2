@@ -1,4 +1,4 @@
-import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
+import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { ArrowLeft, CheckCircle2, Plus, RefreshCw, Save, Send, Trash2, X } from "lucide-react"
@@ -78,6 +78,8 @@ type ContactRecord = {
   code: string
   name: string
   contactTypeId?: string
+  contactGroupId?: string
+  ledgerName?: string
   legalName?: string
   pan?: string
   gstin?: string
@@ -108,6 +110,7 @@ type ContactForm = {
   code: string
   name: string
   contactTypeId: string
+  contactGroupId: string
   legalName: string
   pan: string
   gstin: string
@@ -142,10 +145,13 @@ const contactTabs: Array<[string, string]> = [
   ["more", "More"],
 ]
 
+type LookupRecord = { id: string; code?: string; description?: string; name?: string }
+
 export function ContactListPage({ onBack }: { onBack?: () => void }) {
   const queryClient = useQueryClient()
-  const [mode, setMode] = useState<"list" | "form">("list")
+  const [mode, setMode] = useState<"list" | "show" | "form">("list")
   const [editing, setEditing] = useState<ContactRecord | null>(null)
+  const [viewing, setViewing] = useState<ContactRecord | null>(null)
   const [query, setQuery] = useState("")
   const contactsQuery = useQuery({
     queryKey: ["tenant", "contacts"],
@@ -153,15 +159,20 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
   })
   const contactTypesQuery = useQuery({
     queryKey: ["tenant", "common-lookup", "contact-types"],
-    queryFn: () => apiGet<Array<{ id: string; code?: string; description?: string; name?: string }>>("/core/common/records?definitionKey=contact-types", "tenant"),
+    queryFn: () => apiGet<LookupRecord[]>("/core/common/records?definitionKey=contact-types", "tenant"),
+  })
+  const contactGroupsQuery = useQuery({
+    queryKey: ["tenant", "common-lookup", "contact-groups"],
+    queryFn: () => apiGet<LookupRecord[]>("/core/common/records?definitionKey=contact-groups", "tenant"),
   })
   const contactTypeLabels = useMemo(() => commonLookupLabelMap(contactTypesQuery.data), [contactTypesQuery.data])
+  const contactGroupLabels = useMemo(() => commonLookupLabelMap(contactGroupsQuery.data), [contactGroupsQuery.data])
   const contacts = contactsQuery.data ?? []
   const filteredContacts = useMemo(() => {
     const normalized = query.trim().toLowerCase()
     if (!normalized) return contacts
     return contacts.filter((contact) =>
-      [contact.name, contact.code, contact.contactTypeId, contact.primaryEmail, contact.primaryPhone, contact.gstin]
+      [contact.name, contact.code, contact.contactTypeId, contact.contactGroupId, contact.primaryEmail, contact.primaryPhone, contact.gstin]
         .filter(Boolean)
         .some((part) => String(part).toLowerCase().includes(normalized)),
     )
@@ -169,12 +180,37 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
 
   function openNew() {
     setEditing(null)
+    setViewing(null)
     setMode("form")
   }
 
   function openEdit(record: ContactRecord) {
     setEditing(record)
+    setViewing(null)
     setMode("form")
+  }
+
+  function openShow(record: ContactRecord) {
+    setViewing(record)
+    setEditing(null)
+    setMode("show")
+  }
+
+  if (mode === "show" && viewing) {
+    return (
+      <ContactShowPage
+        contactGroupLabels={contactGroupLabels}
+        contactTypeLabels={contactTypeLabels}
+        record={viewing}
+        onBack={() => {
+          setViewing(null)
+          setMode("list")
+        }}
+        onEdit={() => openEdit(viewing)}
+        onArchive={() => archiveContact(viewing, queryClient)}
+        onRestore={() => restoreContact(viewing, queryClient)}
+      />
+    )
   }
 
   if (mode === "form") {
@@ -184,11 +220,13 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
         record={editing}
         onCancel={() => {
           setEditing(null)
+          setViewing(null)
           setMode("list")
         }}
         onSaved={() => {
           void queryClient.invalidateQueries({ queryKey: ["tenant", "contacts"] })
           setEditing(null)
+          setViewing(null)
           setMode("list")
         }}
       />
@@ -198,7 +236,7 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
   return (
     <WorkspacePage
       title="Contacts"
-      description="Manage customers, suppliers, and other business contacts."
+      description="Standalone contact master with tax, communication, address, finance, and lookup-ready profile fields."
       actions={
         <>
           {onBack ? (
@@ -213,51 +251,50 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
           </Button>
           <Button type="button" onClick={openNew}>
             <Plus className="size-4" />
-            New contact
+            New
           </Button>
         </>
       }
     >
 
-      <WorkspaceFilters searchValue={query} onSearchValueChange={setQuery} />
+      <WorkspaceFilters searchPlaceholder="Search code, contact, ledger, phone, email" searchValue={query} onSearchValueChange={setQuery} />
 
       <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] border-collapse text-sm">
             <thead>
               <tr className="border-b bg-muted/45 text-left text-xs font-semibold uppercase text-muted-foreground">
-                <th className="w-16 px-4 py-3">#</th>
-                <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Code</th>
-                <th className="px-4 py-3">Type</th>
+                <th className="px-4 py-3">Contact</th>
+                <th className="px-4 py-3">Ledger</th>
                 <th className="px-4 py-3">Phone</th>
                 <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">GSTIN</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Updated</th>
                 <th className="w-24 px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredContacts.map((contact, index) => (
                 <tr key={contact.contactId} className="border-b last:border-0">
-                  <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
+                  <td className="px-4 py-3 font-mono text-xs uppercase">{contact.code}</td>
                   <td className="px-4 py-3">
                     <button
-                      className="cursor-pointer text-left font-semibold text-primary underline-offset-4 hover:underline"
+                      className="cursor-pointer text-left font-semibold text-foreground underline-offset-4 hover:underline"
                       type="button"
-                      onClick={() => openEdit(contact)}
+                      onClick={() => openShow(contact)}
                     >
                       {contact.name}
                     </button>
+                    <div className="text-xs text-muted-foreground">{contact.legalName || contact.name}</div>
                   </td>
-                  <td className="px-4 py-3">{contact.code}</td>
                   <td className="px-4 py-3">{lookupLabel(contactTypeLabels, contact.contactTypeId)}</td>
-                  <td className="px-4 py-3">{contact.primaryPhone ?? ""}</td>
-                  <td className="px-4 py-3">{contact.primaryEmail ?? ""}</td>
+                  <td className="px-4 py-3">{contact.primaryPhone || "-"}</td>
+                  <td className="px-4 py-3">{contact.primaryEmail || "-"}</td>
+                  <td className="px-4 py-3">{contact.gstin || "-"}</td>
                   <td className="px-4 py-3">
                     <WorkspaceStatusBadge label={contact.status} tone={contact.status === "active" ? "success" : "danger"} />
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDate(contact.updatedAt)}</td>
                   <td className="px-4 py-3 text-right">
                     <WorkspaceRowActions
                       title={contact.name}
@@ -295,6 +332,153 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
   )
 }
 
+function ContactShowPage({
+  contactGroupLabels,
+  contactTypeLabels,
+  onArchive,
+  onBack,
+  onEdit,
+  onRestore,
+  record,
+}: {
+  contactGroupLabels: Map<string, string>
+  contactTypeLabels: Map<string, string>
+  onArchive: () => void
+  onBack: () => void
+  onEdit: () => void
+  onRestore: () => void
+  record: ContactRecord
+}) {
+  const isArchived = record.status === "archived"
+  return (
+    <WorkspacePage
+      title={`${record.code} - ${record.name}`}
+      description={record.legalName || record.name}
+      actions={
+        <>
+          <Button type="button" variant="outline" onClick={onBack}>
+            <ArrowLeft className="size-4" />
+            Back
+          </Button>
+          <Button type="button" onClick={onEdit}>
+            <Save className="size-4" />
+            Edit
+          </Button>
+          <Button type="button" variant={isArchived ? "outline" : "destructive"} onClick={isArchived ? onRestore : onArchive}>
+            <Trash2 className="size-4" />
+            {isArchived ? "Restore" : "Suspend"}
+          </Button>
+        </>
+      }
+    >
+      <div className="grid gap-4">
+        <DetailCard
+          title="Contact profile"
+          rows={[
+            ["Name", record.name],
+            ["Code", record.code],
+            ["Legal name", record.legalName],
+            ["Contact type", lookupLabel(contactTypeLabels, record.contactTypeId)],
+            ["Contact group", lookupLabel(contactGroupLabels, record.contactGroupId)],
+            ["Ledger", record.ledgerName || lookupLabel(contactTypeLabels, record.contactTypeId)],
+            ["Website", record.website],
+            ["Description", record.description],
+            ["Status", <WorkspaceStatusBadge key="status" label={record.status} tone={record.status === "active" ? "success" : "danger"} />],
+          ]}
+        />
+        <DetailCard
+          title="Compliance"
+          rows={[
+            ["GSTIN", record.gstin],
+            ["PAN", record.pan],
+            ["TAN", record.tan],
+            ["MSME", [record.msmeType, record.msmeNo].filter(Boolean).join(" - ")],
+            ["TDS", record.tdsAvailable ? "Yes" : "No"],
+            ["TCS", record.tcsAvailable ? "Yes" : "No"],
+          ]}
+        />
+        <DetailCard
+          title="Accounts"
+          rows={[
+            ["Opening balance", money(record.openingBalance)],
+            ["Credit limit", money(record.creditLimit)],
+            ["Balance type", record.balanceType],
+          ]}
+        />
+        <MiniList title="Emails" rows={(record.contactEmails ?? []).map((email) => [email.email, email.emailType, email.isPrimary ? "Primary" : ""])} />
+        <MiniList title="Phones" rows={(record.contactPhones ?? []).map((phone) => [phone.phoneNumber, phone.phoneType, phone.isPrimary ? "Primary" : ""])} />
+        <MiniList
+          title="Addresses"
+          rows={(record.addressBook ?? []).map((address) => [
+            address.addressLine1 || "-",
+            address.addressLine2 || "",
+            address.isDefault ? "Default" : "",
+          ])}
+        />
+        <MiniList
+          title="Bank accounts"
+          rows={(record.contactBankAccounts ?? []).map((bank) => [
+            bank.bankName || "-",
+            bank.accountNumber || "",
+            bank.isPrimary ? "Primary" : "",
+          ])}
+        />
+        <MiniList
+          title="Social links"
+          rows={(record.contactSocialLinks ?? []).map((link) => [link.platform || "-", link.url || "", link.isActive ? "Active" : "Inactive"])}
+        />
+        <DetailCard
+          title="Timestamps"
+          rows={[
+            ["Updated", formatDate(record.updatedAt)],
+          ]}
+        />
+      </div>
+    </WorkspacePage>
+  )
+}
+
+function DetailCard({ rows, title }: { rows: Array<[string, ReactNode]>; title: string }) {
+  return (
+    <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
+      <div className="border-b border-border px-4 py-3 text-base font-semibold">{title}</div>
+      <table className="w-full border-collapse text-sm">
+        <tbody>
+          {rows.map(([label, value]) => (
+            <tr key={label} className="border-b border-border last:border-0">
+              <th className="w-44 bg-muted/35 px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">{label}</th>
+              <td className="px-4 py-3">{value || "Not set"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function MiniList({ rows, title }: { rows: string[][]; title: string }) {
+  return (
+    <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
+      <div className="border-b border-border px-4 py-3 text-base font-semibold">{title}</div>
+      {rows.length ? (
+        <div className="divide-y divide-border">
+          {rows.map((row, index) => (
+            <div key={`${title}-${index}`} className="grid gap-2 px-4 py-3 text-sm md:grid-cols-3">
+              {row.map((cell, cellIndex) => (
+                <span key={cellIndex} className={cellIndex === 0 ? "font-medium" : "text-muted-foreground"}>
+                  {cell || "-"}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="px-4 py-8 text-center text-sm text-muted-foreground">No records found.</div>
+      )}
+    </div>
+  )
+}
+
 function ContactUpsertPage({
   onCancel,
   onSaved,
@@ -307,6 +491,16 @@ function ContactUpsertPage({
   const queryClient = useQueryClient()
   const [form, setForm] = useState<ContactForm>(() => contactToForm(record))
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const nextCodeQuery = useQuery({
+    enabled: !record,
+    queryKey: ["tenant", "contacts", "next-code"],
+    queryFn: () => apiGet<{ code: string }>("/core/contacts/next-code", "tenant"),
+  })
+  useEffect(() => {
+    if (!record && nextCodeQuery.data?.code) {
+      setForm((current) => (current.code ? current : { ...current, code: nextCodeQuery.data.code }))
+    }
+  }, [nextCodeQuery.data?.code, record])
   const mutation = useMutation({
     mutationFn: async () => {
       const validation = validateContact(form)
@@ -338,7 +532,7 @@ function ContactUpsertPage({
   return (
     <WorkspacePage
       title={record ? "Edit contact" : "New contact"}
-      description="Update contact identity, tax, communication, address, and finance details."
+      description=""
       actions={
         <Button type="button" variant="outline" onClick={onCancel}>
           <ArrowLeft className="size-4" />
@@ -372,7 +566,13 @@ function ContactUpsertPage({
           <TabsContent value="details" className="m-0">
             <SectionShell>
               <div className="grid gap-5 md:grid-cols-2">
-                <TextField label="Name" required value={form.name} {...(errors.name ? { error: errors.name } : {})} onChange={(name) => updateForm(setForm, { name })} />
+                <TextField
+                  label="Name"
+                  required
+                  value={form.name}
+                  {...(errors.name ? { error: errors.name } : {})}
+                  onChange={(name) => updateForm(setForm, { name, ...(form.legalName.trim() ? {} : { legalName: name }) })}
+                />
                 <TextField label="Code" value={form.code} onChange={(code) => updateForm(setForm, { code })} />
                 <TextField label="Legal name" value={form.legalName} onChange={(legalName) => updateForm(setForm, { legalName })} />
                 <LookupField
@@ -382,6 +582,12 @@ function ContactUpsertPage({
                   value={form.contactTypeId}
                   {...(errors.contactTypeId ? { error: errors.contactTypeId } : {})}
                   onChange={(contactTypeId) => updateForm(setForm, { contactTypeId })}
+                />
+                <LookupField
+                  definitionKey="contact-groups"
+                  label="Contact Group"
+                  value={form.contactGroupId}
+                  onChange={(contactGroupId) => updateForm(setForm, { contactGroupId })}
                 />
                 <TextField label="Opening balance" type="number" value={form.openingBalance} onChange={(openingBalance) => updateForm(setForm, { openingBalance })} />
                 <TextField label="Credit limit" type="number" value={form.creditLimit} onChange={(creditLimit) => updateForm(setForm, { creditLimit })} />
@@ -742,6 +948,7 @@ function contactToForm(record: ContactRecord | null): ContactForm {
     code: record?.code ?? "",
     name: record?.name ?? "",
     contactTypeId: record?.contactTypeId ?? "",
+    contactGroupId: record?.contactGroupId ?? "",
     legalName: record?.legalName ?? "",
     pan: record?.pan ?? "",
     gstin: record?.gstin ?? "",
@@ -801,6 +1008,7 @@ function contactPayload(form: ContactForm) {
     code: form.code.trim() || codeFromName(form.name),
     name: form.name.trim(),
     contactTypeId: optional(form.contactTypeId),
+    contactGroupId: optional(form.contactGroupId),
     legalName: optional(form.legalName),
     pan: optional(form.pan),
     gstin: optional(form.gstin),
@@ -959,4 +1167,8 @@ function formatDate(value: string | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(date)
+}
+
+function money(value: number | undefined) {
+  return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(Number(value ?? 0))
 }

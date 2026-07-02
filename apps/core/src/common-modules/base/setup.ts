@@ -62,6 +62,8 @@ import { SalesAccountTypeService } from "../sales-account-types/service.js";
 import { SalesAccountTypeRepository } from "../sales-account-types/repository.js";
 import type { CommonModuleServiceMap, CommonModuleDefinition } from "./service-types.js";
 import { GenericCommonModuleService } from "./generic-service.js";
+import { BaseInMemoryRepository, DatabaseCommonRepository } from "./repository.js";
+import type { CompatibleDbPool } from "@codexsun/framework/db";
 
 const genericCommonDefinitions: CommonModuleDefinition[] = [
   { key: "address-book", label: "Address Book" },
@@ -90,49 +92,58 @@ const genericCommonDefinitions: CommonModuleDefinition[] = [
   { key: "site-sliders", label: "Site Sliders" },
   { key: "blog", label: "Blog" },
   { key: "company-settings", label: "Company Settings" },
+  { key: "company-groups", label: "Company Groups" },
   { key: "document-settings", label: "Document Settings" },
 ];
 
-function genericCommonServices(): CommonModuleServiceMap {
+type CommonModuleSetupOptions = {
+  pool?: CompatibleDbPool;
+};
+
+function repositoryFor(options: CommonModuleSetupOptions | undefined, moduleKey: string) {
+  return options?.pool ? new DatabaseCommonRepository(options.pool, moduleKey) : new BaseInMemoryRepository();
+}
+
+function genericCommonServices(options?: CommonModuleSetupOptions): CommonModuleServiceMap {
   return Object.fromEntries(
-    genericCommonDefinitions.map((definition) => [definition.key, new GenericCommonModuleService(definition.label)])
+    genericCommonDefinitions.map((definition) => [definition.key, new GenericCommonModuleService(definition.label, repositoryFor(options, definition.key))])
   );
 }
 
-export function createAllCommonModuleServices(): CommonModuleServiceMap {
+export function createAllCommonModuleServices(options?: CommonModuleSetupOptions): CommonModuleServiceMap {
   return {
-    countries: new CountryService(new CountryRepository()) as any,
-    states: new StateService(new StateRepository()) as any,
-    districts: new DistrictService(new DistrictRepository()) as any,
-    cities: new CityService(new CityRepository()) as any,
-    pincodes: new PincodeService(new PincodeRepository()) as any,
-    "contact-groups": new ContactGroupService(new ContactGroupRepository()) as any,
-    "contact-types": new ContactTypeService(new ContactTypeRepository()) as any,
-    "address-types": new AddressTypeService(new AddressTypeRepository()) as any,
-    "bank-names": new BankNameService(new BankNameRepository()) as any,
-    "bank-account-types": new BankAccountTypeService(new BankAccountTypeRepository()) as any,
-    "product-groups": new ProductGroupService(new ProductGroupRepository()) as any,
-    "product-categories": new ProductCategoryService(new ProductCategoryRepository()) as any,
-    "product-types": new ProductTypeService(new ProductTypeRepository()) as any,
-    units: new UnitService(new UnitRepository()) as any,
-    "hsn-codes": new HsnCodeService(new HsnCodeRepository()) as any,
-    taxes: new TaxService(new TaxRepository()) as any,
-    brands: new BrandService(new BrandRepository()) as any,
-    colours: new ColourService(new ColourRepository()) as any,
-    sizes: new SizeService(new SizeRepository()) as any,
-    styles: new StyleService(new StyleRepository()) as any,
-    "order-types": new OrderTypeService(new OrderTypeRepository()) as any,
-    transports: new TransportService(new TransportRepository()) as any,
-    warehouses: new WarehouseService(new WarehouseRepository()) as any,
-    destinations: new DestinationService(new DestinationRepository()) as any,
-    "stock-rejection-types": new StockRejectionTypeService(new StockRejectionTypeRepository()) as any,
-    currencies: new CurrencyService(new CurrencyRepository()) as any,
-    priorities: new PriorityService(new PriorityRepository()) as any,
-    "payment-terms": new PaymentTermService(new PaymentTermRepository()) as any,
-    "accounting-year": new AccountingYearService(new AccountingYearRepository()) as any,
-    months: new MonthService(new MonthRepository()) as any,
-    "sales-account-types": new SalesAccountTypeService(new SalesAccountTypeRepository()) as any,
-    ...genericCommonServices(),
+    countries: new CountryService(repositoryFor(options, "countries") as CountryRepository) as any,
+    states: new StateService(repositoryFor(options, "states") as StateRepository) as any,
+    districts: new DistrictService(repositoryFor(options, "districts") as DistrictRepository) as any,
+    cities: new CityService(repositoryFor(options, "cities") as CityRepository) as any,
+    pincodes: new PincodeService(repositoryFor(options, "pincodes") as PincodeRepository) as any,
+    "contact-groups": new ContactGroupService(repositoryFor(options, "contact-groups") as ContactGroupRepository) as any,
+    "contact-types": new ContactTypeService(repositoryFor(options, "contact-types") as ContactTypeRepository) as any,
+    "address-types": new AddressTypeService(repositoryFor(options, "address-types") as AddressTypeRepository) as any,
+    "bank-names": new BankNameService(repositoryFor(options, "bank-names") as BankNameRepository) as any,
+    "bank-account-types": new BankAccountTypeService(repositoryFor(options, "bank-account-types") as BankAccountTypeRepository) as any,
+    "product-groups": new ProductGroupService(repositoryFor(options, "product-groups") as ProductGroupRepository) as any,
+    "product-categories": new ProductCategoryService(repositoryFor(options, "product-categories") as ProductCategoryRepository) as any,
+    "product-types": new ProductTypeService(repositoryFor(options, "product-types") as ProductTypeRepository) as any,
+    units: new UnitService(repositoryFor(options, "units") as UnitRepository) as any,
+    "hsn-codes": new HsnCodeService(repositoryFor(options, "hsn-codes") as HsnCodeRepository) as any,
+    taxes: new TaxService(repositoryFor(options, "taxes") as TaxRepository) as any,
+    brands: new BrandService(repositoryFor(options, "brands") as BrandRepository) as any,
+    colours: new ColourService(repositoryFor(options, "colours") as ColourRepository) as any,
+    sizes: new SizeService(repositoryFor(options, "sizes") as SizeRepository) as any,
+    styles: new StyleService(repositoryFor(options, "styles") as StyleRepository) as any,
+    "order-types": new OrderTypeService(repositoryFor(options, "order-types") as OrderTypeRepository) as any,
+    transports: new TransportService(repositoryFor(options, "transports") as TransportRepository) as any,
+    warehouses: new WarehouseService(repositoryFor(options, "warehouses") as WarehouseRepository) as any,
+    destinations: new DestinationService(repositoryFor(options, "destinations") as DestinationRepository) as any,
+    "stock-rejection-types": new StockRejectionTypeService(repositoryFor(options, "stock-rejection-types") as StockRejectionTypeRepository) as any,
+    currencies: new CurrencyService(repositoryFor(options, "currencies") as CurrencyRepository) as any,
+    priorities: new PriorityService(repositoryFor(options, "priorities") as PriorityRepository) as any,
+    "payment-terms": new PaymentTermService(repositoryFor(options, "payment-terms") as PaymentTermRepository) as any,
+    "accounting-year": new AccountingYearService(repositoryFor(options, "accounting-year") as AccountingYearRepository) as any,
+    months: new MonthService(repositoryFor(options, "months") as MonthRepository) as any,
+    "sales-account-types": new SalesAccountTypeService(repositoryFor(options, "sales-account-types") as SalesAccountTypeRepository) as any,
+    ...genericCommonServices(options),
   };
 }
 
@@ -144,6 +155,7 @@ export const commonModuleDefinitions: CommonModuleDefinition[] = [
   { key: "pincodes", label: "Pincodes" },
   { key: "contact-groups", label: "Contact Groups" },
   { key: "contact-types", label: "Contact Types" },
+  { key: "company-groups", label: "Company Groups" },
   { key: "address-types", label: "Address Types" },
   { key: "bank-names", label: "Bank Names" },
   { key: "bank-account-types", label: "Bank Account Types" },

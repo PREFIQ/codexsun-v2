@@ -1,11 +1,13 @@
 import { AppError } from "@codexsun/framework/errors";
-import { BaseInMemoryRepository } from "./repository.js";
+import { BaseInMemoryRepository, type CommonRepository } from "./repository.js";
 import type { CommonRecord } from "./contracts.js";
 
 export class GenericCommonModuleService {
-  private readonly repository = new BaseInMemoryRepository<CommonRecord>();
+  private readonly repository: CommonRepository<CommonRecord>;
 
-  constructor(private readonly label: string) {}
+  constructor(private readonly label: string, repository?: CommonRepository<CommonRecord>) {
+    this.repository = repository ?? new BaseInMemoryRepository<CommonRecord>();
+  }
 
   async list(tenantId: string): Promise<CommonRecord[]> {
     if (!tenantId) throw AppError.validation("tenantId is required");

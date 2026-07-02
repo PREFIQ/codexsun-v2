@@ -509,20 +509,17 @@ async function ensureFiles() {
 async function ensureJson<T>(filePath: string, fallback: T) {
   try {
     await readFile(filePath, "utf8");
-  } catch {
+  } catch (error) {
+    if (!isMissingFile(error)) throw error;
     await writeJson(filePath, fallback);
   }
 }
 
 async function ensureDetailJson(filePath: string, fallback: ProjectManagerDetailRecord[]) {
   try {
-    const existing = await readJson<ProjectManagerDetailRecord[]>(filePath);
-    const existingIds = new Set(existing.map((record) => record.id));
-    const missing = fallback.filter((record) => !existingIds.has(record.id));
-    if (missing.length) {
-      await writeJson(filePath, [...existing, ...missing]);
-    }
-  } catch {
+    await readJson<ProjectManagerDetailRecord[]>(filePath);
+  } catch (error) {
+    if (!isMissingFile(error)) throw error;
     await writeJson(filePath, fallback);
   }
 }
@@ -533,6 +530,10 @@ async function readJson<T>(filePath: string): Promise<T> {
 
 async function writeJson(filePath: string, data: unknown) {
   await writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
+}
+
+function isMissingFile(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
 
 function findById<T extends { id: string }>(records: T[], id: string, message: string): T {
