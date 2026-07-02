@@ -113,6 +113,7 @@ function flagEnabled(name, env) {
 
 function ensurePlatformApiDependencies() {
   console.log("  - Checking API package builds");
+  ensureWorkspacePackageBuild("@codexsun/core", "apps/core");
   ensureWorkspacePackageBuild("@codexsun/framework", "packages/framework");
   ensureWorkspacePackageBuild("@codexsun/platform", "packages/platform");
 }

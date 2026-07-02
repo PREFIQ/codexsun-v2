@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-02T02:18:49.707Z",
+  "generatedAt": "2026-07-02T05:53:04.805Z",
   "action": [
     {
       "active": true,
@@ -446,7 +446,7 @@
   "gantt": [
     {
       "active": true,
-      "actor": "sundar@sundar.com",
+      "actor": "",
       "assignee": "Platform",
       "command": "",
       "createdAt": "2026-07-01T23:45:01.730Z",
@@ -483,7 +483,7 @@
       "status": "in-progress",
       "title": "Issue: Issue 1",
       "type": "workflow",
-      "updatedAt": "2026-07-01T23:45:01.730Z",
+      "updatedAt": "2026-07-02T05:53:04.801Z",
       "version": ""
     },
     {
@@ -522,7 +522,7 @@
       "status": "in-progress",
       "title": "Task: Task 1.1",
       "type": "workflow",
-      "updatedAt": "2026-07-02T01:58:43.754Z",
+      "updatedAt": "2026-07-02T05:53:04.801Z",
       "version": ""
     },
     {
@@ -561,7 +561,7 @@
       "status": "in-progress",
       "title": "Task: Task 1.2",
       "type": "workflow",
-      "updatedAt": "2026-07-02T01:58:43.754Z",
+      "updatedAt": "2026-07-02T05:53:04.801Z",
       "version": ""
     },
     {
@@ -600,7 +600,7 @@
       "status": "completed",
       "title": "Review: Review 1.1.1",
       "type": "workflow",
-      "updatedAt": "2026-07-02T01:58:43.754Z",
+      "updatedAt": "2026-07-02T05:53:04.801Z",
       "version": ""
     },
     {
@@ -639,7 +639,7 @@
       "status": "in-progress",
       "title": "Review: Review 1.1.2",
       "type": "workflow",
-      "updatedAt": "2026-07-02T01:58:43.754Z",
+      "updatedAt": "2026-07-02T05:53:04.801Z",
       "version": ""
     },
     {
@@ -678,7 +678,7 @@
       "status": "requested",
       "title": "Review: Review 1.2.1",
       "type": "workflow",
-      "updatedAt": "2026-07-02T01:58:43.754Z",
+      "updatedAt": "2026-07-02T05:53:04.801Z",
       "version": ""
     },
     {
@@ -717,7 +717,7 @@
       "status": "completed",
       "title": "Automation: Automation 1.1.1.1",
       "type": "workflow",
-      "updatedAt": "2026-07-02T01:58:43.754Z",
+      "updatedAt": "2026-07-02T05:53:04.801Z",
       "version": ""
     },
     {
@@ -756,7 +756,7 @@
       "status": "in-progress",
       "title": "Automation: Automation 1.1.2.1",
       "type": "workflow",
-      "updatedAt": "2026-07-02T01:58:43.754Z",
+      "updatedAt": "2026-07-02T05:53:04.801Z",
       "version": ""
     },
     {
@@ -795,7 +795,7 @@
       "status": "in-progress",
       "title": "Automation: Automation 1.2.1.1",
       "type": "workflow",
-      "updatedAt": "2026-07-02T01:58:43.754Z",
+      "updatedAt": "2026-07-02T05:53:04.801Z",
       "version": ""
     },
     {
@@ -834,7 +834,7 @@
       "status": "completed",
       "title": "Activity: Activity 1.1.1.1",
       "type": "workflow",
-      "updatedAt": "2026-07-02T01:58:43.754Z",
+      "updatedAt": "2026-07-02T05:53:04.801Z",
       "version": ""
     },
     {
@@ -873,7 +873,7 @@
       "status": "in-progress",
       "title": "Activity: Activity 1.1.2.1",
       "type": "workflow",
-      "updatedAt": "2026-07-02T01:58:43.754Z",
+      "updatedAt": "2026-07-02T05:53:04.801Z",
       "version": ""
     },
     {
@@ -912,7 +912,7 @@
       "status": "in-progress",
       "title": "Activity: Activity 1.2.1.1",
       "type": "workflow",
-      "updatedAt": "2026-07-02T01:58:43.754Z",
+      "updatedAt": "2026-07-02T05:53:04.801Z",
       "version": ""
     }
   ],
@@ -1040,54 +1040,6 @@
       "type": "feature",
       "updatedAt": "2026-07-01T23:45:01.710Z",
       "version": ""
-    }
-  ],
-  "planning": [
-    {
-      "active": true,
-      "acceptanceCriteria": "Tenant list, show, upsert, lifecycle, permission, API, screen, database, and planning records are mapped.",
-      "auditEvent": "",
-      "blockers": "Missing ownership or route coverage should be raised as Work & Automation issues.",
-      "componentPath": "",
-      "defaultValue": "",
-      "dependencyKeys": [],
-      "description": "",
-      "featureId": "",
-      "fieldName": "",
-      "fieldNature": "",
-      "fieldType": "",
-      "id": "planning-sa-tenant-coverage",
-      "indexed": false,
-      "kind": "planning",
-      "key": "tenant.coverage",
-      "lifecycleAction": false,
-      "method": "",
-      "migrationId": "",
-      "moduleId": "module-sa-tenant",
-      "name": "Complete tenant registry coverage",
-      "nullable": false,
-      "operation": "",
-      "ownerTeam": "Platform",
-      "pageType": "",
-      "permissionKey": "",
-      "planType": "coverage",
-      "relation": "",
-      "richNotes": "<p>Track list, show, upsert, lifecycle, permission, API, screen, and table coverage for Tenant.</p>",
-      "riskLevel": "medium",
-      "routePath": "",
-      "scope": "super_admin",
-      "softDelete": false,
-      "sortOrder": 10,
-      "subscriptionFlagKey": "",
-      "tableName": "",
-      "tableScope": "",
-      "tenantRequired": false,
-      "testPath": "",
-      "validationPlan": "Run focused tenant and platform registry checks after each coverage update.",
-      "unique": false,
-      "updatedAt": "2026-07-02T02:18:48.823Z",
-      "version": "1.0.0",
-      "status": "active"
     }
   ],
   "pull_request": [
