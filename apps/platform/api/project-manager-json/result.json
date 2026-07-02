@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-01T06:20:13.573Z",
+  "generatedAt": "2026-07-02T00:28:03.765Z",
   "platforms": [
     {
       "active": true,
@@ -71,7 +71,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T06:20:13.564Z",
+                  "updatedAt": "2026-07-01T23:51:37.405Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -113,7 +113,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T06:20:13.564Z",
+                  "updatedAt": "2026-07-01T23:51:37.406Z",
                   "version": "1.0.0",
                   "status": "active"
                 }
@@ -157,7 +157,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T06:13:06.552Z",
+                  "updatedAt": "2026-07-01T21:54:31.766Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -199,7 +199,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T06:13:06.552Z",
+                  "updatedAt": "2026-07-01T21:54:31.766Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -241,7 +241,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T06:13:06.552Z",
+                  "updatedAt": "2026-07-01T21:54:31.766Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -283,7 +283,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T06:13:06.552Z",
+                  "updatedAt": "2026-07-01T21:54:31.766Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -325,7 +325,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T06:13:06.552Z",
+                  "updatedAt": "2026-07-01T21:54:31.766Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -367,7 +367,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T06:13:06.552Z",
+                  "updatedAt": "2026-07-01T21:54:31.766Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -409,7 +409,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T06:13:06.552Z",
+                  "updatedAt": "2026-07-01T21:54:31.766Z",
                   "version": "1.0.0",
                   "status": "active"
                 }
@@ -453,7 +453,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": true,
-                  "updatedAt": "2026-07-01T05:55:16.761Z",
+                  "updatedAt": "2026-07-01T21:36:07.549Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -495,7 +495,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T05:55:16.761Z",
+                  "updatedAt": "2026-07-01T21:36:07.549Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -537,7 +537,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": true,
-                  "updatedAt": "2026-07-01T05:55:16.761Z",
+                  "updatedAt": "2026-07-01T21:36:07.549Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -579,7 +579,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T05:55:16.761Z",
+                  "updatedAt": "2026-07-01T21:36:07.549Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -621,7 +621,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T05:55:16.761Z",
+                  "updatedAt": "2026-07-01T21:36:07.549Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -663,7 +663,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T05:55:16.761Z",
+                  "updatedAt": "2026-07-01T21:36:07.549Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -705,7 +705,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T05:55:16.761Z",
+                  "updatedAt": "2026-07-01T21:36:07.549Z",
                   "version": "1.0.0",
                   "status": "active"
                 }
@@ -807,7 +807,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T03:44:49.645Z",
+                  "updatedAt": "2026-07-01T21:52:38.886Z",
                   "version": "1.0.0",
                   "status": "active"
                 }
@@ -851,7 +851,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T03:46:17.026Z",
+                  "updatedAt": "2026-07-01T21:52:38.880Z",
                   "version": "1.0.0",
                   "status": "active"
                 }
@@ -895,7 +895,7 @@
                   "tenantRequired": false,
                   "testPath": "apps/platform/web/e2e",
                   "unique": false,
-                  "updatedAt": "2026-07-01T06:13:06.554Z",
+                  "updatedAt": "2026-07-01T21:36:07.547Z",
                   "version": "1.0.0",
                   "status": "active"
                 },
@@ -937,7 +937,7 @@
                   "tenantRequired": false,
                   "testPath": "",
                   "unique": false,
-                  "updatedAt": "2026-07-01T06:13:06.554Z",
+                  "updatedAt": "2026-07-01T21:36:07.547Z",
                   "version": "1.0.0",
                   "status": "active"
                 }
@@ -1176,9 +1176,10 @@
                   "actor": "",
                   "assignee": "",
                   "command": "github:now",
-                  "createdAt": "2026-07-01T06:16:11.845Z",
+                  "createdAt": "2026-07-01T23:51:37.388Z",
                   "description": "",
                   "dueDate": "",
+                  "endDate": "",
                   "eventName": "automation.github.now",
                   "githubBranch": "",
                   "githubCommit": "",
@@ -1202,10 +1203,11 @@
                   "richNotes": "",
                   "severity": "",
                   "sortOrder": 10,
+                  "startDate": "",
                   "status": "ready",
                   "title": "Run github:now automation",
                   "type": "automation",
-                  "updatedAt": "2026-07-01T06:16:11.845Z",
+                  "updatedAt": "2026-07-01T23:51:37.388Z",
                   "version": ""
                 }
               ],

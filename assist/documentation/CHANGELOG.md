@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.22
+Current version: 1.0.53
 
-Release tag: v-1.0.22
+Release tag: v-1.0.53
 
-Changelog label: v 1.0.22
+Changelog label: v 1.0.53
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -19,6 +19,478 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 #### App Codebase Changes
 
 Records UI, API, service logic, tooling, and documentation changes.
+
+## v-1.0.53
+
+### [v 1.0.53] 2026-07-02 5:58 am - Project Manager Menu Simplification
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.53`.
+- Removed the redundant Project Manager `Agent & Security` side-menu entry and route.
+- Removed the standalone Agent/Security Project Manager page export.
+- Simplified Project Manager Dashboard wording and panels so the workspace focuses on Work & Automation, Discussions, Release Notes, Insights, and Registry coverage.
+- Removed agent-note and security-quality kinds from the visible Insights tracked-kind list while leaving dormant JSON compatibility intact.
+
+## v-1.0.52
+
+### [v 1.0.52] 2026-07-02 5:47 am - Project Manager Workflow Stability E2E
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.52`.
+- Hardened the Work & Automation Playwright e2e with a random temporary Issue -> Task -> Review -> Automation -> Activity chain.
+- Added JSON persistence assertions for each workflow stage so reference IDs are verified directly against the Project Manager JSON store.
+- Added UI drill-down checks for the random chain, including Timeline and Gantt visibility.
+- Added e2e cleanup for temporary workflow records and `Ask AI` queue artifacts so successful test runs leave the live JSON store clean.
+
+## v-1.0.51
+
+### [v 1.0.51] 2026-07-02 5:43 am - Project Manager Ask AI Action
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.51`.
+- Renamed the Work & Automation row action from `Ask Codex` to `Ask AI`.
+- Renamed the success feedback from `Queued for Codex` to `Queued for AI`.
+- Added `Ask AI` Bot-icon buttons to Project Manager upsert surfaces so records can be queued from edit/create forms as well as list rows.
+- Updated the Work & Automation Playwright e2e to verify the new `Ask AI` label.
+
+## v-1.0.50
+
+### [v 1.0.50] 2026-07-02 5:29 am - Project Manager Automation Inbox
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.50`.
+- Added a Project Manager Automation Inbox communication point with `automation.md` and `automation-log.md`.
+- Added a Work & Automation row action, `Send to automation.md`, which writes the selected stage reference number into the markdown inbox.
+- The automation inbox endpoint also writes a Timeline entry and refreshes the related Gantt context for the selected reference.
+- Extended the Work & Automation Playwright e2e to verify the inbox action writes `issue-1` into `automation.md`.
+
+## v-1.0.49
+
+### [v 1.0.49] 2026-07-02 5:23 am - Work Automation E2E Verification
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.49`.
+- Added a Playwright e2e for the full Work & Automation workflow: Issue -> Task matrix -> Task-specific Reviews -> Automation -> Activity -> Timeline -> Gantt -> Issue root.
+- Fixed the Project Manager maturity action JSON file collision by moving maturity action records to `maturity-action-registry.json`, leaving platform registry actions in `action-registry.json`.
+- Verified the workflow e2e passes with no failed browser responses after the file split.
+
+## v-1.0.48
+
+### [v 1.0.48] 2026-07-02 5:10 am - Work Automation Clean Test Workflow
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.48`.
+- Replaced older mixed Work & Automation test data with one simple readable workflow chain: `Issue 1 -> Task 1.1/1.2 -> Review 1.1.1/1.1.2/1.2.1 -> Automation -> Activity`.
+- Reset the live Project Manager JSON workflow files to the clean test chain and regenerated Timeline/Gantt snapshots.
+- Changed JSON seed merging to use stable record keys instead of IDs, preventing duplicate seed records after refresh or ID changes.
+
+## v-1.0.47
+
+### [v 1.0.47] 2026-07-02 5:04 am - Work Automation Gantt Visual Only
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.47`.
+- Removed the duplicate default registry table from the Work & Automation Gantt tab.
+- Kept Gantt focused on the visual schedule matrix only.
+
+## v-1.0.46
+
+### [v 1.0.46] 2026-07-02 5:02 am - Work Automation Persistent Test Chain
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.46`.
+- Stabilized the Project Manager JSON directory lookup so refresh/restart uses the same `apps/platform/api/project-manager-json` data folder when launched from the repo root.
+- Added a refresh-safe dummy workflow chain for testing: `issue-1 -> task1.1/task1.2 -> review1.1.1/review1.1.2/review1.2.1 -> automation -> activity`.
+- Loaded the JSON store once so the live JSON files now contain the dummy chain plus Timeline/Gantt snapshots.
+
+## v-1.0.45
+
+### [v 1.0.45] 2026-07-02 4:54 am - Work Automation Live Workflow Linking
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.45`.
+- Added backend workflow side effects for Issue, Task, Review, Automation, and Activity records.
+- Automatically writes Timeline events when workflow records are created or updated.
+- Automatically creates or updates matching Gantt schedule rows for workflow records, preserving parent reference keys.
+- Added idempotent JSON reconciliation so existing workflow records receive Timeline snapshots and Gantt rows when the Project Manager store loads.
+- Updated frontend workflow saves to refresh Timeline and Gantt views immediately after stage changes.
+
+## v-1.0.44
+
+### [v 1.0.44] 2026-07-02 4:49 am - Work Automation Gantt Timeline Visual
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.44`.
+- Rebuilt the Work & Automation Gantt view as a schedule matrix with name, start, end, days, work percent, and a day-by-day timeline grid.
+- Added SVG timeline bars with completion overlay and current-day marker styling.
+- Updated Gantt forms and columns to use `startDate` and `endDate` datepicker fields.
+
+## v-1.0.43
+
+### [v 1.0.43] 2026-07-02 4:47 am - Work Automation Timeline Activity Dates
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.43`.
+- Changed Work & Automation Timeline into an issue-bound activity timeline view with Activity, From date, To date, and completed status.
+- Added completion toggles for timeline rows, keeping completed rows visually marked and status-backed.
+- Added JSON-backed `startDate` and `endDate` persistence for Project Manager maturity records.
+
+## v-1.0.42
+
+### [v 1.0.42] 2026-07-02 4:43 am - Work Automation Simple Todos
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.42`.
+- Reintroduced Todos in Work & Automation as a simple issue-bound checklist instead of a full table module.
+- Added inline todo creation, checkbox strike-through completion, and up/down position controls.
+- Kept todo records connected to the active Issue context while avoiding the heavier search/filter/table surface.
+
+## v-1.0.41
+
+### [v 1.0.41] 2026-07-02 4:38 am - Remove Work Automation Todos Tab
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.41`.
+- Removed the simple Todos view from Work & Automation navigation and drilled stage tabs.
+- Kept Timeline and Gantt as the remaining issue-level support views.
+
+## v-1.0.40
+
+### [v 1.0.40] 2026-07-02 4:37 am - Work Automation Issue Support Navigation
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.40`.
+- Updated Work & Automation support tabs so Todos, Timeline, and Gantt can be opened from any drilled stage after selecting an Issue.
+- Bound new and listed support records to the original Issue context instead of narrowing them to the currently selected Task, Review, Automation, or Activity.
+
+## v-1.0.39
+
+### [v 1.0.39] 2026-07-02 4:36 am - Work Automation Support View Boundary
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.39`.
+- Limited Work & Automation drill-down chaining to Issues, Tasks, Reviews, Automation, and Activity.
+- Kept Todos, Timeline, and Gantt as support/matrix views only, so opening those records does not continue into another drill level.
+- Limited Issue matrix reference expansion to the active work chain records instead of treating support views as parent chain records.
+
+## v-1.0.38
+
+### [v 1.0.38] 2026-07-02 4:35 am - Work Automation Matrix Drill Binding
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.38`.
+- Added Issue-level matrix binding for Work & Automation so stage tabs under an Issue can show all related Tasks, Reviews, Automation, Activity, Todos, Timeline, and Gantt records for that Issue chain.
+- Kept selected-item drill-down narrow: clicking a Task now shows only Reviews directly related to that Task, and the same direct-parent behavior continues for deeper stages.
+
+## v-1.0.37
+
+### [v 1.0.37] 2026-07-02 4:29 am - Work Automation Issue Root Reset
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.37`.
+- Updated Work & Automation stage navigation so clicking `Issues` from a drilled stage returns to the root Issue list.
+- Cleared the active drill path when returning to Issues, which hides the stage tabs again on the Issue root screen.
+
+## v-1.0.36
+
+### [v 1.0.36] 2026-07-02 4:21 am - Issue Chain Stage Navigation
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.36`.
+- Added stage navigation buttons inside the selected Issue drill-down context: Issues, Tasks, Reviews, Automation, Activity, Todos, Timeline, and Gantt.
+- Kept the root Work & Automation list clean with Issues only.
+- Scoped stage switching to the active issue chain so users can jump deeper inside the same issue context.
+
+## v-1.0.35
+
+### [v 1.0.35] 2026-07-02 4:16 am - Remove Work Automation GitHub Runner
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.35`.
+- Removed the GitHub runner/play button from the Work & Automation action bar while leaving the rest of the drill-down actions intact.
+
+## v-1.0.34
+
+### [v 1.0.34] 2026-07-02 4:15 am - Clean Work Automation Drill Header
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.34`.
+- Removed the large Work & Automation drill-down title/subtitle/breadcrumb area.
+- Replaced the drill-down header with a simple current-stage heading such as Reviews.
+- Updated the shared workspace page shell so empty titles are not rendered.
+
+## v-1.0.33
+
+### [v 1.0.33] 2026-07-02 4:12 am - Fix Work Automation Stage Advance
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.33`.
+- Fixed Work & Automation stage advancement so clicking an Issue now opens the linked Tasks drill-down instead of only appending the issue title to the breadcrumb.
+- Corrected the next-stage mapping for the full chain: Issue -> Task -> Review -> Automation -> Activity -> Timeline -> Gantt.
+
+## v-1.0.32
+
+### [v 1.0.32] 2026-07-02 4:09 am - Work Automation Row Drill Fix
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.32`.
+- Fixed Work & Automation drill-down interaction so clicking an issue/task/review row opens the next child-stage list.
+- Updated the row action View behavior to drill into the child stage while Edit still opens the current record.
+- Added hover/click affordance for rows that have a next stage.
+
+## v-1.0.31
+
+### [v 1.0.31] 2026-07-02 4:03 am - Work Automation Drilldown Flow
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.31`.
+- Restructured Work & Automation into a drill-down flow instead of parallel tabs.
+- The root Work & Automation list now starts with Issues only.
+- Clicking an Issue drills into Tasks linked to that issue; clicking a Task drills into Reviews; clicking a Review drills into Automations; then Activity, Timeline, and Gantt continue the same parent-reference flow.
+- Added drill breadcrumbs and Back navigation for the Work & Automation chain.
+- New records inside a drill level inherit the selected parent reference and module context.
+- Kept the tabbed behavior untouched for Discussions and Agent & Security.
+
+## v-1.0.30
+
+### [v 1.0.30] 2026-07-02 3:54 am - Work Automation Stage Builder
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.30`.
+- Changed the Work & Automation next-stage action from simple navigation into a stage builder.
+- The next-stage button now saves the current stage, looks for an existing child record in the next stage by parent reference, and opens it when found.
+- If no child exists, the next-stage button opens a new linked child draft with inherited module, reference, owner, priority, assignee/reviewer, labels, and due date context.
+- Preserved the one-to-many chain shape: Issue -> Tasks -> Reviews -> Automation -> Activity -> Timeline -> Gantt.
+
+## v-1.0.29
+
+### [v 1.0.29] 2026-07-02 3:49 am - Work Automation Next Stage Button
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.29`.
+- Added a next-stage button beside Cancel on the Work & Automation dedicated upsert page.
+- Wired the button to the work chain: Issue -> Task -> Review -> Automation -> Activity -> Timeline -> Gantt.
+- Kept the action as simple navigation to the next stage list without adding extra workflow state.
+
+## v-1.0.28
+
+### [v 1.0.28] 2026-07-02 3:47 am - Remove Work Automation Stage Chips
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.28`.
+- Removed the extra Work & Automation stage chip row from the table surface while keeping the top tabs and reference-chain behavior intact.
+
+## v-1.0.27
+
+### [v 1.0.27] 2026-07-02 3:45 am - Work Automation Reference Chain
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.27`.
+- Renamed the Work & Automation page title from Project Manager to Work & Automation.
+- Changed the work table identity column from Key to Reference no.
+- Made Issues the root reference: issue records use their generated key as the reference number.
+- Made downstream stages default to an issue-style reference number through `referenceId`, so Tasks, Reviews, Automation, Activity, Timeline, and Gantt can link back to the originating issue.
+- Added issue reference lookup options for related stage forms.
+- Added a compact stage strip showing the chain: Issue, Task, Review, Automation, Activity, Timeline, Gantt, with Todo kept as a side checklist.
+
+## v-1.0.26
+
+### [v 1.0.26] 2026-07-02 3:38 am - Project Manager Chain Form Simplification
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.26`.
+- Simplified Work & Automation chain forms by removing the visible Key input and generating keys automatically from the record type and title.
+- Renamed the main rich text area to Summary and removed the extra Description entry from popup forms.
+- Reduced right-side fields by chain role: Issues keep the full planning controls, while Tasks, Reviews, Automation, Activity, Todos, Timeline, and Gantt expose only their related fields.
+- Removed decorative/sidebar gear icons from Work & Automation upsert field groups.
+
+## v-1.0.25
+
+### [v 1.0.25] 2026-07-02 3:31 am - Remove Work Automation Short Summary
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.25`.
+- Removed the Short summary field from the Work & Automation dedicated upsert page for all work kinds.
+- Confirmed no remaining Short summary helper text exists in app pages.
+
+## v-1.0.24
+
+### [v 1.0.24] 2026-07-02 3:30 am - Project Manager Upsert Surface Cleanup
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.24`.
+- Cleaned the Work & Automation dedicated upsert page by removing unnecessary helper text, guidance copy, editor footnotes, and verbose placeholders.
+- Updated the shared workspace page shell so empty descriptions are not rendered, keeping upsert headers visually clean.
+- Removed now-unused Work & Automation guidance helper code after the UI cleanup.
+
+## v-1.0.23
+
+### [v 1.0.23] 2026-07-02 3:21 am - Project Manager Work Automation Sequence
+
+#### Database Changes
+
+- Database update: No live database/schema migration was run for this release.
+- Added a JSON-backed Gantt registry file for Work & Automation schedule items.
+- Extended the Project Manager maturity JSON store with a `gantt` kind and `gant`/`gantt` API alias.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.23`.
+- Reworked only the Work & Automation section into the focused sequence: Issues, Tasks, Reviews, Automation, Activity, Todos, Timeline, and Gantt.
+- Removed noisy Work & Automation tabs for action log, pull requests, coverage, Git refs, and Kanban from the default Work & Automation flow.
+- Kept Todos as an independent simple checklist with a direct done/open checkbox in the list.
+- Added a lightweight Gantt schedule strip for date-based planning without adding a heavy scheduling system.
+- Kept Discussions, Agent & Security, Release Notes, and Insights untouched.
 
 ## v-1.0.22
 

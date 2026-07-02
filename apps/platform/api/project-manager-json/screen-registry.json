@@ -37,7 +37,7 @@
     "tenantRequired": false,
     "testPath": "apps/platform/web/e2e",
     "unique": false,
-    "updatedAt": "2026-07-01T06:13:06.554Z",
+    "updatedAt": "2026-07-01T21:36:07.547Z",
     "version": "1.0.0",
     "status": "active"
   },
@@ -79,7 +79,7 @@
     "tenantRequired": false,
     "testPath": "",
     "unique": false,
-    "updatedAt": "2026-07-01T06:13:06.554Z",
+    "updatedAt": "2026-07-01T21:36:07.547Z",
     "version": "1.0.0",
     "status": "active"
   }

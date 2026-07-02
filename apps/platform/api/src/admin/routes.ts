@@ -382,6 +382,7 @@ function projectManagerMaturityKind(kind: string) {
   if (kind === "changelog") return "changelog";
   if (kind === "coverage") return "coverage";
   if (kind === "discussions" || kind === "discussion") return "discussion";
+  if (kind === "gantt" || kind === "gant") return "gantt";
   if (kind === "github") return "github";
   if (kind === "issues") return "issue";
   if (kind === "kanban") return "kanban";
@@ -397,7 +398,7 @@ function projectManagerMaturityKind(kind: string) {
 
 function projectManagerMaturityInputFromBody(body: Record<string, unknown>, requireIdentity: boolean) {
   const input: Record<string, unknown> = {};
-  const stringFields = ["actor", "assignee", "command", "description", "dueDate", "eventName", "githubBranch", "githubCommit", "githubIssue", "githubPr", "githubUrl", "key", "lane", "moduleGroupKey", "moduleId", "moduleKey", "ownerTeam", "platformKey", "priority", "referenceId", "referenceType", "reviewer", "richNotes", "severity", "status", "title", "type", "version"];
+  const stringFields = ["actor", "assignee", "command", "description", "dueDate", "endDate", "eventName", "githubBranch", "githubCommit", "githubIssue", "githubPr", "githubUrl", "key", "lane", "moduleGroupKey", "moduleId", "moduleKey", "ownerTeam", "platformKey", "priority", "referenceId", "referenceType", "reviewer", "richNotes", "severity", "startDate", "status", "title", "type", "version"];
   for (const field of stringFields) {
     if (typeof body[field] === "string" || body[field] === null) input[field] = body[field] ?? "";
   }
@@ -1155,6 +1156,18 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const maturityKind = projectManagerMaturityKind(kind);
     const result = await projectManagerMaturityStore.delete(maturityKind, id);
     await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `project_manager.maturity.${maturityKind}.force_deleted`, payload: result });
+    return ok(result, responseMeta(request));
+  });
+
+  app.post("/admin/project-manager/automation-md/reference", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const body = request.body as Record<string, unknown>;
+    const kind = typeof body.kind === "string" ? body.kind : "";
+    const maturityKind = projectManagerMaturityKind(kind);
+    const input = projectManagerMaturityInputFromBody({ ...body, actor: session.email }, true);
+    const result = await projectManagerMaturityStore.communicationReference(maturityKind, input);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: "project_manager.automation_md.reference_queued", payload: { key: input.key, kind: maturityKind, referenceNo: result.referenceNo } });
     return ok(result, responseMeta(request));
   });
 

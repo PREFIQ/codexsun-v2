@@ -4,9 +4,10 @@
     "actor": "",
     "assignee": "Platform",
     "command": "",
-    "createdAt": "2026-07-01T05:00:35.218Z",
+    "createdAt": "2026-07-01T23:45:01.708Z",
     "description": "",
     "dueDate": "",
+    "endDate": "",
     "eventName": "",
     "githubBranch": "",
     "githubCommit": "",
@@ -27,13 +28,14 @@
     "referenceId": "",
     "referenceType": "",
     "reviewer": "",
-    "richNotes": "<p>tell me how is it truth</p>",
+    "richNotes": "",
     "severity": "",
     "sortOrder": 10,
+    "startDate": "",
     "status": "open",
     "title": "How Project Manager becomes development truth",
     "type": "architecture",
-    "updatedAt": "2026-07-01T06:15:19.114Z",
+    "updatedAt": "2026-07-01T23:45:01.708Z",
     "version": ""
   }
 ]

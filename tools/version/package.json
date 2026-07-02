@@ -1,6 +1,6 @@
 {
   "name": "@codexsun/version-tools",
-  "version": "1.0.22",
+  "version": "1.0.53",
   "private": true,
   "type": "module",
   "bin": {

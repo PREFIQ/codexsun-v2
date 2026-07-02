@@ -14,7 +14,7 @@ export function WorkspacePage({
   actions?: ReactNode
   children: ReactNode
   className?: string
-  description: string
+  description?: string
   technicalName?: string
   title: string
 }) {
@@ -25,8 +25,8 @@ export function WorkspacePage({
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-normal text-foreground/80">{title}</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground/70">{description}</p>
+          {title ? <h1 className="text-2xl font-semibold tracking-normal text-foreground/80">{title}</h1> : null}
+          {description ? <p className="mt-0.5 text-sm text-muted-foreground/70">{description}</p> : null}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
       </div>

@@ -4,9 +4,10 @@
     "actor": "codex",
     "assignee": "",
     "command": "",
-    "createdAt": "2026-07-01T04:43:54.711Z",
+    "createdAt": "2026-07-01T23:45:01.708Z",
     "description": "",
     "dueDate": "",
+    "endDate": "",
     "eventName": "",
     "githubBranch": "",
     "githubCommit": "",
@@ -30,10 +31,11 @@
     "richNotes": "",
     "severity": "",
     "sortOrder": 10,
+    "startDate": "",
     "status": "active",
     "title": "Project Manager context note",
     "type": "implementation-note",
-    "updatedAt": "2026-07-01T04:43:54.711Z",
+    "updatedAt": "2026-07-01T23:45:01.708Z",
     "version": ""
   }
 ]

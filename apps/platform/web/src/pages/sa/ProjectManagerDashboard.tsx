@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Bot, CheckCircle2, GitPullRequest, ListChecks, MessageSquare, RefreshCw, Rocket, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Bot, CheckCircle2, GitPullRequest, ListChecks, MessageSquare, RefreshCw, Rocket } from "lucide-react";
 import { Button } from "@codexsun/ui/components/button";
 import { WorkspacePage } from "@codexsun/ui/workspace/page";
 import { WorkspaceStatusBadge } from "@codexsun/ui/workspace/status";
@@ -64,7 +64,7 @@ export function ProjectManagerDashboard() {
   return (
     <WorkspacePage
       title="Project Manager"
-      description="Live project control center for registry coverage, open work, reviews, release state, GitHub activity, security, and automation."
+      description="Live project control center for registry coverage, open work, reviews, release state, GitHub activity, and automation."
       technicalName="page.project-manager.dashboard"
       actions={
         <Button type="button" variant="outline" className="h-9 rounded-md" onClick={() => { void maturityQuery.refetch(); void registryQuery.refetch(); }}>
@@ -83,7 +83,7 @@ export function ProjectManagerDashboard() {
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
           <WorkspaceTablePanel>
-            <SectionHeader icon={ListChecks} title="Needs attention" description="Open, blocked, review, and security records that should be acted on first." />
+            <SectionHeader icon={ListChecks} title="Needs attention" description="Open, blocked, and review records that should be acted on first." />
             <RecordList loading={loading} records={[...dashboard.risks, ...dashboard.pendingReviews, ...dashboard.openWork].slice(0, 10)} />
           </WorkspaceTablePanel>
 
@@ -106,11 +106,7 @@ export function ProjectManagerDashboard() {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <WorkspaceTablePanel>
-            <SectionHeader icon={ShieldCheck} title="Security & quality" description="Risk, audit, permission, test, and quality work." />
-            <RecordList compact loading={loading} records={dashboard.security.slice(0, 5)} />
-          </WorkspaceTablePanel>
+        <div className="grid gap-4 lg:grid-cols-2">
           <WorkspaceTablePanel>
             <SectionHeader icon={Bot} title="Automation activity" description="Recent commands, actions, and timeline events." />
             <RecordList compact loading={loading} records={dashboard.automation.slice(0, 5)} />
@@ -137,7 +133,6 @@ function buildDashboard(maturity?: MaturityResult, registry?: RegistryResult) {
   const tasks = list(maturity, "task");
   const kanban = list(maturity, "kanban");
   const reviews = list(maturity, "review");
-  const security = list(maturity, "security_quality");
   const releases = list(maturity, "release");
   const changelog = list(maturity, "changelog");
   const pullRequests = list(maturity, "pull_request");
@@ -145,7 +140,7 @@ function buildDashboard(maturity?: MaturityResult, registry?: RegistryResult) {
   const automation = [...list(maturity, "action"), ...list(maturity, "automation"), ...list(maturity, "activity"), ...list(maturity, "timeline")].sort(byUpdated);
 
   const openWork = [...issues, ...tasks, ...kanban].filter((record) => isOpen(record.status));
-  const risks = [...issues, ...tasks, ...kanban, ...security].filter((record) => isRisk(record));
+  const risks = [...issues, ...tasks, ...kanban].filter((record) => isRisk(record));
   const pendingReviews = reviews.filter((record) => isOpen(record.status));
 
   return {
@@ -157,7 +152,6 @@ function buildDashboard(maturity?: MaturityResult, registry?: RegistryResult) {
     openWork,
     pendingReviews,
     risks,
-    security: security.sort(byUpdated),
     workingRelease: changelog.filter((record) => !["released", "done"].includes(String(record.status ?? ""))).sort(byUpdated)
   };
 }

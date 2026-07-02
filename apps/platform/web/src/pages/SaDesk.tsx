@@ -14,13 +14,13 @@ import { DatabaseManager } from "./sa/DatabaseManager";
 import { MigrationStatus } from "./sa/MigrationStatus";
 import { PlatformRegistry } from "./sa/PlatformRegistry";
 import { ProjectManagerDashboard } from "./sa/ProjectManagerDashboard";
-import { ProjectManagerAgentNotes, ProjectManagerDiscussions, ProjectManagerMaturity } from "./sa/ProjectManagerMaturity";
+import { ProjectManagerDiscussions, ProjectManagerMaturity } from "./sa/ProjectManagerMaturity";
 import { ProjectManagerInsights } from "./sa/ProjectManagerReferenceReport";
 import { ProjectManagerReleaseNotes } from "./sa/ProjectManagerReleaseNotes";
 import { TenantList } from "./sa/TenantList";
 import { SuperAdminModulePage, superAdminModuleConfigs, type SuperAdminModuleKey } from "./sa/SuperAdminModulePage";
 
-type SaPage = "home" | "tenants" | "domains" | "modules" | "audit" | "migrations" | "health" | "users" | "roles" | "permissions" | "sessions" | "settings" | "features" | "workbench" | "plans" | "subscriptions" | "industries" | "platform-registry" | "project-manager-dashboard" | "project-manager-work" | "project-manager-discussions" | "project-manager-agent-security" | "project-manager-release-notes" | "project-manager-insights" | "queue" | "database" | "devdocs" | "support" | "zetro" | "gst";
+type SaPage = "home" | "tenants" | "domains" | "modules" | "audit" | "migrations" | "health" | "users" | "roles" | "permissions" | "sessions" | "settings" | "features" | "workbench" | "plans" | "subscriptions" | "industries" | "platform-registry" | "project-manager-dashboard" | "project-manager-work" | "project-manager-discussions" | "project-manager-release-notes" | "project-manager-insights" | "queue" | "database" | "devdocs" | "support" | "zetro" | "gst";
 
 const pageToMenuKey: Record<SaPage, string> = {
   audit: "audit",
@@ -37,7 +37,6 @@ const pageToMenuKey: Record<SaPage, string> = {
   permissions: "permissions",
   "platform-registry": "platform-registry",
   "project-manager-dashboard": "project-manager-dashboard",
-  "project-manager-agent-security": "project-manager-agent-security",
   "project-manager-discussions": "project-manager-discussions",
   "project-manager-release-notes": "project-manager-release-notes",
   "project-manager-insights": "project-manager-insights",
@@ -137,7 +136,6 @@ export function SaDesk() {
         { key: "platform-registry", page: "platform-registry", label: "Platform Registry" },
         { key: "project-manager-work", page: "project-manager-work", label: "Work & Automation" },
         { key: "project-manager-discussions", page: "project-manager-discussions", label: "Discussions" },
-        { key: "project-manager-agent-security", page: "project-manager-agent-security", label: "Agent & Security" },
         { key: "project-manager-release-notes", page: "project-manager-release-notes", label: "Release Notes" },
         { key: "project-manager-insights", page: "project-manager-insights", label: "Insights" }
       ]
@@ -236,7 +234,6 @@ export function SaDesk() {
         {page === "platform-registry" && <PlatformRegistry onBack={() => selectPage("home")} />}
         {page === "project-manager-work" && <ProjectManagerMaturity />}
         {page === "project-manager-discussions" && <ProjectManagerDiscussions />}
-        {page === "project-manager-agent-security" && <ProjectManagerAgentNotes />}
         {page === "project-manager-release-notes" && <ProjectManagerReleaseNotes />}
         {page === "project-manager-insights" && <ProjectManagerInsights />}
         {page === "database" && <DatabaseManager onBack={() => selectPage("home")} />}

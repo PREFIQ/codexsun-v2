@@ -100,8 +100,6 @@ const trackedKinds = [
   "release",
   "changelog",
   "coverage",
-  "security_quality",
-  "agent_note",
   "github",
   "activity",
   "timeline",

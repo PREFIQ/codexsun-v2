@@ -4,9 +4,10 @@
     "actor": "",
     "assignee": "",
     "command": "",
-    "createdAt": "2026-07-01T05:19:14.879Z",
+    "createdAt": "2026-07-01T23:45:01.710Z",
     "description": "",
     "dueDate": "",
+    "endDate": "",
     "eventName": "",
     "githubBranch": "",
     "githubCommit": "",
@@ -30,10 +31,11 @@
     "richNotes": "",
     "severity": "high",
     "sortOrder": 10,
+    "startDate": "",
     "status": "needs-review",
     "title": "Permission and audit coverage review",
     "type": "security",
-    "updatedAt": "2026-07-01T05:19:14.879Z",
+    "updatedAt": "2026-07-01T23:45:01.710Z",
     "version": ""
   }
 ]
