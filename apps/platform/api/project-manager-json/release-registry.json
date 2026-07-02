@@ -1,1 +1,45 @@
-[]
+[
+  {
+    "active": true,
+    "actor": "codex",
+    "assignee": "Platform",
+    "command": "npm run version:bump -- --title \"Tenant Registry Module Wiring\" --no-database-update",
+    "createdAt": "2026-07-02T14:25:00.000Z",
+    "description": "Released tenant registry module wiring with Foundation, Master, Common, Business, and Platform App menu coverage plus generic backend/frontend module persistence.",
+    "dueDate": "2026-07-02",
+    "endDate": "2026-07-02",
+    "eventName": "Tenant Registry Module Wiring",
+    "githubBranch": "",
+    "githubCommit": "",
+    "githubIssue": "",
+    "githubPr": "",
+    "githubUrl": "",
+    "id": "release-tenant-registry-module-wiring-1-0-60",
+    "kind": "release",
+    "key": "release.tenant-registry.module-wiring.1-0-60",
+    "labels": [
+      "tenant-registry",
+      "module-wiring",
+      "release"
+    ],
+    "lane": "Done",
+    "moduleGroupKey": "tenant-registry",
+    "moduleId": "module-tenant-master-work-orders",
+    "moduleKey": "tenant-registry",
+    "ownerTeam": "Platform",
+    "platformKey": "tenants",
+    "priority": "high",
+    "referenceId": "002",
+    "referenceType": "automation",
+    "reviewer": "Platform",
+    "richNotes": "Version `1.0.60` has no database migrations or schema updates. Verification covered core, platform API, platform web typechecks, and tenant module Playwright e2e.",
+    "severity": "medium",
+    "sortOrder": 20,
+    "startDate": "2026-07-02",
+    "status": "released",
+    "title": "Tenant Registry Module Wiring",
+    "type": "Release",
+    "updatedAt": "2026-07-02T14:25:00.000Z",
+    "version": "1.0.60"
+  }
+]

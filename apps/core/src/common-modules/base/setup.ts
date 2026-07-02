@@ -61,6 +61,43 @@ import { MonthRepository } from "../months/repository.js";
 import { SalesAccountTypeService } from "../sales-account-types/service.js";
 import { SalesAccountTypeRepository } from "../sales-account-types/repository.js";
 import type { CommonModuleServiceMap, CommonModuleDefinition } from "./service-types.js";
+import { GenericCommonModuleService } from "./generic-service.js";
+
+const genericCommonDefinitions: CommonModuleDefinition[] = [
+  { key: "address-book", label: "Address Book" },
+  { key: "contact-emails", label: "Contact Emails" },
+  { key: "contact-phones", label: "Contact Phones" },
+  { key: "contact-social-links", label: "Contact Social Links" },
+  { key: "contact-bank-accounts", label: "Contact Bank Accounts" },
+  { key: "contact-gst-details", label: "Contact GST Details" },
+  { key: "company-logos", label: "Company Logos" },
+  { key: "company-emails", label: "Company Emails" },
+  { key: "company-phones", label: "Company Phones" },
+  { key: "company-social-links", label: "Company Social Links" },
+  { key: "company-bank-accounts", label: "Company Bank Accounts" },
+  { key: "work-orders", label: "Work Orders" },
+  { key: "sales", label: "Sales" },
+  { key: "quotations", label: "Quotations" },
+  { key: "purchases", label: "Purchases" },
+  { key: "receipts", label: "Receipts" },
+  { key: "payments", label: "Payments" },
+  { key: "purchase-receipts", label: "Purchase Receipts" },
+  { key: "delivery-notes", label: "Delivery Notes" },
+  { key: "stock-ledger", label: "Stock Ledger" },
+  { key: "mail", label: "Mail" },
+  { key: "tasks", label: "Tasks" },
+  { key: "media-assets", label: "Media Assets" },
+  { key: "site-sliders", label: "Site Sliders" },
+  { key: "blog", label: "Blog" },
+  { key: "company-settings", label: "Company Settings" },
+  { key: "document-settings", label: "Document Settings" },
+];
+
+function genericCommonServices(): CommonModuleServiceMap {
+  return Object.fromEntries(
+    genericCommonDefinitions.map((definition) => [definition.key, new GenericCommonModuleService(definition.label)])
+  );
+}
 
 export function createAllCommonModuleServices(): CommonModuleServiceMap {
   return {
@@ -95,6 +132,7 @@ export function createAllCommonModuleServices(): CommonModuleServiceMap {
     "accounting-year": new AccountingYearService(new AccountingYearRepository()) as any,
     months: new MonthService(new MonthRepository()) as any,
     "sales-account-types": new SalesAccountTypeService(new SalesAccountTypeRepository()) as any,
+    ...genericCommonServices(),
   };
 }
 
@@ -130,4 +168,5 @@ export const commonModuleDefinitions: CommonModuleDefinition[] = [
   { key: "accounting-year", label: "Accounting Year" },
   { key: "months", label: "Months" },
   { key: "sales-account-types", label: "Sales Account Types" },
+  ...genericCommonDefinitions,
 ];

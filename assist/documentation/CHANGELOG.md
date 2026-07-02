@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.59
+Current version: 1.0.60
 
-Release tag: v-1.0.59
+Release tag: v-1.0.60
 
-Changelog label: v 1.0.59
+Changelog label: v 1.0.60
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -19,6 +19,23 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 #### App Codebase Changes
 
 Records UI, API, service logic, tooling, and documentation changes.
+
+## v-1.0.60
+
+### [v 1.0.60] 2026-07-02 7:54 pm - Tenant Registry Module Wiring
+
+#### Database Changes
+
+- Database update: No (manual).
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.60`.
+- Added generic backend common-record services for tenant registry modules without dedicated service implementations.
+- Wired TENANTS Foundation, Master, Common, Business, and Platform App module groups into the tenant side menu with standard plural kebab-case routes.
+- Added frontend generic CRUD coverage for child/contact/company, product, work-order, stock, site, settings, mail, task, media, sales, purchase, receipt, and payment registry modules.
+- Repointed Work Orders to the generic `work-orders` common-record module so the menu route has working API persistence.
+- Extended tenant UI e2e coverage to verify registry route access and tenant-scoped generic CRUD behavior.
 
 ## v-1.0.59
 

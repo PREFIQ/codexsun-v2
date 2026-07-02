@@ -182,6 +182,9 @@ for (const group of tenantModuleGroups) {
 function pageFromUrl(): TenantPage {
   const url = new URL(window.location.href);
   const path = normalizeTenantPath(url.pathname);
+  const segments = path.split("/").filter(Boolean);
+  const explicitPage = explicitPageFromSegments(segments);
+  if (explicitPage) return explicitPage;
   const [, , requestedPage] = path.split("/");
   const requestedPath = path;
   const registryModule = tenantModulesByPath.get(requestedPath);
@@ -225,6 +228,40 @@ function pageFromUrl(): TenantPage {
   return { view: "dashboard" };
 }
 
+function explicitPageFromSegments(segments: string[]): TenantPage | null {
+  const [desk, group, moduleKey, childKey] = segments;
+  if (desk !== "tenant") return null;
+  if (!group) return { view: "dashboard" };
+  if (group === "foundation") {
+    if (moduleKey === "users") return { view: "application", page: "users" };
+    if (moduleKey === "rbac-roles") return { view: "application", page: "roles" };
+    if (moduleKey === "rbac-policies" || moduleKey === "rbac-role-policies") return { view: "application", page: "permissions" };
+    if (moduleKey === "accounting-years") return { view: "application", page: "accounting-year" };
+    if (moduleKey === "default-companies") return { view: "application", page: "default-company" };
+    if (moduleKey === "address-book") return { view: "common-module", definitionKey: "address-book", definitionLabel: "Address Book" };
+    if (moduleKey === "settings") return { view: "application", page: "settings" };
+    if (moduleKey === "landing") return { view: "application", page: "landing" };
+  }
+  if (group === "master") {
+    if (moduleKey === "contacts" && !childKey) return { view: "contacts" };
+    if (moduleKey === "companies" && !childKey) return { view: "application", page: "company" };
+    if (moduleKey === "products" && !childKey) return { view: "products" };
+    if (moduleKey === "work-orders") return { view: "work-orders" };
+    if (childKey) return { view: "common-module", definitionKey: childKey, definitionLabel: labelFromKey(childKey) };
+  }
+  if (group === "common") {
+    if (moduleKey === "locations" && !childKey) return { view: "common-index" };
+    const definitionKey = childKey ?? moduleKey;
+    if (definitionKey) return { view: "common-module", definitionKey, definitionLabel: commonModuleLookup.get(definitionKey)?.label ?? labelFromKey(definitionKey) };
+  }
+  if (moduleKey) return { view: "generic-module", definitionKey: moduleKey, definitionLabel: labelFromKey(moduleKey), routePath: `/${segments.join("/")}` };
+  return null;
+}
+
+function labelFromKey(key: string) {
+  return key.split("-").map((part) => part ? part[0]!.toUpperCase() + part.slice(1) : part).join(" ");
+}
+
 function pathForPage(page: TenantPage) {
   if (page.view === "dashboard") return "/tenant";
   if (page.view === "billing-overview") return "/tenant/billing-entries";
@@ -258,6 +295,8 @@ function normalizeTenantPath(pathname: string) {
     if (requestedPage === "users") return "/tenant/foundation/users";
     if (requestedPage === "roles") return "/tenant/foundation/rbac-roles";
     if (requestedPage === "permissions") return "/tenant/foundation/rbac-policies";
+    if (requestedPage === "settings") return "/tenant/foundation/settings";
+    if (requestedPage === "landing") return "/tenant/foundation/landing";
     if (requestedPage === "contacts") return "/tenant/master/contacts";
     if (requestedPage === "products") return "/tenant/master/products";
     if (requestedPage === "work-orders") return "/tenant/master/work-orders";
@@ -305,30 +344,31 @@ function isModuleActive(page: TenantPage, module: TenantMenuModule): boolean {
 }
 
 export function TenantDesk() {
-  const [page, setPage] = useState<TenantPage>(() => pageFromUrl());
+  const [, setPageState] = useState<TenantPage>(() => pageFromUrl());
   const [defaultBinding, setDefaultBinding] = useState<DefaultCompanyBinding>(() => readDefaultCompanyBinding());
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const companiesQuery = useQuery({
     queryKey: ["tenant", "companies", "brand"],
     queryFn: () => apiGet<Array<{ companyId: string; legalName: string; tradeName?: string }>>("/core/companies", "tenant"),
   });
+  const page = pageFromUrl();
 
   function selectPage(nextPage: TenantPage, historyMode: "push" | "replace" = "push") {
-    setPage(nextPage);
     const url = new URL(window.location.href);
     url.pathname = pathForPage(nextPage);
     window.history[historyMode === "replace" ? "replaceState" : "pushState"]({ page: nextPage }, "", url);
+    setPageState(nextPage);
   }
 
   useEffect(() => {
     selectPage(page, "replace");
-    const handlePopState = () => setPage(pageFromUrl());
+    const handlePopState = () => setPageState(pageFromUrl());
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   useEffect(() => {
-    setPage(pageFromUrl());
+    setPageState(pageFromUrl());
   }, [pathname]);
 
   useEffect(() => {
