@@ -3,6 +3,7 @@ import {
   BotIcon,
   CircleGaugeIcon,
   ClipboardListIcon,
+  ComponentIcon,
   DatabaseIcon,
   KeyRoundIcon,
   WalletCardsIcon
@@ -11,6 +12,7 @@ import { SuperLayout } from "@codexsun/ui/layouts/super-layout";
 import { AuthGate } from "../components/AuthGate";
 import { ConsoleHome } from "./sa/ConsoleHome";
 import { DatabaseManager } from "./sa/DatabaseManager";
+import { DesignSystemPage } from "./DesignSystemPage";
 import { MigrationStatus } from "./sa/MigrationStatus";
 import { PlatformRegistry } from "./sa/PlatformRegistry";
 import { ProjectManagerDashboard } from "./sa/ProjectManagerDashboard";
@@ -20,7 +22,7 @@ import { ProjectManagerReleaseNotes } from "./sa/ProjectManagerReleaseNotes";
 import { TenantList } from "./sa/TenantList";
 import { SuperAdminModulePage, superAdminModuleConfigs, type SuperAdminModuleKey } from "./sa/SuperAdminModulePage";
 
-type SaPage = "home" | "tenants" | "domains" | "modules" | "audit" | "migrations" | "health" | "users" | "roles" | "permissions" | "sessions" | "settings" | "features" | "workbench" | "plans" | "subscriptions" | "industries" | "platform-registry" | "project-manager-dashboard" | "project-manager-work" | "project-manager-discussions" | "project-manager-release-notes" | "project-manager-insights" | "queue" | "database" | "devdocs" | "support" | "zetro" | "gst";
+type SaPage = "home" | "tenants" | "domains" | "modules" | "audit" | "migrations" | "health" | "users" | "roles" | "permissions" | "sessions" | "settings" | "features" | "workbench" | "plans" | "subscriptions" | "industries" | "platform-registry" | "project-manager-dashboard" | "project-manager-work" | "project-manager-discussions" | "project-manager-release-notes" | "project-manager-insights" | "design-system" | "queue" | "database" | "devdocs" | "support" | "zetro" | "gst";
 
 const pageToMenuKey: Record<SaPage, string> = {
   audit: "audit",
@@ -41,6 +43,7 @@ const pageToMenuKey: Record<SaPage, string> = {
   "project-manager-release-notes": "project-manager-release-notes",
   "project-manager-insights": "project-manager-insights",
   "project-manager-work": "project-manager-work",
+  "design-system": "design-system",
   plans: "plans",
   queue: "queue",
   roles: "roles",
@@ -141,6 +144,14 @@ export function SaDesk() {
       ]
     },
     {
+      key: "design-system",
+      label: "Design System",
+      icon: ComponentIcon,
+      items: [
+        { key: "design-system", page: "design-system", label: "Design System" }
+      ]
+    },
+    {
       key: "database",
       label: "Database",
       icon: DatabaseIcon,
@@ -236,6 +247,7 @@ export function SaDesk() {
         {page === "project-manager-discussions" && <ProjectManagerDiscussions />}
         {page === "project-manager-release-notes" && <ProjectManagerReleaseNotes />}
         {page === "project-manager-insights" && <ProjectManagerInsights />}
+        {page === "design-system" && <DesignSystemPage />}
         {page === "database" && <DatabaseManager onBack={() => selectPage("home")} />}
         {page === "migrations" && <MigrationStatus onBack={() => selectPage("home")} />}
         {activeModuleKey ? (

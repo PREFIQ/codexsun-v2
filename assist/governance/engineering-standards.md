@@ -41,6 +41,38 @@ Avoid vague names:
 - `ModuleUtil`
 - `CustomLogic`
 
+### Module And Route Naming
+
+Keep module, menu, and route names consistent so tenant, platform, and app registries do not drift.
+
+- Module keys, group keys, menu keys, route slugs, and registry identifiers must use lowercase kebab-case.
+- Use plural names for collection-style modules and routes, such as `contact-emails`, `rbac-roles`, `purchase-receipts`, and `site-sliders`.
+- Use singular names only for true singleton areas, and document the reason near the registry or route definition.
+- Do not use camelCase, PascalCase, snake_case, spaces, or mixed naming in public module keys or menu routes.
+- Tenant menu routes must follow `/tenant/<group-key>/<module-key>`.
+- Tenant drill-down child routes must follow `/tenant/<group-key>/<parent-module-key>/<child-module-key>` and store the child row with `parentModuleId`.
+- Backend API routes should use the owning app prefix and the same kebab-case/plural resource naming unless an existing versioned API contract already exists.
+- If source inspiration uses camelCase or table-style names, normalize them before adding CODEXSUN registry entries.
+
+### Module Ownership
+
+Keep child modules with their real owner instead of naming them by where they are displayed.
+
+- Contact-owned child modules belong under the tenant `contacts` group, such as `contact-emails`, `contact-phones`, `contact-social-links`, `contact-bank-accounts`, and `contact-gst-details`.
+- Company-owned child modules belong with company ownership under tenant `master`, such as `company-emails`, `company-phones`, `company-social-links`, and `company-bank-accounts`.
+- Shared polymorphic modules belong in tenant `foundation` only when the data model is explicitly owner-based, such as `address-book` with `owner_type` and `owner_id`.
+- Do not create context-specific duplicates such as `web-contact-*`, `employee-contact-*`, or `company-contact-*` unless the domain has different fields, lifecycle, permissions, or storage. Prefer adding owner support to the shared model or adding a correctly owned child module.
+
+## Work And Automation References
+
+Use short numeric references for Project Manager work and automation commands.
+
+- Start work reference numbers at `001` and increment by one: `001`, `002`, `003`.
+- Store the short number in `referenceId` for issues, tasks, automations, reviews, timeline, and related work records.
+- Keep the full semantic key in `key`, such as `issue.platform-registry.foundation-coverage`.
+- Automation inbox blocks must show both `Reference no` and `Full key`.
+- Users may command work with `do automation 001`; agents should resolve that number to the full key before changing records.
+
 ## TypeScript Standards
 
 - Prefer explicit domain types.

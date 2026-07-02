@@ -44,6 +44,8 @@ type ModuleGroupRecord = BaseRecord & {
 type ModuleRegistryRecord = BaseRecord & {
   moduleGroupId: string
   moduleKey: string
+  moduleType: string
+  parentModuleId: string
   routePath: string
   sortOrder: number
 }
@@ -161,6 +163,7 @@ type FormState = {
   id?: string
   keyValue: string
   name: string
+  parentModuleId: string
   permissionKey: string
   routePath: string
   sortOrder: string
@@ -235,6 +238,11 @@ export function PlatformRegistry({ onBack: _onBack }: { onBack: () => void }) {
 
   const activeQuery = level === "platform" ? platformsQuery : level === "group" ? groupsQuery : modulesQuery
   const records = (activeQuery.data ?? []) as AnyRecord[]
+  const moduleParentNames = useMemo(() => {
+    if (level !== "module") return new Map<string, string>()
+    return new Map((records as ModuleRegistryRecord[]).map((module) => [module.id, module.name]))
+  }, [level, records])
+  const displayRecords = useMemo(() => (level === "module" ? orderModuleRecords(records as ModuleRegistryRecord[]) : records), [level, records])
 
   const saveMutation = useMutation({
     mutationFn: (form: FormState) => saveRecord(level, form, selectedPlatform, selectedGroup, selectedModule),
@@ -438,14 +446,15 @@ export function PlatformRegistry({ onBack: _onBack }: { onBack: () => void }) {
 
   const filteredRecords = useMemo(() => {
     const term = searchValue.trim().toLowerCase()
-    return records.filter((record) => {
+    return displayRecords.filter((record) => {
       const status = record.active ? "active" : "inactive"
-      const searchable = [record.name, record.description, status, recordKey(level, record), routePath(level, record), sortOrder(level, record)]
+      const parentName = level === "module" ? moduleParentNames.get((record as ModuleRegistryRecord).parentModuleId) ?? "" : ""
+      const searchable = [record.name, record.description, parentName, status, recordKey(level, record), routePath(level, record), sortOrder(level, record)]
       const matchesSearch = !term || searchable.some((value) => value.toLowerCase().includes(term))
       const matchesStatus = statusFilter === "all" || status === statusFilter
       return matchesSearch && matchesStatus
     })
-  }, [level, records, searchValue, statusFilter])
+  }, [displayRecords, level, moduleParentNames, searchValue, statusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / rowsPerPage))
   const pageRecords = filteredRecords.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
@@ -775,7 +784,7 @@ export function PlatformRegistry({ onBack: _onBack }: { onBack: () => void }) {
                   {visibleColumns.name ? (
                     <td className="px-4 py-2.5">
                       <button
-                        className="inline-flex max-w-72 items-center gap-2 truncate font-medium hover:underline"
+                        className={cn("inline-flex max-w-72 items-center gap-2 truncate font-medium hover:underline", level === "module" && (record as ModuleRegistryRecord).parentModuleId && "pl-5")}
                         type="button"
                         onClick={() => {
                           if (level === "platform") drillPlatform(record as PlatformRecord)
@@ -786,12 +795,14 @@ export function PlatformRegistry({ onBack: _onBack }: { onBack: () => void }) {
                           }
                         }}
                       >
+                        {level === "module" && (record as ModuleRegistryRecord).parentModuleId ? <span className="text-muted-foreground">-&gt;</span> : null}
                         {record.name}
                         {level !== "module" ? <ChevronRight className="size-3.5 text-muted-foreground" /> : null}
                       </button>
                     </td>
                   ) : null}
                   {visibleColumns.key ? <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{recordKey(level, record)}</td> : null}
+                  {visibleColumns.parent && level === "module" ? <td className="px-4 py-2.5 text-xs text-muted-foreground">{parentModuleName(record as ModuleRegistryRecord, moduleParentNames)}</td> : null}
                   {visibleColumns.routePath && level === "module" ? <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{routePath(level, record) || "-"}</td> : null}
                   {visibleColumns.sortOrder && level !== "platform" ? <td className="px-4 py-2.5 tabular-nums">{sortOrder(level, record)}</td> : null}
                   {visibleColumns.description ? <td className="max-w-md px-4 py-2.5 text-muted-foreground">{record.description || "-"}</td> : null}
@@ -1405,6 +1416,7 @@ function RegistryUpsertPage({
     ...(record ? { id: record.id } : {}),
     keyValue: record ? recordKey(level, record) : "",
     name: record?.name ?? "",
+    parentModuleId: level === "module" && record ? (record as ModuleRegistryRecord).parentModuleId ?? "" : "",
     permissionKey: "",
     routePath: record ? routePath(level, record) : "",
     sortOrder: record ? sortOrder(level, record) : "0",
@@ -1561,6 +1573,7 @@ function PlatformRegistryDialog({
     ...(record ? { id: record.id } : {}),
     keyValue: record?.platform ?? "",
     name: record?.name ?? "",
+    parentModuleId: "",
     permissionKey: "",
     routePath: "",
     sortOrder: "0",
@@ -1575,6 +1588,7 @@ function PlatformRegistryDialog({
       ...(record ? { id: record.id } : {}),
       keyValue: record?.platform ?? "",
       name: record?.name ?? "",
+      parentModuleId: "",
       permissionKey: "",
       routePath: "",
       sortOrder: "0",
@@ -1675,6 +1689,7 @@ function ModuleGroupDialog({
     ...(record ? { id: record.id } : {}),
     keyValue: record?.groupKey ?? "",
     name: record?.name ?? "",
+    parentModuleId: "",
     permissionKey: "",
     routePath: "",
     sortOrder: record ? String(record.sortOrder) : "0",
@@ -1689,6 +1704,7 @@ function ModuleGroupDialog({
       ...(record ? { id: record.id } : {}),
       keyValue: record?.groupKey ?? "",
       name: record?.name ?? "",
+      parentModuleId: "",
       permissionKey: "",
       routePath: "",
       sortOrder: record ? String(record.sortOrder) : "0",
@@ -1789,10 +1805,11 @@ function ModuleRegistryDialog({
     ...(record ? { id: record.id } : {}),
     keyValue: record?.moduleKey ?? "",
     name: record?.name ?? "",
+    parentModuleId: record?.parentModuleId ?? "",
     permissionKey: "",
     routePath: record?.routePath ?? "",
     sortOrder: record ? String(record.sortOrder) : "0",
-    type: "page"
+    type: record?.moduleType ?? "module"
   })
   const [localBanner, setLocalBanner] = useState("")
 
@@ -1803,10 +1820,11 @@ function ModuleRegistryDialog({
       ...(record ? { id: record.id } : {}),
       keyValue: record?.moduleKey ?? "",
       name: record?.name ?? "",
+      parentModuleId: record?.parentModuleId ?? "",
       permissionKey: "",
       routePath: record?.routePath ?? "",
       sortOrder: record ? String(record.sortOrder) : "0",
-      type: "page"
+      type: record?.moduleType ?? "module"
     })
     setLocalBanner("")
   }, [record, open])
@@ -1923,6 +1941,7 @@ function FeatureRegistryDialog({
     ...(record ? { id: record.id } : {}),
     keyValue: record?.featureKey ?? "",
     name: record?.name ?? "",
+    parentModuleId: "",
     permissionKey: record?.permissionKey ?? "",
     routePath: record?.routePath ?? "",
     sortOrder: record ? String(record.sortOrder) : "0",
@@ -1937,6 +1956,7 @@ function FeatureRegistryDialog({
       ...(record ? { id: record.id } : {}),
       keyValue: record?.featureKey ?? "",
       name: record?.name ?? "",
+      parentModuleId: "",
       permissionKey: record?.permissionKey ?? "",
       routePath: record?.routePath ?? "",
       sortOrder: record ? String(record.sortOrder) : "0",
@@ -2247,6 +2267,7 @@ function columnsForLevel(level: Level) {
     { id: "name", label: "Name" },
     { id: "key", label: level === "platform" ? "Platform" : level === "group" ? "Group key" : level === "module" ? "Module key" : "Feature key" }
   ]
+  if (level === "module") common.push({ id: "parent", label: "Parent" })
   if (level === "module" || level === "feature") common.push({ id: "routePath", label: "Route" })
   if (level !== "platform") common.push({ id: "sortOrder", label: "Order" })
   common.push({ id: "description", label: "Description" }, { id: "status", label: "Status" })
@@ -2259,6 +2280,11 @@ function detailRows(level: Level, record: AnyRecord): Array<[string, ReactNode]>
     [level === "platform" ? "Platform" : level === "group" ? "Group key" : level === "module" ? "Module key" : "Feature key", <span key="key" className="font-mono text-xs">{recordKey(level, record)}</span>]
   ]
   if (level === "module" || level === "feature") rows.push(["Route", <span key="route" className="font-mono text-xs">{routePath(level, record) || "-"}</span>])
+  if (level === "module") {
+    const module = record as ModuleRegistryRecord
+    rows.push(["Parent module", module.parentModuleId ? <span key="parent" className="font-mono text-xs">{module.parentModuleId}</span> : "-"])
+    rows.push(["Module type", module.moduleType || "module"])
+  }
   if (level === "feature") {
     rows.push(
       ["Type", (record as FeatureRegistryRecord).type],
@@ -2284,6 +2310,36 @@ function routePath(level: Level, record: AnyRecord) {
   if (level === "module") return (record as ModuleRegistryRecord).routePath
   if (level === "feature") return (record as FeatureRegistryRecord).routePath
   return ""
+}
+
+function parentModuleName(module: ModuleRegistryRecord, parentNames: Map<string, string>) {
+  if (!module.parentModuleId) return module.moduleType === "area" ? "Area" : "-"
+  return parentNames.get(module.parentModuleId) ?? module.parentModuleId
+}
+
+function orderModuleRecords(records: ModuleRegistryRecord[]) {
+  const children = new Map<string, ModuleRegistryRecord[]>()
+  const roots: ModuleRegistryRecord[] = []
+  for (const record of records) {
+    if (record.parentModuleId) {
+      const bucket = children.get(record.parentModuleId) ?? []
+      bucket.push(record)
+      children.set(record.parentModuleId, bucket)
+    } else {
+      roots.push(record)
+    }
+  }
+  const bySort = (a: ModuleRegistryRecord, b: ModuleRegistryRecord) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)
+  const ordered: ModuleRegistryRecord[] = []
+  for (const root of roots.sort(bySort)) {
+    ordered.push(root)
+    ordered.push(...(children.get(root.id) ?? []).sort(bySort))
+  }
+  const rootIds = new Set(roots.map((root) => root.id))
+  for (const [parentId, bucket] of children) {
+    if (!rootIds.has(parentId)) ordered.push(...bucket.sort(bySort))
+  }
+  return ordered
 }
 
 function sortOrder(level: Level, record: AnyRecord) {
@@ -2568,6 +2624,7 @@ function magicFeatureForms(module: ModuleRegistryRecord): FormState[] {
     description: `${titleFromKey(operation)} ${module.name} reference.`,
     keyValue: `${module.moduleKey}-${operation}`,
     name: `${titleFromKey(operation)} ${module.name}`,
+    parentModuleId: "",
     permissionKey: permissionFor(module.moduleKey, operation),
     routePath: routeForOperation(baseRoute, operation),
     sortOrder: String((index + 1) * 10),
@@ -2857,8 +2914,10 @@ function modulePayload(form: FormState, moduleGroupId?: string) {
     active: form.active,
     description: form.description.trim(),
     moduleKey: form.keyValue.trim(),
+    moduleType: form.type || "module",
     name: form.name.trim(),
     ...(moduleGroupId ? { moduleGroupId } : {}),
+    parentModuleId: form.parentModuleId.trim(),
     routePath: form.routePath.trim(),
     sortOrder: Number(form.sortOrder) || 0
   }

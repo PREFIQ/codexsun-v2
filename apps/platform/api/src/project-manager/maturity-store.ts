@@ -316,11 +316,6 @@ async function saveDatabase(db: MaturityDatabase) {
 async function ensureFiles() {
   await mkdir(databaseDir, { recursive: true });
   await Promise.all((Object.keys(files) as ProjectManagerMaturityKind[]).map((kind) => ensureJson(kind, files[kind], seedRecords(kind))));
-  const db = Object.fromEntries(await Promise.all(
-    (Object.keys(files) as ProjectManagerMaturityKind[]).map(async (kind) => [kind, (await readJson<ProjectManagerMaturityRecord[]>(files[kind])).map((record) => normalizeRecord(kind, record))])
-  )) as MaturityDatabase;
-  reconcileWorkflowSnapshots(db);
-  await saveDatabase(db);
   await ensureCommunicationFiles();
 }
 
@@ -360,7 +355,10 @@ async function ensureJson(kind: ProjectManagerMaturityKind, filePath: string, fa
   try {
     const existing = (await readJson<ProjectManagerMaturityRecord[]>(filePath)).map((record) => normalizeRecord(kind, record));
     const existingKeys = new Set(existing.map((record) => record.key.toLowerCase()));
-    await writeJson(filePath, [...existing, ...fallback.filter((record) => !existingKeys.has(record.key.toLowerCase()))]);
+    const missing = fallback.filter((record) => !existingKeys.has(record.key.toLowerCase()));
+    if (missing.length) {
+      await writeJson(filePath, [...existing, ...missing]);
+    }
   } catch {
     await writeJson(filePath, fallback);
   }
@@ -467,41 +465,27 @@ function seedRecords(kind: ProjectManagerMaturityKind): ProjectManagerMaturityRe
 }
 
 function workflowSeedRecords(kind: ProjectManagerMaturityKind): Partial<ProjectManagerMaturityRecord>[] | null {
-  const base = {
-    moduleGroupKey: "project-manager",
-    moduleId: "module-sa-platform-registry",
-    moduleKey: "project-manager",
-    ownerTeam: "Platform",
-    platformKey: "super-admin"
-  };
-  const rows: Partial<Record<ProjectManagerMaturityKind, Partial<ProjectManagerMaturityRecord>[]>> = {
-    activity: [
-      { ...base, actor: "Developer", endDate: "2026-07-08", eventName: "activity-1.1.1.1.done", key: "activity-1.1.1.1", referenceId: "automation-1.1.1.1", referenceType: "automation", startDate: "2026-07-08", status: "completed", title: "Activity 1.1.1.1", type: "activity" },
-      { ...base, actor: "Developer", endDate: "2026-07-09", eventName: "activity-1.1.2.1.done", key: "activity-1.1.2.1", referenceId: "automation-1.1.2.1", referenceType: "automation", startDate: "2026-07-09", status: "active", title: "Activity 1.1.2.1", type: "activity" },
-      { ...base, actor: "Developer", endDate: "2026-07-10", eventName: "activity-1.2.1.1.done", key: "activity-1.2.1.1", referenceId: "automation-1.2.1.1", referenceType: "automation", startDate: "2026-07-10", status: "active", title: "Activity 1.2.1.1", type: "activity" }
-    ],
-    automation: [
-      { ...base, command: "run automation-1.1.1.1", endDate: "2026-07-08", eventName: "automation-1.1.1.1.prepare", key: "automation-1.1.1.1", referenceId: "review-1.1.1", referenceType: "review", startDate: "2026-07-08", status: "completed", title: "Automation 1.1.1.1", type: "automation" },
-      { ...base, command: "run automation-1.1.2.1", endDate: "2026-07-09", eventName: "automation-1.1.2.1.prepare", key: "automation-1.1.2.1", referenceId: "review-1.1.2", referenceType: "review", startDate: "2026-07-09", status: "ready", title: "Automation 1.1.2.1", type: "automation" },
-      { ...base, command: "run automation-1.2.1.1", endDate: "2026-07-10", eventName: "automation-1.2.1.1.prepare", key: "automation-1.2.1.1", referenceId: "review-1.2.1", referenceType: "review", startDate: "2026-07-10", status: "ready", title: "Automation 1.2.1.1", type: "automation" }
-    ],
-    gantt: [],
-    issue: [
-      { ...base, assignee: "Platform", endDate: "2026-07-12", key: "issue-1", labels: ["test", "workflow"], priority: "high", reviewer: "Lead", severity: "medium", startDate: "2026-07-06", status: "in-progress", title: "Issue 1", type: "enhancement" }
-    ],
-    review: [
-      { ...base, endDate: "2026-07-08", key: "review-1.1.1", referenceId: "task-1.1", referenceType: "task", reviewer: "Reviewer A", startDate: "2026-07-08", status: "approved", title: "Review 1.1.1", type: "review" },
-      { ...base, endDate: "2026-07-09", key: "review-1.1.2", referenceId: "task-1.1", referenceType: "task", reviewer: "Reviewer B", startDate: "2026-07-08", status: "in-review", title: "Review 1.1.2", type: "review" },
-      { ...base, endDate: "2026-07-10", key: "review-1.2.1", referenceId: "task-1.2", referenceType: "task", reviewer: "Reviewer C", startDate: "2026-07-09", status: "requested", title: "Review 1.2.1", type: "review" }
-    ],
-    task: [
-      { ...base, assignee: "Developer A", endDate: "2026-07-08", key: "task-1.1", priority: "high", referenceId: "issue-1", referenceType: "issue", startDate: "2026-07-06", status: "in-progress", title: "Task 1.1", type: "task" },
-      { ...base, assignee: "Developer B", endDate: "2026-07-11", key: "task-1.2", priority: "medium", referenceId: "issue-1", referenceType: "issue", startDate: "2026-07-08", status: "assigned", title: "Task 1.2", type: "task" }
-    ],
-    timeline: [],
-    todo: []
-  };
-  return rows[kind] ?? null;
+  const liveEmptyKinds: ProjectManagerMaturityKind[] = [
+    "action",
+    "agent_note",
+    "activity",
+    "automation",
+    "changelog",
+    "coverage",
+    "discussion",
+    "gantt",
+    "github",
+    "issue",
+    "kanban",
+    "pull_request",
+    "release",
+    "review",
+    "security_quality",
+    "task",
+    "timeline",
+    "todo"
+  ];
+  return liveEmptyKinds.includes(kind) ? [] : null;
 }
 
 function buildResult(db: MaturityDatabase) {
@@ -534,36 +518,6 @@ function applyWorkflowSideEffects(db: MaturityDatabase, kind: ProjectManagerMatu
     updatedAt: eventTime
   }));
   upsertGanttRecord(db, kind, record, eventTime);
-}
-
-function reconcileWorkflowSnapshots(db: MaturityDatabase) {
-  const reconciledAt = now();
-  for (const kind of workflowKinds()) {
-    for (const record of db[kind]) {
-      const key = `timeline.snapshot.${kind}.${record.key}`;
-      if (!db.timeline.some((item) => same(item.key, key))) {
-        db.timeline.push(normalizeRecord("timeline", {
-          ...record,
-          active: true,
-          actor: record.actor || record.assignee || record.reviewer || "system",
-          createdAt: reconciledAt,
-          endDate: record.endDate || record.dueDate || record.startDate,
-          eventName: `project_manager.workflow.${kind}.snapshot`,
-          id: nextId("timeline"),
-          key,
-          referenceId: record.key,
-          referenceType: kind,
-          sortOrder: nextSortOrder(db.timeline),
-          startDate: record.startDate || record.dueDate || record.endDate,
-          status: workflowTimelineStatus(record),
-          title: `${workflowStageLabel(kind)} snapshot: ${record.title}`,
-          type: "workflow",
-          updatedAt: reconciledAt
-        }));
-      }
-      upsertGanttRecord(db, kind, record, reconciledAt);
-    }
-  }
 }
 
 function upsertGanttRecord(db: MaturityDatabase, kind: ProjectManagerMaturityKind, record: ProjectManagerMaturityRecord, eventTime: string) {

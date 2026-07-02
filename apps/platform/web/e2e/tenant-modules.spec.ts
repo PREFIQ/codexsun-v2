@@ -36,6 +36,71 @@ const commonModules = [
   "sales-account-types",
 ]
 
+const registryRoutes = [
+  ["/tenant/foundation/users", "Users"],
+  ["/tenant/foundation/rbac-roles", "Roles"],
+  ["/tenant/foundation/rbac-policies", "Permissions"],
+  ["/tenant/foundation/rbac-role-policies", "Permissions"],
+  ["/tenant/foundation/accounting-years", "Accounting Year"],
+  ["/tenant/foundation/default-companies", "Default Company"],
+  ["/tenant/foundation/address-book", "Address Book"],
+  ["/tenant/master/contacts", "Contacts"],
+  ["/tenant/master/contacts/contact-emails", "Contact Emails"],
+  ["/tenant/master/contacts/contact-phones", "Contact Phones"],
+  ["/tenant/master/contacts/contact-social-links", "Contact Social Links"],
+  ["/tenant/master/contacts/contact-bank-accounts", "Contact Bank Accounts"],
+  ["/tenant/master/contacts/contact-gst-details", "Contact GST Details"],
+  ["/tenant/master/companies", "Company"],
+  ["/tenant/master/companies/company-logos", "Company Logos"],
+  ["/tenant/master/companies/company-emails", "Company Emails"],
+  ["/tenant/master/companies/company-phones", "Company Phones"],
+  ["/tenant/master/companies/company-social-links", "Company Social Links"],
+  ["/tenant/master/companies/company-bank-accounts", "Company Bank Accounts"],
+  ["/tenant/master/products", "Products"],
+  ["/tenant/master/products/product-groups", "Product Groups"],
+  ["/tenant/master/products/product-categories", "Product Categories"],
+  ["/tenant/master/products/product-types", "Product Types"],
+  ["/tenant/master/products/units", "Units"],
+  ["/tenant/master/products/hsn-codes", "HSN Codes"],
+  ["/tenant/master/products/taxes", "Taxes"],
+  ["/tenant/master/products/brands", "Brands"],
+  ["/tenant/master/products/colours", "Colours"],
+  ["/tenant/master/products/sizes", "Sizes"],
+  ["/tenant/master/products/styles", "Styles"],
+  ["/tenant/master/work-orders", "Work Orders"],
+  ["/tenant/common/locations", "Common Module Index"],
+  ["/tenant/common/locations/countries", "Countries"],
+  ["/tenant/common/locations/states", "States"],
+  ["/tenant/common/locations/districts", "Districts"],
+  ["/tenant/common/locations/cities", "Cities"],
+  ["/tenant/common/locations/pincodes", "Pincodes"],
+  ["/tenant/common/contact-groups", "Contact Groups"],
+  ["/tenant/common/contact-types", "Contact Types"],
+  ["/tenant/common/address-types", "Address Types"],
+  ["/tenant/common/bank-names", "Bank Names"],
+  ["/tenant/common/order-types", "Order Types"],
+  ["/tenant/common/transports", "Transports"],
+  ["/tenant/common/warehouses", "Warehouses"],
+] as const
+
+test("tenant registry routes open wired frontend modules", async ({ page }) => {
+  test.setTimeout(120_000)
+  const browserErrors: string[] = []
+  collectBrowserErrors(page, browserErrors)
+
+  await loginAsTenant(page)
+
+  for (const [path, heading] of registryRoutes) {
+    await page.goto(path)
+    await expect(page.getByRole("heading", { name: heading }).first()).toBeVisible()
+  }
+
+  await expect(page.getByRole("button", { name: "Foundation" }).first()).toBeVisible()
+  await expect(page.getByRole("button", { name: "Master" }).first()).toBeVisible()
+  await expect(page.getByRole("button", { name: "Common" }).first()).toBeVisible()
+  expect(browserErrors).toEqual([])
+})
+
 test("tenant master and common modules save through UI and stay tenant-isolated", async ({ page }) => {
   test.setTimeout(180_000)
   const browserErrors: string[] = []
@@ -69,7 +134,7 @@ test("tenant master and common modules save through UI and stay tenant-isolated"
     await createTenantRecord(page, {
       code: `${key.slice(0, 8).toUpperCase()}-${suffix}`,
       name,
-      path: key === "accounting-year" ? "/app/common-accounting-year" : `/app/${key}`,
+      path: routeForCommonModule(key),
     })
     await expectApiContains(page, `/core/common/records?definitionKey=${key}`, displayFieldForCommon(key), name)
     await expectTenantMismatchBlocked(page, `/core/common/records?definitionKey=${key}`)
@@ -151,6 +216,12 @@ async function loginAsTenant(page: Page) {
   await page.getByRole("button", { name: /Sign in/i }).click()
   await expect(page.getByRole("heading", { name: "Application Desk" })).toBeVisible()
   await expect(page.getByText("Shared workspace, company setup, roles")).toBeVisible()
+}
+
+function routeForCommonModule(key: string) {
+  return ["countries", "states", "districts", "cities", "pincodes", "destinations"].includes(key)
+    ? `/tenant/common/locations/${key}`
+    : `/tenant/common/${key}`
 }
 
 function displayFieldForCommon(key: string) {

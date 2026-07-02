@@ -2,6 +2,7 @@ import { AppError } from "@codexsun/framework/errors";
 import { ok } from "@codexsun/framework/http";
 import { createHash } from "node:crypto";
 import { requirePermission, requireSuperAdmin } from "../auth/guards.js";
+import { designSystemKind, designSystemStore } from "../design-system/store.js";
 import { env } from "../env.js";
 import { projectManagerMaturityStore } from "../project-manager/maturity-store.js";
 import { projectManagerJsonStore } from "../project-manager/json-store.js";
@@ -77,6 +78,46 @@ async function auditDatabaseOperation(
     eventName,
     payload
   });
+}
+
+function designSystemInputFromBody(body: Record<string, unknown>) {
+  return compactObject({
+    active: typeof body.active === "boolean" ? body.active : undefined,
+    category: stringBody(body.category),
+    componentKey: stringBody(body.componentKey),
+    controlType: stringBody(body.controlType),
+    defaultProps: objectBody(body.defaultProps),
+    description: stringBody(body.description),
+    name: stringBody(body.name),
+    templateScreen: stringBody(body.templateScreen),
+    usageNotes: stringBody(body.usageNotes),
+    variant: stringBody(body.variant)
+  });
+}
+
+function stringBody(value: unknown) {
+  return typeof value === "string" ? value.trim() : undefined;
+}
+
+function objectBody(value: unknown) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      throw AppError.validation("defaultProps must be valid JSON");
+    }
+  }
+  return undefined;
+}
+
+function compactObject<T extends Record<string, unknown>>(input: T) {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
 }
 
 function convertRow(row: Record<string, unknown>): Record<string, unknown> {
@@ -1092,6 +1133,69 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const session = await requireSuperAdmin(app, request);
     requirePermission(session, "platform.module.catalog.view");
     return ok(await projectManagerJsonStore.result(), responseMeta(request));
+  });
+
+  app.get("/admin/design-system/result", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    return ok(await designSystemStore.result(), responseMeta(request));
+  });
+
+  app.get("/admin/design-system/:kind", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { kind } = request.params as { kind: string };
+    return ok(await designSystemStore.list(designSystemKind(kind)), responseMeta(request));
+  });
+
+  app.post("/admin/design-system/:kind", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { kind } = request.params as { kind: string };
+    const registryKind = designSystemKind(kind);
+    const record = await designSystemStore.create(registryKind, designSystemInputFromBody(request.body as Record<string, unknown>));
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `design_system.${registryKind}.added`, payload: { id: record.id, key: record.componentKey } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.put("/admin/design-system/:kind/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id, kind } = request.params as { id: string; kind: string };
+    const registryKind = designSystemKind(kind);
+    const record = await designSystemStore.update(registryKind, id, designSystemInputFromBody(request.body as Record<string, unknown>));
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `design_system.${registryKind}.updated`, payload: { id, key: record.componentKey } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/design-system/:kind/:id/deactivate", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id, kind } = request.params as { id: string; kind: string };
+    const registryKind = designSystemKind(kind);
+    const record = await designSystemStore.setActive(registryKind, id, false);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `design_system.${registryKind}.deactivated`, payload: { id } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.post("/admin/design-system/:kind/:id/restore", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id, kind } = request.params as { id: string; kind: string };
+    const registryKind = designSystemKind(kind);
+    const record = await designSystemStore.setActive(registryKind, id, true);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `design_system.${registryKind}.restored`, payload: { id } });
+    return ok(record, responseMeta(request));
+  });
+
+  app.delete("/admin/design-system/:kind/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.module.catalog.view");
+    const { id, kind } = request.params as { id: string; kind: string };
+    const registryKind = designSystemKind(kind);
+    const result = await designSystemStore.delete(registryKind, id);
+    await app.auditService.write({ actorType: "super_admin", actorEmail: session.email, ...(request.correlationId ? { correlationId: request.correlationId } : {}), eventName: `design_system.${registryKind}.force_deleted`, payload: result });
+    return ok(result, responseMeta(request));
   });
 
   app.get("/admin/project-manager/maturity/result", async (request) => {

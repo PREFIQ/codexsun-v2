@@ -1469,7 +1469,6 @@ function cell(record: MaturityRecord, id: string) {
 }
 
 function referenceNoForRecord(kind: MaturityKind, record: MaturityRecord) {
-  if (kind === "issues") return record.key;
   return record.referenceId || record.key;
 }
 

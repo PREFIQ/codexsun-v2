@@ -385,7 +385,7 @@ export function HomePage() {
             <button className="hover:text-foreground" onClick={() => navigate({ to: "/status" })} type="button">
               Status
             </button>
-            <button className="hover:text-foreground" onClick={() => navigate({ to: "/design-system" })} type="button">
+            <button className="hover:text-foreground" onClick={() => navigate({ params: { saPage: "design-system" }, to: "/sa/$saPage" })} type="button">
               Design system
             </button>
             <span>v1.0.2</span>

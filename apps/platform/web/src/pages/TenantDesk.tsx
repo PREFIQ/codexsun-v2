@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouterState } from "@tanstack/react-router";
 import {
   Building2Icon,
   CalendarDaysIcon,
@@ -21,6 +22,7 @@ import { TenantLayout } from "@codexsun/ui";
 import { AuthGate } from "../components/AuthGate";
 import { ContactListPage } from "./tenant/ContactListPage";
 import { ProductListPage } from "./tenant/ProductListPage";
+import { WorkOrderListPage } from "./tenant/WorkOrderListPage";
 import { CommonModuleIndexPage, commonModuleGroups } from "./tenant/CommonModuleIndexPage";
 import { CommonModulePage } from "./tenant/CommonModulePage";
 import { apiGet } from "../api";
@@ -33,8 +35,10 @@ type TenantPage =
   | { view: "entry"; page: "sales" | "purchase" | "receipt" | "payment" }
   | { view: "contacts" }
   | { view: "products" }
+  | { view: "work-orders" }
   | { view: "common-index" }
-  | { view: "common-module"; definitionKey: string; definitionLabel: string };
+  | { view: "common-module"; definitionKey: string; definitionLabel: string }
+  | { view: "generic-module"; definitionKey: string; definitionLabel: string; routePath: string };
 
 const commonModuleLookup = new Map(
   commonModuleGroups.flatMap((group) =>
@@ -42,9 +46,149 @@ const commonModuleLookup = new Map(
   )
 );
 
+type TenantMenuModule = {
+  children?: TenantMenuModule[];
+  description?: string;
+  key: string;
+  label: string;
+  routePath: string;
+};
+
+type TenantMenuGroup = {
+  icon: typeof StoreIcon;
+  key: string;
+  label: string;
+  modules: TenantMenuModule[];
+};
+
+const tenantModuleGroups: TenantMenuGroup[] = [
+  {
+    key: "foundation",
+    label: "Foundation",
+    icon: ShieldCheckIcon,
+    modules: [
+      { key: "users", label: "Users", routePath: "/tenant/foundation/users" },
+      { key: "rbac-roles", label: "RBAC Roles", routePath: "/tenant/foundation/rbac-roles" },
+      { key: "rbac-policies", label: "RBAC Policies", routePath: "/tenant/foundation/rbac-policies" },
+      { key: "rbac-role-policies", label: "RBAC Role Policies", routePath: "/tenant/foundation/rbac-role-policies" },
+      { key: "accounting-years", label: "Accounting Years", routePath: "/tenant/foundation/accounting-years" },
+      { key: "default-companies", label: "Default Companies", routePath: "/tenant/foundation/default-companies" },
+      { key: "address-book", label: "Address Book", routePath: "/tenant/foundation/address-book" },
+    ],
+  },
+  {
+    key: "master",
+    label: "Master",
+    icon: StoreIcon,
+    modules: [
+      {
+        key: "contacts",
+        label: "Contacts",
+        routePath: "/tenant/master/contacts",
+        children: [
+          { key: "contact-emails", label: "Contact Emails", routePath: "/tenant/master/contacts/contact-emails" },
+          { key: "contact-phones", label: "Contact Phones", routePath: "/tenant/master/contacts/contact-phones" },
+          { key: "contact-social-links", label: "Contact Social Links", routePath: "/tenant/master/contacts/contact-social-links" },
+          { key: "contact-bank-accounts", label: "Contact Bank Accounts", routePath: "/tenant/master/contacts/contact-bank-accounts" },
+          { key: "contact-gst-details", label: "Contact GST Details", routePath: "/tenant/master/contacts/contact-gst-details" },
+        ],
+      },
+      {
+        key: "companies",
+        label: "Companies",
+        routePath: "/tenant/master/companies",
+        children: [
+          { key: "company-logos", label: "Company Logos", routePath: "/tenant/master/companies/company-logos" },
+          { key: "company-emails", label: "Company Emails", routePath: "/tenant/master/companies/company-emails" },
+          { key: "company-phones", label: "Company Phones", routePath: "/tenant/master/companies/company-phones" },
+          { key: "company-social-links", label: "Company Social Links", routePath: "/tenant/master/companies/company-social-links" },
+          { key: "company-bank-accounts", label: "Company Bank Accounts", routePath: "/tenant/master/companies/company-bank-accounts" },
+        ],
+      },
+      {
+        key: "products",
+        label: "Products",
+        routePath: "/tenant/master/products",
+        children: [
+          { key: "product-groups", label: "Product Groups", routePath: "/tenant/master/products/product-groups" },
+          { key: "product-categories", label: "Product Categories", routePath: "/tenant/master/products/product-categories" },
+          { key: "product-types", label: "Product Types", routePath: "/tenant/master/products/product-types" },
+          { key: "units", label: "Units", routePath: "/tenant/master/products/units" },
+          { key: "hsn-codes", label: "HSN Codes", routePath: "/tenant/master/products/hsn-codes" },
+          { key: "taxes", label: "Taxes", routePath: "/tenant/master/products/taxes" },
+          { key: "brands", label: "Brands", routePath: "/tenant/master/products/brands" },
+          { key: "colours", label: "Colours", routePath: "/tenant/master/products/colours" },
+          { key: "sizes", label: "Sizes", routePath: "/tenant/master/products/sizes" },
+          { key: "styles", label: "Styles", routePath: "/tenant/master/products/styles" },
+        ],
+      },
+      { key: "work-orders", label: "Work Orders", routePath: "/tenant/master/work-orders" },
+    ],
+  },
+  {
+    key: "common",
+    label: "Common",
+    icon: Settings2Icon,
+    modules: commonModuleGroups.map((group) => ({
+      key: group.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      label: group.label,
+      routePath: group.label === "Location" ? "/tenant/common/locations" : `/tenant/common/${group.modules[0]?.key ?? ""}`,
+      children: group.modules.map((module) => ({
+        key: module.key,
+        label: module.label,
+        routePath: group.label === "Location" ? `/tenant/common/locations/${module.key}` : `/tenant/common/${module.key}`,
+      })),
+    })),
+  },
+  {
+    key: "business",
+    label: "Business",
+    icon: ReceiptTextIcon,
+    modules: [
+      { key: "sales", label: "Sales", routePath: "/tenant/billing-entries/sales" },
+      { key: "quotations", label: "Quotations", routePath: "/tenant/billing-entries/quotations" },
+      { key: "purchases", label: "Purchases", routePath: "/tenant/billing-entries/purchases" },
+      { key: "receipts", label: "Receipts", routePath: "/tenant/billing-entries/receipts" },
+      { key: "payments", label: "Payments", routePath: "/tenant/billing-entries/payments" },
+      { key: "purchase-receipts", label: "Purchase Receipts", routePath: "/tenant/stock/purchase-receipts" },
+      { key: "delivery-notes", label: "Delivery Notes", routePath: "/tenant/stock/delivery-notes" },
+      { key: "stock-ledger", label: "Stock Ledger", routePath: "/tenant/stock/stock-ledger" },
+    ],
+  },
+  {
+    key: "platform-apps",
+    label: "Platform Apps",
+    icon: BlocksIcon,
+    modules: [
+      { key: "mail", label: "Mail", routePath: "/tenant/mail/mail" },
+      { key: "tasks", label: "Tasks", routePath: "/tenant/task-manager/tasks" },
+      { key: "media-assets", label: "Media Assets", routePath: "/tenant/media/media-assets" },
+      { key: "site-sliders", label: "Site Sliders", routePath: "/tenant/sites/site-sliders" },
+      { key: "blog", label: "Blog", routePath: "/tenant/sites/blog" },
+      { key: "company-settings", label: "Company Settings", routePath: "/tenant/settings/company-settings" },
+      { key: "document-settings", label: "Document Settings", routePath: "/tenant/settings/document-settings" },
+    ],
+  },
+];
+
+const tenantModulesByPath = new Map<string, TenantMenuModule>();
+for (const group of tenantModuleGroups) {
+  for (const module of group.modules) {
+    tenantModulesByPath.set(module.routePath, module);
+    for (const child of module.children ?? []) tenantModulesByPath.set(child.routePath, child);
+  }
+}
+
 function pageFromUrl(): TenantPage {
   const url = new URL(window.location.href);
-  const [, desk, requestedPage] = url.pathname.split("/");
+  const path = normalizeTenantPath(url.pathname);
+  const [, , requestedPage] = path.split("/");
+  const requestedPath = path;
+  const registryModule = tenantModulesByPath.get(requestedPath);
+  if (registryModule) {
+    return pageFromRegistryModule(registryModule, requestedPath);
+  }
+  const [, desk] = url.pathname.split("/");
   if (desk !== "tenant" && desk !== "app") return { view: "dashboard" };
 
   if (requestedPage === "billing") return { view: "billing-overview" };
@@ -62,6 +206,7 @@ function pageFromUrl(): TenantPage {
   if (requestedPage === "payment") return { view: "entry", page: "payment" };
   if (requestedPage === "contacts") return { view: "contacts" };
   if (requestedPage === "products") return { view: "products" };
+  if (requestedPage === "work-orders") return { view: "work-orders" };
   if (requestedPage === "common") return { view: "common-index" };
   if (requestedPage?.startsWith("common-")) {
     const definitionKey = requestedPage.replace(/^common-/, "");
@@ -81,19 +226,88 @@ function pageFromUrl(): TenantPage {
 }
 
 function pathForPage(page: TenantPage) {
-  if (page.view === "dashboard") return "/app";
-  if (page.view === "billing-overview") return "/app/billing";
-  if (page.view === "application") return `/app/${page.page}`;
-  if (page.view === "entry") return `/app/${page.page}`;
-  if (page.view === "common-index") return "/app/common";
-  if (page.view === "common-module" && page.definitionKey === "accounting-year") return "/app/common-accounting-year";
-  if (page.view === "common-module") return `/app/${page.definitionKey}`;
-  return `/app/${page.view}`;
+  if (page.view === "dashboard") return "/tenant";
+  if (page.view === "billing-overview") return "/tenant/billing-entries";
+  if (page.view === "application") {
+    if (page.page === "users") return "/tenant/foundation/users";
+    if (page.page === "roles") return "/tenant/foundation/rbac-roles";
+    if (page.page === "permissions") return "/tenant/foundation/rbac-policies";
+    if (page.page === "default-company") return "/tenant/foundation/default-companies";
+    if (page.page === "accounting-year") return "/tenant/foundation/accounting-years";
+    if (page.page === "company") return "/tenant/master/companies";
+    return `/tenant/foundation/${page.page}`;
+  }
+  if (page.view === "entry") return `/tenant/billing-entries/${entryRouteKey(page.page)}`;
+  if (page.view === "contacts") return "/tenant/master/contacts";
+  if (page.view === "products") return "/tenant/master/products";
+  if (page.view === "work-orders") return "/tenant/master/work-orders";
+  if (page.view === "common-index") return "/tenant/common/locations";
+  if (page.view === "common-module") return routeForCommonDefinition(page.definitionKey);
+  return page.routePath;
+}
+
+function normalizeTenantPath(pathname: string) {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts[0] === "app") {
+    const requestedPage = parts[1] ?? "";
+    if (!requestedPage) return "/tenant";
+    if (requestedPage === "billing") return "/tenant/billing-entries";
+    if (requestedPage === "company") return "/tenant/master/companies";
+    if (requestedPage === "default-company") return "/tenant/foundation/default-companies";
+    if (requestedPage === "accounting-year") return "/tenant/foundation/accounting-years";
+    if (requestedPage === "users") return "/tenant/foundation/users";
+    if (requestedPage === "roles") return "/tenant/foundation/rbac-roles";
+    if (requestedPage === "permissions") return "/tenant/foundation/rbac-policies";
+    if (requestedPage === "contacts") return "/tenant/master/contacts";
+    if (requestedPage === "products") return "/tenant/master/products";
+    if (requestedPage === "work-orders") return "/tenant/master/work-orders";
+    const commonDefinition = requestedPage.replace(/^common-/, "");
+    if (commonModuleLookup.has(commonDefinition)) return routeForCommonDefinition(commonDefinition);
+    return `/tenant/${parts.slice(1).join("/")}`;
+  }
+  return `/${parts.join("/")}`;
+}
+
+function pageFromRegistryModule(module: TenantMenuModule, routePath: string): TenantPage {
+  if (routePath === "/tenant/foundation/users") return { view: "application", page: "users" };
+  if (routePath === "/tenant/foundation/rbac-roles") return { view: "application", page: "roles" };
+  if (routePath === "/tenant/foundation/rbac-policies" || routePath === "/tenant/foundation/rbac-role-policies") return { view: "application", page: "permissions" };
+  if (routePath === "/tenant/foundation/default-companies") return { view: "application", page: "default-company" };
+  if (routePath === "/tenant/foundation/accounting-years") return { view: "application", page: "accounting-year" };
+  if (routePath === "/tenant/master/companies") return { view: "application", page: "company" };
+  if (routePath === "/tenant/master/contacts") return { view: "contacts" };
+  if (routePath === "/tenant/master/products") return { view: "products" };
+  if (routePath === "/tenant/master/work-orders") return { view: "work-orders" };
+  if (routePath === "/tenant/common/locations") return { view: "common-index" };
+  if (routePath.startsWith("/tenant/common/")) return { view: "common-module", definitionKey: module.key, definitionLabel: module.label };
+  if (routePath.startsWith("/tenant/master/") || routePath.startsWith("/tenant/foundation/")) {
+    return { view: "common-module", definitionKey: module.key, definitionLabel: module.label };
+  }
+  return { view: "generic-module", definitionKey: module.key, definitionLabel: module.label, routePath };
+}
+
+function routeForCommonDefinition(definitionKey: string) {
+  return ["countries", "states", "districts", "cities", "pincodes", "destinations"].includes(definitionKey)
+    ? `/tenant/common/locations/${definitionKey}`
+    : `/tenant/common/${definitionKey}`;
+}
+
+function entryRouteKey(page: "sales" | "purchase" | "receipt" | "payment") {
+  if (page === "purchase") return "purchases";
+  if (page === "receipt") return "receipts";
+  if (page === "payment") return "payments";
+  return "sales";
+}
+
+function isModuleActive(page: TenantPage, module: TenantMenuModule): boolean {
+  const currentPath = pathForPage(page);
+  return currentPath === module.routePath || currentPath.startsWith(`${module.routePath}/`) || Boolean(module.children?.some((child) => isModuleActive(page, child)));
 }
 
 export function TenantDesk() {
   const [page, setPage] = useState<TenantPage>(() => pageFromUrl());
   const [defaultBinding, setDefaultBinding] = useState<DefaultCompanyBinding>(() => readDefaultCompanyBinding());
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const companiesQuery = useQuery({
     queryKey: ["tenant", "companies", "brand"],
     queryFn: () => apiGet<Array<{ companyId: string; legalName: string; tradeName?: string }>>("/core/companies", "tenant"),
@@ -114,6 +328,10 @@ export function TenantDesk() {
   }, []);
 
   useEffect(() => {
+    setPage(pageFromUrl());
+  }, [pathname]);
+
+  useEffect(() => {
     const handleDefaultCompanyUpdated = (event: Event) => {
       const detail = (event as CustomEvent<DefaultCompanyBinding>).detail;
       setDefaultBinding(detail ?? readDefaultCompanyBinding());
@@ -123,162 +341,40 @@ export function TenantDesk() {
   }, []);
 
   const menuItems = useMemo(() => {
-    const currentCommonKey = page.view === "common-module" ? page.definitionKey : "";
-    const commonActive = page.view === "common-index" || page.view === "common-module";
-    const applicationActive = page.view === "dashboard" || page.view === "application";
-    const appPage = page.view === "application" ? page.page : "";
-    const entryPage = page.view === "entry" ? page.page : "";
-
-    if (applicationActive) {
-      return [
-        {
-          title: "Overview",
-          icon: LayoutDashboardIcon,
-          isActive: page.view === "dashboard",
-          onSelect: () => selectPage({ view: "dashboard" })
-        },
-        {
-          title: "Application",
-          icon: StoreIcon,
-          isActive: true,
-          items: [
-            {
-              title: "Company",
-              isActive: appPage === "company",
-              onSelect: () => selectPage({ view: "application", page: "company" })
-            },
-            {
-              title: "Default Company",
-              isActive: appPage === "default-company",
-              onSelect: () => selectPage({ view: "application", page: "default-company" })
-            },
-            {
-              title: "Accounting Year",
-              isActive: appPage === "accounting-year",
-              onSelect: () => selectPage({ view: "application", page: "accounting-year" })
-            },
-            {
-              title: "Settings",
-              isActive: appPage === "settings",
-              onSelect: () => selectPage({ view: "application", page: "settings" })
-            },
-            {
-              title: "User",
-              isActive: appPage === "users",
-              onSelect: () => selectPage({ view: "application", page: "users" })
-            },
-            {
-              title: "Roles",
-              isActive: appPage === "roles",
-              onSelect: () => selectPage({ view: "application", page: "roles" })
-            },
-            {
-              title: "Permissions",
-              isActive: appPage === "permissions",
-              onSelect: () => selectPage({ view: "application", page: "permissions" })
-            },
-            {
-              title: "Landing Desk",
-              isActive: appPage === "landing",
-              onSelect: () => selectPage({ view: "application", page: "landing" })
-            }
-          ]
-        }
-      ];
-    }
-
     return [
       {
         title: "Overview",
         icon: LayoutDashboardIcon,
-        isActive: page.view === "billing-overview",
-        onSelect: () => selectPage({ view: "billing-overview" })
+        isActive: page.view === "dashboard" || page.view === "billing-overview",
+        onSelect: () => selectPage({ view: "dashboard" })
       },
-      {
-        title: "Entries",
-        icon: ReceiptTextIcon,
-        isActive: page.view === "entry",
-        items: [
-          {
-            title: "Sales",
-            isActive: entryPage === "sales",
-            onSelect: () => selectPage({ view: "entry", page: "sales" })
-          },
-          {
-            title: "Purchase",
-            isActive: entryPage === "purchase",
-            onSelect: () => selectPage({ view: "entry", page: "purchase" })
-          },
-          {
-            title: "Receipt",
-            isActive: entryPage === "receipt",
-            onSelect: () => selectPage({ view: "entry", page: "receipt" })
-          },
-          {
-            title: "Payment",
-            isActive: entryPage === "payment",
-            onSelect: () => selectPage({ view: "entry", page: "payment" })
-          }
-        ]
-      },
-      {
-        title: "Master",
-        icon: StoreIcon,
-        isActive: page.view === "contacts" || page.view === "products",
-        items: [
-          {
-            title: "Contact",
-            isActive: page.view === "contacts",
-            onSelect: () => selectPage({ view: "contacts" })
-          },
-          {
-            title: "Product",
-            isActive: page.view === "products",
-            onSelect: () => selectPage({ view: "products" })
-          }
-        ]
-      },
-      {
-        title: "Common",
-        icon: Settings2Icon,
-        isActive: commonActive,
-        items: commonModuleGroups.map((group) => ({
-          title: group.label,
-          isActive: group.modules.some((module) => module.key === currentCommonKey),
-          items: group.modules.map((module) => ({
-            title: module.label,
-            isActive: currentCommonKey === module.key,
-            onSelect: () => selectPage({ view: "common-module", definitionKey: module.key, definitionLabel: module.label })
-          }))
+      ...tenantModuleGroups.map((group) => ({
+        title: group.label,
+        icon: group.icon,
+        isActive: group.modules.some((module) => isModuleActive(page, module)),
+        items: group.modules.map((module) => ({
+          title: module.label,
+          isActive: isModuleActive(page, module),
+          onSelect: () => selectPage(pageFromRegistryModule(module, module.routePath)),
+          ...(module.children?.length ? { items: module.children.map((child) => ({
+            title: child.label,
+            isActive: isModuleActive(page, child),
+            onSelect: () => selectPage(pageFromRegistryModule(child, child.routePath))
+          })) } : {})
         }))
-      },
+      })),
     ];
   }, [page]);
 
   const workspaceItems = useMemo(() => {
-    const applicationActive = page.view === "dashboard" || page.view === "application";
-    return [
-      {
-        title: "Application",
-        description: "Company setup, users, roles, settings, and landing desk.",
-        icon: StoreIcon,
-        active: applicationActive,
-        url: "/app"
-      },
-      {
-        title: "Billing",
-        description: "Sales, purchase, receipt, payment, masters, and common data.",
-        icon: ReceiptTextIcon,
-        active: !applicationActive,
-        url: "/app/billing"
-      },
-      {
-        title: "Mail",
-        description: "Reusable workspace mail services.",
-        icon: MailIcon,
-        url: "/app"
-      }
-    ];
+    const currentPath = pathForPage(page);
+    return tenantModuleGroups.map((group) => ({
+          title: group.label,
+          description: `${group.modules.length} tenant modules`,
+          icon: group.icon,
+          active: currentPath.includes(`/tenant/${group.key}`) || group.modules.some((module) => isModuleActive(page, module)),
+          url: group.modules[0]?.routePath ?? "/tenant"
+    }));
   }, [page]);
 
   function renderPage() {
@@ -347,6 +443,8 @@ export function TenantDesk() {
         return <ContactListPage onBack={() => selectPage({ view: "dashboard" })} />;
       case "products":
         return <ProductListPage onBack={() => selectPage({ view: "dashboard" })} />;
+      case "work-orders":
+        return <WorkOrderListPage onBack={() => selectPage({ view: "dashboard" })} />;
       case "application":
         if (page.page === "company") return <ApplicationCompanyPage onBack={() => selectPage({ view: "dashboard" })} />;
         if (page.page === "default-company") return <ApplicationDefaultCompanyPage onBack={() => selectPage({ view: "dashboard" })} />;
@@ -366,6 +464,13 @@ export function TenantDesk() {
           />
         );
       case "common-module":
+        return (
+          <CommonModulePage
+            definitionKey={page.definitionKey}
+            definitionLabel={page.definitionLabel}
+          />
+        );
+      case "generic-module":
         return (
           <CommonModulePage
             definitionKey={page.definitionKey}
@@ -498,8 +603,10 @@ function headerTitleForPage(page: TenantPage) {
   if (page.view === "entry") return placeholderMeta[page.page].title;
   if (page.view === "contacts") return "Contact";
   if (page.view === "products") return "Product";
+  if (page.view === "work-orders") return "Work Orders";
   if (page.view === "common-index") return "Common";
   if (page.view === "common-module") return page.definitionLabel;
+  if (page.view === "generic-module") return page.definitionLabel;
   return "Overview";
 }
 

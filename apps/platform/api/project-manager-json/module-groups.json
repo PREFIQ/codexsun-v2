@@ -75,5 +75,203 @@
     "sortOrder": 70,
     "updatedAt": "2026-07-01T03:20:23.794Z",
     "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant foundation identity, RBAC, company binding, and shared address modules.",
+    "groupKey": "foundation",
+    "id": "group-tenant-foundation",
+    "name": "Foundation",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 10,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant common lookup modules.",
+    "groupKey": "common",
+    "id": "group-tenant-common",
+    "name": "Common",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 20,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant reusable master data modules.",
+    "groupKey": "master",
+    "id": "group-tenant-master",
+    "name": "Master",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 30,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant billing entry modules enabled by the billing app scope.",
+    "groupKey": "billing-entries",
+    "id": "group-tenant-billing-entries",
+    "name": "Billing Entries",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 40,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant stock inward, outward, and ledger modules.",
+    "groupKey": "stock",
+    "id": "group-tenant-stock",
+    "name": "Stock",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 50,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant accounts and posting control modules.",
+    "groupKey": "accounts",
+    "id": "group-tenant-accounts",
+    "name": "Accounts",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 60,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant company and document settings modules.",
+    "groupKey": "settings",
+    "id": "group-tenant-settings",
+    "name": "Settings",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 70,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant GST compliance modules.",
+    "groupKey": "gst",
+    "id": "group-tenant-gst",
+    "name": "GST",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 80,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant media asset modules.",
+    "groupKey": "media",
+    "id": "group-tenant-media",
+    "name": "Media",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 90,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant mail modules.",
+    "groupKey": "mail",
+    "id": "group-tenant-mail",
+    "name": "Mail",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 100,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant task management modules.",
+    "groupKey": "task-manager",
+    "id": "group-tenant-task-manager",
+    "name": "Task Manager",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 110,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant CRM modules.",
+    "groupKey": "crm",
+    "id": "group-tenant-crm",
+    "name": "CRM",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 120,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant Tally integration modules.",
+    "groupKey": "tally",
+    "id": "group-tenant-tally",
+    "name": "Tally",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 130,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant Frappe integration modules.",
+    "groupKey": "frappe",
+    "id": "group-tenant-frappe",
+    "name": "Frappe",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 140,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant TConnect marketplace modules.",
+    "groupKey": "tconnect",
+    "id": "group-tenant-tconnect",
+    "name": "TConnect",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 150,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant ecommerce modules.",
+    "groupKey": "ecommerce",
+    "id": "group-tenant-ecommerce",
+    "name": "Ecommerce",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 160,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant auditor modules.",
+    "groupKey": "auditor",
+    "id": "group-tenant-auditor",
+    "name": "Auditor",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 170,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
+  },
+  {
+    "active": true,
+    "description": "Tenant site modules.",
+    "groupKey": "sites",
+    "id": "group-tenant-sites",
+    "name": "Sites",
+    "platformRegistryId": "platform-tenants",
+    "sortOrder": 180,
+    "updatedAt": "2026-07-02T07:40:00.000Z",
+    "status": "active"
   }
 ]

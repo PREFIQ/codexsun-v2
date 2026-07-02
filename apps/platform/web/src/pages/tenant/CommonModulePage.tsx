@@ -21,6 +21,16 @@ const baseFields: TenantFormField[] = [
 ]
 
 const commonModuleFieldOverrides: Record<string, TenantFormField[]> = {
+  "address-book": [
+    { key: "name", label: "Name", required: true },
+    { key: "ownerType", label: "Owner Type", required: true },
+    { key: "ownerId", label: "Owner Id" },
+    { key: "addressTypeId", label: "Address Type", autocompleteDefinitionKey: "address-types" },
+    { key: "line1", label: "Address Line 1", required: true },
+    { key: "line2", label: "Address Line 2" },
+    { key: "cityId", label: "City", autocompleteDefinitionKey: "cities" },
+    { key: "pincodeId", label: "Pincode", autocompleteDefinitionKey: "pincodes" },
+  ],
   "accounting-year": [
     { key: "name", label: "Name", required: true },
     { key: "startDate", label: "Start Date", required: true },
@@ -31,6 +41,64 @@ const commonModuleFieldOverrides: Record<string, TenantFormField[]> = {
   cities: [
     { key: "name", label: "Name", required: true },
     { key: "districtId", label: "District", required: true, autocompleteDefinitionKey: "districts" },
+  ],
+  "company-bank-accounts": [
+    { key: "name", label: "Account Name", required: true },
+    { key: "companyId", label: "Company Id" },
+    { key: "bankNameId", label: "Bank", autocompleteDefinitionKey: "bank-names" },
+    { key: "accountNo", label: "Account No", required: true },
+    { key: "ifsc", label: "IFSC" },
+    { key: "branch", label: "Branch" },
+  ],
+  "company-emails": [
+    { key: "name", label: "Label", required: true },
+    { key: "companyId", label: "Company Id" },
+    { key: "email", label: "Email", required: true },
+  ],
+  "company-logos": [
+    { key: "name", label: "Logo Name", required: true },
+    { key: "companyId", label: "Company Id" },
+    { key: "fileUrl", label: "File URL", required: true },
+    { key: "usage", label: "Usage" },
+  ],
+  "company-phones": [
+    { key: "name", label: "Label", required: true },
+    { key: "companyId", label: "Company Id" },
+    { key: "phone", label: "Phone", required: true },
+  ],
+  "company-social-links": [
+    { key: "name", label: "Network", required: true },
+    { key: "companyId", label: "Company Id" },
+    { key: "url", label: "URL", required: true },
+  ],
+  "contact-bank-accounts": [
+    { key: "name", label: "Account Name", required: true },
+    { key: "contactId", label: "Contact Id" },
+    { key: "bankNameId", label: "Bank", autocompleteDefinitionKey: "bank-names" },
+    { key: "accountNo", label: "Account No", required: true },
+    { key: "ifsc", label: "IFSC" },
+    { key: "branch", label: "Branch" },
+  ],
+  "contact-emails": [
+    { key: "name", label: "Label", required: true },
+    { key: "contactId", label: "Contact Id" },
+    { key: "email", label: "Email", required: true },
+  ],
+  "contact-gst-details": [
+    { key: "name", label: "Registration Name", required: true },
+    { key: "contactId", label: "Contact Id" },
+    { key: "gstin", label: "GSTIN", required: true },
+    { key: "stateId", label: "State", autocompleteDefinitionKey: "states" },
+  ],
+  "contact-phones": [
+    { key: "name", label: "Label", required: true },
+    { key: "contactId", label: "Contact Id" },
+    { key: "phone", label: "Phone", required: true },
+  ],
+  "contact-social-links": [
+    { key: "name", label: "Network", required: true },
+    { key: "contactId", label: "Contact Id" },
+    { key: "url", label: "URL", required: true },
   ],
   countries: [
     { key: "name", label: "Name", required: true },
@@ -143,4 +211,3 @@ export function CommonModulePage({ definitionKey, definitionLabel, onBack }: Pro
     />
   )
 }
-

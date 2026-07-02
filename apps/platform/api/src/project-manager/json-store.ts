@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AppError } from "@codexsun/framework/errors";
@@ -30,7 +31,9 @@ export type ProjectManagerModule = {
   id: string;
   moduleGroupId: string;
   moduleKey: string;
+  moduleType: string;
   name: string;
+  parentModuleId: string;
   routePath: string;
   sortOrder: number;
   status: string;
@@ -114,7 +117,8 @@ type JsonDatabase = {
   screens: ProjectManagerDetailRecord[];
 };
 
-const databaseDir = join(process.cwd(), "project-manager-json");
+const repoRelativeDatabaseDir = join(process.cwd(), "apps/platform/api/project-manager-json");
+const databaseDir = process.env.PROJECT_MANAGER_JSON_DIR ?? (existsSync(repoRelativeDatabaseDir) ? repoRelativeDatabaseDir : join(process.cwd(), "project-manager-json"));
 const platformFile = join(databaseDir, "platform-registry.json");
 const groupFile = join(databaseDir, "module-groups.json");
 const moduleFile = join(databaseDir, "module-registry.json");
@@ -280,7 +284,9 @@ export const projectManagerJsonStore = {
       id: nextId("module"),
       moduleGroupId,
       moduleKey,
+      moduleType: input.moduleType ?? "module",
       name,
+      parentModuleId: input.parentModuleId ?? "",
       routePath: input.routePath ?? "",
       sortOrder: Number(input.sortOrder ?? 0),
       updatedAt: now()
@@ -300,7 +306,9 @@ export const projectManagerJsonStore = {
         description: input.description,
         moduleGroupId: input.moduleGroupId,
         moduleKey: input.moduleKey,
+        moduleType: input.moduleType,
         name: input.name,
+        parentModuleId: input.parentModuleId,
         routePath: input.routePath
       }),
       sortOrder: input.sortOrder === undefined ? current.sortOrder : Number(input.sortOrder),
@@ -496,19 +504,6 @@ async function ensureFiles() {
   await ensureDetailJson(databaseObjectFile, seedDetails("database"));
   await ensureDetailJson(planningFile, seedDetails("planning"));
   await ensureDetailJson(noteFile, seedDetails("note"));
-  await writeJson(resultFile, buildResult({
-    actions: await readJson<ProjectManagerDetailRecord[]>(actionFile),
-    apis: await readJson<ProjectManagerDetailRecord[]>(apiFile),
-    databaseObjects: await readJson<ProjectManagerDetailRecord[]>(databaseObjectFile),
-    features: await readJson<ProjectManagerFeature[]>(featureFile),
-    groups: await readJson<ProjectManagerModuleGroup[]>(groupFile),
-    modules: await readJson<ProjectManagerModule[]>(moduleFile),
-    notes: await readJson<ProjectManagerDetailRecord[]>(noteFile),
-    planning: await readJson<ProjectManagerDetailRecord[]>(planningFile),
-    platforms: await readJson<ProjectManagerPlatform[]>(platformFile)
-    ,
-    screens: await readJson<ProjectManagerDetailRecord[]>(screenFile)
-  }));
 }
 
 async function ensureJson<T>(filePath: string, fallback: T) {
@@ -523,8 +518,10 @@ async function ensureDetailJson(filePath: string, fallback: ProjectManagerDetail
   try {
     const existing = await readJson<ProjectManagerDetailRecord[]>(filePath);
     const existingIds = new Set(existing.map((record) => record.id));
-    const merged = [...existing, ...fallback.filter((record) => !existingIds.has(record.id))];
-    await writeJson(filePath, merged);
+    const missing = fallback.filter((record) => !existingIds.has(record.id));
+    if (missing.length) {
+      await writeJson(filePath, [...existing, ...missing]);
+    }
   } catch {
     await writeJson(filePath, fallback);
   }
@@ -711,7 +708,25 @@ function seedGroups(): ProjectManagerModuleGroup[] {
     ["group-sa-database", "platform-super-admin", "database", "Database", "Database operation references.", 40],
     ["group-sa-access", "platform-super-admin", "access-control", "Access Control", "User, role, permission, and session references.", 50],
     ["group-sa-operations", "platform-super-admin", "operations", "Operations", "Queue, support, workbench, and docs references.", 60],
-    ["group-sa-apps-compliance", "platform-super-admin", "apps-compliance", "Apps & Compliance", "ZETRO and GST references.", 70]
+    ["group-sa-apps-compliance", "platform-super-admin", "apps-compliance", "Apps & Compliance", "ZETRO and GST references.", 70],
+    ["group-tenant-foundation", "platform-tenants", "foundation", "Foundation", "Tenant foundation identity, RBAC, company binding, and shared address modules.", 10],
+    ["group-tenant-common", "platform-tenants", "common", "Common", "Tenant common lookup modules.", 20],
+    ["group-tenant-master", "platform-tenants", "master", "Master", "Tenant reusable master data modules.", 30],
+    ["group-tenant-billing-entries", "platform-tenants", "billing-entries", "Billing Entries", "Tenant billing entry modules enabled by the billing app scope.", 40],
+    ["group-tenant-stock", "platform-tenants", "stock", "Stock", "Tenant stock inward, outward, and ledger modules.", 50],
+    ["group-tenant-accounts", "platform-tenants", "accounts", "Accounts", "Tenant accounts and posting control modules.", 60],
+    ["group-tenant-settings", "platform-tenants", "settings", "Settings", "Tenant company and document settings modules.", 70],
+    ["group-tenant-gst", "platform-tenants", "gst", "GST", "Tenant GST compliance modules.", 80],
+    ["group-tenant-media", "platform-tenants", "media", "Media", "Tenant media asset modules.", 90],
+    ["group-tenant-mail", "platform-tenants", "mail", "Mail", "Tenant mail modules.", 100],
+    ["group-tenant-task-manager", "platform-tenants", "task-manager", "Task Manager", "Tenant task management modules.", 110],
+    ["group-tenant-crm", "platform-tenants", "crm", "CRM", "Tenant CRM modules.", 120],
+    ["group-tenant-tally", "platform-tenants", "tally", "Tally", "Tenant Tally integration modules.", 130],
+    ["group-tenant-frappe", "platform-tenants", "frappe", "Frappe", "Tenant Frappe integration modules.", 140],
+    ["group-tenant-tconnect", "platform-tenants", "tconnect", "TConnect", "Tenant TConnect marketplace modules.", 150],
+    ["group-tenant-ecommerce", "platform-tenants", "ecommerce", "Ecommerce", "Tenant ecommerce modules.", 160],
+    ["group-tenant-auditor", "platform-tenants", "auditor", "Auditor", "Tenant auditor modules.", 170],
+    ["group-tenant-sites", "platform-tenants", "sites", "Sites", "Tenant site modules.", 180]
   ] as const;
   return rows.map(([id, platformRegistryId, groupKey, name, description, sortOrder]) =>
     withStatus({ active: true, description, groupKey, id, name, platformRegistryId, sortOrder, updatedAt })
@@ -746,9 +761,125 @@ function seedModules(): ProjectManagerModule[] {
     ["module-sa-zetro", "group-sa-apps-compliance", "zetro", "ZETRO", "/sa/zetro", "ZETRO reference.", 10],
     ["module-sa-gst", "group-sa-apps-compliance", "gst", "GST", "/sa/gst", "GST reference.", 20]
   ] as const;
-  return rows.map(([id, moduleGroupId, moduleKey, name, routePath, description, sortOrder]) =>
-    withStatus({ active: true, description, id, moduleGroupId, moduleKey, name, routePath, sortOrder, updatedAt })
+  const platformModules: ProjectManagerModule[] = rows.map(([id, moduleGroupId, moduleKey, name, routePath, description, sortOrder]) =>
+    withStatus({ active: true, description, id, moduleGroupId, moduleKey, moduleType: "module", name, parentModuleId: "", routePath, sortOrder, updatedAt })
   );
+  return platformModules.concat(tenantModuleRecords(updatedAt));
+}
+
+function tenantModuleRecords(updatedAt: string): ProjectManagerModule[] {
+  const rows = [
+    ["group-tenant-foundation", "users", "Users", "/tenant/foundation/users", "Tenant user records."],
+    ["group-tenant-foundation", "rbac-roles", "RBAC Roles", "/tenant/foundation/rbac-roles", "Tenant RBAC role records."],
+    ["group-tenant-foundation", "rbac-policies", "RBAC Policies", "/tenant/foundation/rbac-policies", "Tenant RBAC policy records."],
+    ["group-tenant-foundation", "rbac-role-policies", "RBAC Role Policies", "/tenant/foundation/rbac-role-policies", "Tenant RBAC role-policy binding records."],
+    ["group-tenant-foundation", "accounting-years", "Accounting Years", "/tenant/foundation/accounting-years", "Tenant accounting year records."],
+    ["group-tenant-foundation", "default-companies", "Default Companies", "/tenant/foundation/default-companies", "Tenant default company binding records."],
+    ["group-tenant-foundation", "address-book", "Address Book", "/tenant/foundation/address-book", "Tenant address book records."],
+    ["group-tenant-common", "locations", "Locations", "/tenant/common/locations", "Location lookup area for country, state, district, city, pincode, and destination records."],
+    ["group-tenant-common", "countries", "Countries", "/tenant/common/locations/countries", "Country lookup records."],
+    ["group-tenant-common", "states", "States", "/tenant/common/locations/states", "State lookup records."],
+    ["group-tenant-common", "districts", "Districts", "/tenant/common/locations/districts", "District lookup records."],
+    ["group-tenant-common", "cities", "Cities", "/tenant/common/locations/cities", "City lookup records."],
+    ["group-tenant-common", "pincodes", "Pincodes", "/tenant/common/locations/pincodes", "Pincode lookup records."],
+    ["group-tenant-common", "contact-groups", "Contact Groups", "/tenant/common/contact-groups", "Contact group lookup records."],
+    ["group-tenant-common", "contact-types", "Contact Types", "/tenant/common/contact-types", "Contact type lookup records."],
+    ["group-tenant-common", "address-types", "Address Types", "/tenant/common/address-types", "Address type lookup records."],
+    ["group-tenant-common", "bank-names", "Bank Names", "/tenant/common/bank-names", "Bank name lookup records."],
+    ["group-tenant-common", "order-types", "Order Types", "/tenant/common/order-types", "Order type lookup records."],
+    ["group-tenant-common", "transports", "Transports", "/tenant/common/transports", "Transport lookup records."],
+    ["group-tenant-common", "warehouses", "Warehouses", "/tenant/common/warehouses", "Warehouse lookup records."],
+    ["group-tenant-common", "destinations", "Destinations", "/tenant/common/locations/destinations", "Destination lookup records."],
+    ["group-tenant-common", "stock-rejection-types", "Stock Rejection Types", "/tenant/common/stock-rejection-types", "Stock rejection type lookup records."],
+    ["group-tenant-common", "currencies", "Currencies", "/tenant/common/currencies", "Currency lookup records."],
+    ["group-tenant-common", "priorities", "Priorities", "/tenant/common/priorities", "Priority lookup records."],
+    ["group-tenant-common", "payment-terms", "Payment Terms", "/tenant/common/payment-terms", "Payment term lookup records."],
+    ["group-tenant-common", "accounting-year", "Accounting Year", "/tenant/common/accounting-year", "Accounting year lookup records."],
+    ["group-tenant-common", "months", "Months", "/tenant/common/months", "Month lookup records."],
+    ["group-tenant-common", "sales-account-types", "Sales Types", "/tenant/common/sales-account-types", "Sales account type lookup records."],
+    ["group-tenant-master", "contacts", "Contacts", "/tenant/master/contacts", "Contact master records and profile ownership."],
+    ["group-tenant-master", "contact-emails", "Contact Emails", "/tenant/master/contacts/contact-emails", "Contact email records owned by Contacts."],
+    ["group-tenant-master", "contact-phones", "Contact Phones", "/tenant/master/contacts/contact-phones", "Contact phone records owned by Contacts."],
+    ["group-tenant-master", "contact-social-links", "Contact Social Links", "/tenant/master/contacts/contact-social-links", "Contact social link records owned by Contacts."],
+    ["group-tenant-master", "contact-bank-accounts", "Contact Bank Accounts", "/tenant/master/contacts/contact-bank-accounts", "Contact bank account records owned by Contacts."],
+    ["group-tenant-master", "contact-gst-details", "Contact GST Details", "/tenant/master/contacts/contact-gst-details", "Contact GST detail records owned by Contacts."],
+    ["group-tenant-master", "companies", "Companies", "/tenant/master/companies", "Tenant company master records."],
+    ["group-tenant-master", "company-logos", "Company Logos", "/tenant/master/companies/company-logos", "Company logo records."],
+    ["group-tenant-master", "company-emails", "Company Emails", "/tenant/master/companies/company-emails", "Company email records."],
+    ["group-tenant-master", "company-phones", "Company Phones", "/tenant/master/companies/company-phones", "Company phone records."],
+    ["group-tenant-master", "company-social-links", "Company Social Links", "/tenant/master/companies/company-social-links", "Company social link records."],
+    ["group-tenant-master", "company-bank-accounts", "Company Bank Accounts", "/tenant/master/companies/company-bank-accounts", "Company bank account records."],
+    ["group-tenant-master", "products", "Products", "/tenant/master/products", "Product master records."],
+    ["group-tenant-master", "product-groups", "Product Groups", "/tenant/master/products/product-groups", "Product group records."],
+    ["group-tenant-master", "product-categories", "Product Categories", "/tenant/master/products/product-categories", "Product category records."],
+    ["group-tenant-master", "product-types", "Product Types", "/tenant/master/products/product-types", "Product type records."],
+    ["group-tenant-master", "units", "Units", "/tenant/master/products/units", "Product unit records."],
+    ["group-tenant-master", "hsn-codes", "HSN Codes", "/tenant/master/products/hsn-codes", "Product HSN code records."],
+    ["group-tenant-master", "taxes", "Taxes", "/tenant/master/products/taxes", "Product tax records."],
+    ["group-tenant-master", "brands", "Brands", "/tenant/master/products/brands", "Product brand records."],
+    ["group-tenant-master", "colours", "Colours", "/tenant/master/products/colours", "Product colour records."],
+    ["group-tenant-master", "sizes", "Sizes", "/tenant/master/products/sizes", "Product size records."],
+    ["group-tenant-master", "styles", "Styles", "/tenant/master/products/styles", "Product style records."],
+    ["group-tenant-master", "work-orders", "Work Orders", "/tenant/master/work-orders", "Work order master records."],
+    ["group-tenant-billing-entries", "sales", "Sales", "/tenant/billing-entries/sales", "Sales entry records."],
+    ["group-tenant-billing-entries", "quotations", "Quotations", "/tenant/billing-entries/quotations", "Quotation entry records."],
+    ["group-tenant-billing-entries", "export-sales", "Export Sales", "/tenant/billing-entries/export-sales", "Export sales entry records."],
+    ["group-tenant-billing-entries", "purchases", "Purchases", "/tenant/billing-entries/purchases", "Purchase entry records."],
+    ["group-tenant-billing-entries", "receipts", "Receipts", "/tenant/billing-entries/receipts", "Receipt entry records."],
+    ["group-tenant-billing-entries", "payments", "Payments", "/tenant/billing-entries/payments", "Payment entry records."],
+    ["group-tenant-stock", "purchase-receipts", "Purchase Receipts", "/tenant/stock/purchase-receipts", "Purchase receipt stock records."],
+    ["group-tenant-stock", "delivery-notes", "Delivery Notes", "/tenant/stock/delivery-notes", "Delivery note stock records."],
+    ["group-tenant-stock", "stock-ledger", "Stock Ledger", "/tenant/stock/stock-ledger", "Stock ledger records."],
+    ["group-tenant-accounts", "accounts", "Accounts", "/tenant/accounts/accounts", "Accounts and report records."],
+    ["group-tenant-accounts", "entry-posting-control", "Entry Posting Control", "/tenant/accounts/entry-posting-control", "Entry posting control records."],
+    ["group-tenant-settings", "company-settings", "Company Settings", "/tenant/settings/company-settings", "Company settings records."],
+    ["group-tenant-settings", "document-settings", "Document Settings", "/tenant/settings/document-settings", "Document numbering settings records."],
+    ["group-tenant-gst", "gst-compliance", "GST Compliance", "/tenant/gst/gst-compliance", "GST compliance records."],
+    ["group-tenant-media", "media-assets", "Media Assets", "/tenant/media/media-assets", "Media asset records."],
+    ["group-tenant-mail", "mail", "Mail", "/tenant/mail/mail", "Mail records."],
+    ["group-tenant-task-manager", "tasks", "Tasks", "/tenant/task-manager/tasks", "Task manager records."],
+    ["group-tenant-crm", "crm", "CRM", "/tenant/crm/crm", "CRM records."],
+    ["group-tenant-tally", "tally", "Tally", "/tenant/tally/tally", "Tally integration records."],
+    ["group-tenant-frappe", "frappe", "Frappe", "/tenant/frappe/frappe", "Frappe integration records."],
+    ["group-tenant-tconnect", "tconnect-source", "TConnect Source", "/tenant/tconnect/tconnect-source", "TConnect source marketplace records."],
+    ["group-tenant-tconnect", "tconnect-publications", "TConnect Publications", "/tenant/tconnect/tconnect-publications", "TConnect publication records."],
+    ["group-tenant-tconnect", "tconnect-marketplace", "TConnect Marketplace", "/tenant/tconnect/tconnect-marketplace", "TConnect central marketplace records."],
+    ["group-tenant-ecommerce", "ecommerce", "Ecommerce", "/tenant/ecommerce/ecommerce", "Ecommerce records."],
+    ["group-tenant-auditor", "auditor-contact-credentials", "Auditor Contact Credentials", "/tenant/auditor/auditor-contact-credentials", "Auditor contact credential records."],
+    ["group-tenant-auditor", "auditor-gst-filings", "Auditor GST Filings", "/tenant/auditor/auditor-gst-filings", "Auditor GST filing records."],
+    ["group-tenant-sites", "site-sliders", "Site Sliders", "/tenant/sites/site-sliders", "Tenant site slider records."],
+    ["group-tenant-sites", "blog", "Blog", "/tenant/sites/blog", "Tenant blog records."]
+  ] as const;
+  const counters = new Map<string, number>();
+
+  return rows.map(([moduleGroupId, moduleKey, name, routePath, description]) => {
+    const next = (counters.get(moduleGroupId) ?? 0) + 1;
+    counters.set(moduleGroupId, next);
+    const id = `module-${moduleGroupId.replace("group-", "")}-${moduleKey}`;
+    return withStatus({
+      active: true,
+      description,
+      id,
+      moduleGroupId,
+      moduleKey,
+      moduleType: parentModuleIdFor(moduleKey) ? "module" : areaModuleKeys.has(moduleKey) ? "area" : "module",
+      name,
+      parentModuleId: parentModuleIdFor(moduleKey),
+      routePath,
+      sortOrder: next * 10,
+      updatedAt
+    });
+  });
+}
+
+const areaModuleKeys = new Set(["companies", "contacts", "products", "work-orders", "locations"]);
+
+function parentModuleIdFor(moduleKey: string) {
+  if (["contact-emails", "contact-phones", "contact-social-links", "contact-bank-accounts", "contact-gst-details"].includes(moduleKey)) return "module-tenant-master-contacts";
+  if (["company-emails", "company-phones", "company-social-links", "company-bank-accounts", "company-logos"].includes(moduleKey)) return "module-tenant-master-companies";
+  if (["product-groups", "product-categories", "product-types", "brands", "colours", "sizes", "styles", "units", "hsn-codes", "taxes"].includes(moduleKey)) return "module-tenant-master-products";
+  if (["countries", "states", "districts", "cities", "pincodes", "destinations"].includes(moduleKey)) return "module-tenant-common-locations";
+  return "";
 }
 
 function seedFeatures(): ProjectManagerFeature[] {

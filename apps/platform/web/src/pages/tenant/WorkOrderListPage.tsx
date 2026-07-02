@@ -3,9 +3,9 @@ import { TenantRecordWorkspace, type TenantFormField } from "./TenantRecordWorks
 type WorkOrderRecord = {
   code: string
   description?: string
+  id: string
+  isActive: boolean
   name: string
-  orderId: string
-  status: "active" | "archived"
 }
 
 const fields: TenantFormField[] = [
@@ -17,21 +17,24 @@ const fields: TenantFormField[] = [
 export function WorkOrderListPage({ onBack }: { onBack?: () => void }) {
   return (
     <TenantRecordWorkspace<WorkOrderRecord>
-      archiveEndpoint={(record) => `/core/orders/${record.orderId}/archive`}
+      archiveEndpoint={(record) => `/core/common/records/${record.id}/archive?definitionKey=work-orders`}
       createPayload={(form) => ({
+        definitionKey: "work-orders",
         code: form.code ?? "",
         name: form.name ?? "",
         description: form.description || undefined,
       })}
       description="Manage work orders and service requests."
-      endpoint="/core/orders"
+      endpoint="/core/common/records"
       fields={fields}
-      getId={(record) => record.orderId}
+      getId={(record) => record.id}
       getRowMeta={(record) => [record.description ?? ""]}
+      getStatus={(record) => (record.isActive ? "active" : "archived")}
+      listEndpoint="/core/common/records?definitionKey=work-orders"
       newLabel="New work order"
       onBack={onBack}
       queryKey={["tenant", "work-orders"]}
-      restoreEndpoint={(record) => `/core/orders/${record.orderId}/restore`}
+      restoreEndpoint={(record) => `/core/common/records/${record.id}/restore?definitionKey=work-orders`}
       searchFields={["code", "name", "description"]}
       tabs={[
         { value: "details", label: "Details", fields: ["code", "name"] },
@@ -42,13 +45,14 @@ export function WorkOrderListPage({ onBack }: { onBack?: () => void }) {
         code: record?.code ?? "",
         name: record?.name ?? "",
         description: record?.description ?? "",
-        isActive: record?.status === "archived" ? "false" : "true",
+        isActive: record?.isActive === false ? "false" : "true",
       })}
       updatePayload={(form) => ({
+        definitionKey: "work-orders",
+        code: form.code ?? "",
         name: form.name ?? "",
         description: form.description || undefined,
       })}
     />
   )
 }
-

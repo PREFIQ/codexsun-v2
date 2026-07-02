@@ -40,12 +40,6 @@ const healthRoute = createRoute({
   path: "/status"
 });
 
-const designSystemRoute = createRoute({
-  component: DesignSystemPage,
-  getParentRoute: () => rootRoute,
-  path: "/design-system"
-});
-
 const tenantLoginRoute = createRoute({
   component: () => <LoginPage desk="tenant" title="Tenant Login" />,
   getParentRoute: () => rootRoute,
@@ -94,6 +88,12 @@ const tenantModuleRoute = createRoute({
   path: "/tenant/$tenantPage"
 });
 
+const tenantSplatRoute = createRoute({
+  component: TenantDesk,
+  getParentRoute: () => rootRoute,
+  path: "/tenant/$"
+});
+
 const appRoute = createRoute({
   component: TenantDesk,
   getParentRoute: () => rootRoute,
@@ -104,6 +104,12 @@ const appModuleRoute = createRoute({
   component: TenantDesk,
   getParentRoute: () => rootRoute,
   path: "/app/$tenantPage"
+});
+
+const appSplatRoute = createRoute({
+  component: TenantDesk,
+  getParentRoute: () => rootRoute,
+  path: "/app/$"
 });
 
 const workspaceRoute = createRoute({
@@ -133,7 +139,6 @@ const entryListRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   homeRoute,
   healthRoute,
-  designSystemRoute,
   tenantLoginRoute,
   saLoginRoute,
   adminLoginRoute,
@@ -141,9 +146,9 @@ const routeTree = rootRoute.addChildren([
   saModuleRoute,
   adminRoute,
   tenantRoute,
-  tenantModuleRoute,
+  tenantSplatRoute,
   appRoute,
-  appModuleRoute,
+  appSplatRoute,
   workspaceRoute,
   commonListRoute,
   masterListRoute,
