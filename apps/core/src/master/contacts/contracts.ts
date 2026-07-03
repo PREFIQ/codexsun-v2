@@ -52,6 +52,7 @@ export type ContactBankAccount = {
   contactId: string;
   bankName?: string;
   accountNumber?: string;
+  accountTypeId?: string;
   accountHolderName?: string;
   ifsc?: string;
   branch?: string;

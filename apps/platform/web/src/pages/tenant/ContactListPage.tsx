@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { ArrowLeft, CheckCircle2, Plus, RefreshCw, Save, Send, Trash2, X } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Plus, RefreshCw, Save, Trash2, X } from "lucide-react"
 import { Button } from "@codexsun/ui/components/button"
 import { Input } from "@codexsun/ui/components/input"
 import { Label } from "@codexsun/ui/components/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@codexsun/ui/components/select"
-import { Switch } from "@codexsun/ui/components/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@codexsun/ui/components/tabs"
 import { Textarea } from "@codexsun/ui/components/textarea"
 import { WorkspacePage } from "@codexsun/ui/workspace"
@@ -58,6 +57,7 @@ type ContactBankAccount = {
   uuid?: string
   bankName: string
   accountNumber: string
+  accountTypeId?: string
   accountHolderName: string
   ifsc: string
   branch: string
@@ -105,6 +105,8 @@ type ContactRecord = {
   updatedAt?: string
 }
 
+type LookupRecord = { id: string; code?: string; description?: string; isActive?: boolean; name?: string; [key: string]: unknown }
+
 type ContactForm = {
   contactId: string
   code: string
@@ -124,7 +126,6 @@ type ContactForm = {
   website: string
   description: string
   isActive: boolean
-  resyncTally: boolean
   contactEmails: ContactEmail[]
   contactPhones: ContactPhone[]
   addressBook: AddressBookEntry[]
@@ -144,8 +145,6 @@ const contactTabs: Array<[string, string]> = [
   ["finance", "Finance"],
   ["more", "More"],
 ]
-
-type LookupRecord = { id: string; code?: string; description?: string; name?: string }
 
 export function ContactListPage({ onBack }: { onBack?: () => void }) {
   const queryClient = useQueryClient()
@@ -266,7 +265,7 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
               <tr className="border-b bg-muted/45 text-left text-xs font-semibold uppercase text-muted-foreground">
                 <th className="px-4 py-3">Code</th>
                 <th className="px-4 py-3">Contact</th>
-                <th className="px-4 py-3">Ledger</th>
+                <th className="px-4 py-3">Contact Type</th>
                 <th className="px-4 py-3">Phone</th>
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">GSTIN</th>
@@ -275,9 +274,17 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
               </tr>
             </thead>
             <tbody>
-              {filteredContacts.map((contact, index) => (
+              {filteredContacts.map((contact) => (
                 <tr key={contact.contactId} className="border-b last:border-0">
-                  <td className="px-4 py-3 font-mono text-xs uppercase">{contact.code}</td>
+                  <td className="px-4 py-3">
+                    <button
+                      className="cursor-pointer font-mono text-xs uppercase underline-offset-4 hover:underline"
+                      type="button"
+                      onClick={() => openShow(contact)}
+                    >
+                      {contact.code}
+                    </button>
+                  </td>
                   <td className="px-4 py-3">
                     <button
                       className="cursor-pointer text-left font-semibold text-foreground underline-offset-4 hover:underline"
@@ -308,7 +315,7 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
               ))}
               {!filteredContacts.length ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
                     No contacts found.
                   </td>
                 </tr>
@@ -380,7 +387,6 @@ function ContactShowPage({
             ["Legal name", record.legalName],
             ["Contact type", lookupLabel(contactTypeLabels, record.contactTypeId)],
             ["Contact group", lookupLabel(contactGroupLabels, record.contactGroupId)],
-            ["Ledger", record.ledgerName || lookupLabel(contactTypeLabels, record.contactTypeId)],
             ["Website", record.website],
             ["Description", record.description],
             ["Status", <WorkspaceStatusBadge key="status" label={record.status} tone={record.status === "active" ? "success" : "danger"} />],
@@ -420,7 +426,7 @@ function ContactShowPage({
           rows={(record.contactBankAccounts ?? []).map((bank) => [
             bank.bankName || "-",
             bank.accountNumber || "",
-            bank.isPrimary ? "Primary" : "",
+            bank.accountTypeId || (bank.isPrimary ? "Primary" : ""),
           ])}
         />
         <MiniList
@@ -651,10 +657,43 @@ function ContactUpsertPage({
                       <TextField label="Address line 1" value={address.addressLine1} onChange={(value) => updateArray(setForm, "addressBook", index, { addressLine1: value })} />
                     </div>
                     <TextField className="md:col-span-2" label="Address line 2" value={address.addressLine2} onChange={(value) => updateArray(setForm, "addressBook", index, { addressLine2: value })} />
-                    <LookupField definitionKey="countries" label="Country" value={address.countryId} onChange={(value) => updateArray(setForm, "addressBook", index, { countryId: value })} />
-                    <LookupField definitionKey="states" label="State" value={address.stateId} onChange={(value) => updateArray(setForm, "addressBook", index, { stateId: value })} />
-                    <LookupField definitionKey="districts" label="District" value={address.districtId} onChange={(value) => updateArray(setForm, "addressBook", index, { districtId: value })} />
-                    <LookupField definitionKey="cities" label="City" value={address.cityId} onChange={(value) => updateArray(setForm, "addressBook", index, { cityId: value })} />
+                    <LookupField
+                      definitionKey="countries"
+                      label="Country"
+                      value={address.countryId}
+                      createPayload={(name) => ({ code: codeFromName(name) })}
+                      onChange={(value) => updateArray(setForm, "addressBook", index, { countryId: value, stateId: "", districtId: "", cityId: "" })}
+                    />
+                    <LookupField
+                      createEnabled={Boolean(address.countryId)}
+                      createPayload={(name) => ({ code: codeFromName(name), countryId: address.countryId })}
+                      definitionKey="states"
+                      emptyLabel={address.countryId ? "No states found." : "Select country first."}
+                      filterRecord={(record) => sameId(record.countryId, address.countryId)}
+                      label="State"
+                      value={address.stateId}
+                      onChange={(value) => updateArray(setForm, "addressBook", index, { stateId: value, districtId: "", cityId: "" })}
+                    />
+                    <LookupField
+                      createEnabled={Boolean(address.stateId)}
+                      createPayload={() => ({ stateId: address.stateId })}
+                      definitionKey="districts"
+                      emptyLabel={address.stateId ? "No districts found." : "Select state first."}
+                      filterRecord={(record) => sameId(record.stateId, address.stateId)}
+                      label="District"
+                      value={address.districtId}
+                      onChange={(value) => updateArray(setForm, "addressBook", index, { districtId: value, cityId: "" })}
+                    />
+                    <LookupField
+                      createEnabled={Boolean(address.districtId)}
+                      createPayload={() => ({ districtId: address.districtId })}
+                      definitionKey="cities"
+                      emptyLabel={address.districtId ? "No cities found." : "Select district first."}
+                      filterRecord={(record) => sameId(record.districtId, address.districtId)}
+                      label="City"
+                      value={address.cityId}
+                      onChange={(value) => updateArray(setForm, "addressBook", index, { cityId: value })}
+                    />
                     <LookupField definitionKey="pincodes" label="Pincode" value={address.pincodeId} onChange={(value) => updateArray(setForm, "addressBook", index, { pincodeId: value })} />
                     <StatusCard label="Default address" checked={address.isDefault} onChange={(value) => updatePrimary(setForm, "addressBook", index, value, "isDefault")} />
                   </div>
@@ -674,6 +713,12 @@ function ContactUpsertPage({
                       value={bank.bankName}
                       storeLabel
                       onChange={(value) => updateArray(setForm, "contactBankAccounts", index, { bankName: value })}
+                    />
+                    <LookupField
+                      definitionKey="bank-account-types"
+                      label="Account type"
+                      value={bank.accountTypeId ?? ""}
+                      onChange={(value) => updateArray(setForm, "contactBankAccounts", index, { accountTypeId: value })}
                     />
                     <div className="grid grid-cols-[1fr_auto] items-end gap-3">
                       <TextField label="Account number" value={bank.accountNumber} onChange={(value) => updateArray(setForm, "contactBankAccounts", index, { accountNumber: value })} />
@@ -715,11 +760,6 @@ function ContactUpsertPage({
             <Save className="size-4" />
             Save
           </Button>
-          <div className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium">
-            <Switch checked={form.resyncTally} onCheckedChange={(resyncTally) => updateForm(setForm, { resyncTally })} />
-            <Send className="size-4 text-muted-foreground" />
-            Resync to Tally after save
-          </div>
           <Button type="button" variant="outline" onClick={onCancel}>
             <X className="size-4" />
             Cancel
@@ -732,16 +772,24 @@ function ContactUpsertPage({
 }
 
 function LookupField({
+  createEnabled = true,
+  createPayload,
   definitionKey,
+  emptyLabel,
   error,
+  filterRecord,
   label,
   onChange,
   required,
   storeLabel = false,
   value,
 }: {
+  createEnabled?: boolean | undefined
+  createPayload?: ((name: string) => Record<string, unknown>) | undefined
   definitionKey: string
+  emptyLabel?: string | undefined
   error?: string | undefined
+  filterRecord?: ((record: LookupRecord) => boolean) | undefined
   label: string
   onChange: (value: string) => void
   required?: boolean | undefined
@@ -751,16 +799,16 @@ function LookupField({
   const queryClient = useQueryClient()
   const lookupQuery = useQuery({
     queryKey: ["tenant", "common-lookup", definitionKey],
-    queryFn: () => apiGet<Array<{ id: string; code?: string; name?: string; description?: string }>>(`/core/common/records?definitionKey=${definitionKey}`, "tenant"),
+    queryFn: () => apiGet<LookupRecord[]>(`/core/common/records?definitionKey=${definitionKey}`, "tenant"),
   })
   const options = useMemo<WorkspaceLookupOption[]>(
     () =>
-      (lookupQuery.data ?? []).map((record) => ({
-        value: record.id,
+      (lookupQuery.data ?? []).filter((record) => record.isActive !== false && (!filterRecord || filterRecord(record))).map((record) => ({
+        value: String(record.id),
         label: record.name ?? record.description ?? record.code ?? record.id,
         ...(record.code ? { meta: record.code } : {}),
       })),
-    [lookupQuery.data],
+    [filterRecord, lookupQuery.data],
   )
 
   return (
@@ -771,13 +819,14 @@ function LookupField({
       </Label>
       <WorkspaceLookup
         createLabel="Create"
-        createMode="inline"
+        createMode={createEnabled ? "inline" : "none"}
+        {...(emptyLabel ? { emptyLabel } : {})}
         loading={lookupQuery.isLoading}
         options={options}
         placeholder=""
         value={value}
         onCreate={async (name) => {
-          const created = await apiPost<{ id: string; code?: string; name?: string; description?: string }>("/core/common/records", { definitionKey, name }, "tenant")
+          const created = await apiPost<LookupRecord>("/core/common/records", { definitionKey, name, ...(createPayload ? createPayload(name) : {}) }, "tenant")
           void queryClient.invalidateQueries({ queryKey: ["tenant", "common-lookup", definitionKey] })
           const option: WorkspaceLookupOption = {
             value: created.id,
@@ -962,7 +1011,6 @@ function contactToForm(record: ContactRecord | null): ContactForm {
     website: record?.website ?? "",
     description: record?.description ?? "",
     isActive: record?.status !== "archived",
-    resyncTally: false,
     contactEmails: normalizeRows(record?.contactEmails, emptyEmail(true)),
     contactPhones: normalizeRows(record?.contactPhones, emptyPhone(true)),
     addressBook: normalizeRows(record?.addressBook, emptyAddress(true)),
@@ -1067,7 +1115,7 @@ function emptyAddress(isDefault = false): AddressBookEntry {
 }
 
 function emptyBank(isPrimary = false): ContactBankAccount {
-  return { id: newId(), uuid: newId(), bankName: "", accountNumber: "", accountHolderName: "", ifsc: "", branch: "", isPrimary, isActive: true }
+  return { id: newId(), uuid: newId(), bankName: "", accountNumber: "", accountTypeId: "", accountHolderName: "", ifsc: "", branch: "", isPrimary, isActive: true }
 }
 
 function emptySocial(): ContactSocialLink {
@@ -1152,6 +1200,10 @@ function commonLookupLabelMap(records: Array<{ id: string; code?: string; descri
 function lookupLabel(labels: Map<string, string>, value: string | undefined) {
   if (!value) return ""
   return labels.get(value) ?? value
+}
+
+function sameId(left: unknown, right: string) {
+  return Boolean(right) && String(left ?? "") === String(right)
 }
 
 function codeFromName(name: string) {

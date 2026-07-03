@@ -115,7 +115,7 @@ Do not put unstable business rules in the shared kernel.
 | `packages/framework` | Shared kernel | DB abstraction, HTTP helpers, errors, modules registry, health check, testing utilities |
 | `packages/platform` | Platform services | Auth, tenants, audit, settings, permissions, roles, subscription (scaffold), users, catalog, notifications, files, activity, agents, templates, API client |
 | `packages/ui` | Design system | React components, layouts, workspace patterns, blocks (sidemenu, tables, forms) |
-| `apps/core` | Master/business modules | Common definitions (30 types), contacts, companies, products — all with in-memory repositories |
+| `apps/core` | Master/business modules | Common definitions, contacts, companies, and products with database-backed tenant records; work orders and generic core records remain temporary |
 | `apps/platform/api` | API gateway + platform routes | Route registration, guard functions (session, tenant, feature, permission), migration runner, DB bootstrap |
 | `apps/platform/web` | React SPA | SA desk, Admin desk, Tenant desk, design system pages, API client integration |
 
@@ -224,7 +224,7 @@ Current registered modules in `platformModuleCatalog`:
 1. **Core owns master data** — All common definitions, contacts, companies, and products live in `apps/core`. Platform no longer has master-data routes.
 2. **Platform owns platform operations** — Tenants, users, audit, settings, auth remain in `packages/platform` + `apps/platform/api`.
 3. **API gateway is the integration point** — `apps/platform/api/src/app.ts` wires together platform services and core services. Core routes get `/core/*` prefix.
-4. **In-memory repositories are temporary** — Core uses in-memory storage for development speed. DB-backed migration is deferred.
+4. **Database-backed master records are required** — Common records, contacts, companies, and products are persisted in the master database with tenant scoping. Remaining temporary in-memory modules must not be promoted to production until they have explicit tables and bootstrap repair.
 5. **No direct core-to-platform dependency** — Core only depends on `packages/framework`. Platform guards are injected via `CoreRouteContext` at API registration time.
 6. **Subscription is scaffold-only** — The `SubscriptionService` class exists but has no real implementation. Full billing integration is deferred.
 7. **Industry scoping is defined but not implemented** — `ModuleScope` includes `"industry"` but no industry modules or tables exist yet.

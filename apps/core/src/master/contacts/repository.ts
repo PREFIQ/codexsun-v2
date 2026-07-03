@@ -301,6 +301,7 @@ export class DatabaseContactRepository implements ContactRepository {
         contactId,
         bankName: String(bank.bank_name ?? ""),
         accountNumber: String(bank.account_number ?? ""),
+        accountTypeId: String(bank.account_type_id ?? ""),
         accountHolderName: String(bank.account_holder_name ?? ""),
         ifsc: String(bank.ifsc ?? ""),
         branch: String(bank.branch ?? ""),
@@ -397,11 +398,11 @@ export class DatabaseContactRepository implements ContactRepository {
     for (const bank of rows) {
       await this.pool.execute(
         `INSERT INTO tenant_contact_bank_accounts (
-           tenant_id, contact_id, uuid, bank_name, account_number, account_holder_name, ifsc, branch, is_primary, is_active
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           tenant_id, contact_id, uuid, bank_name, account_number, account_type_id, account_holder_name, ifsc, branch, is_primary, is_active
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           contact.tenantId, contact.contactId, bank.uuid || crypto.randomUUID(), nullable(bank.bankName), nullable(bank.accountNumber),
-          nullable(bank.accountHolderName), nullable(bank.ifsc), nullable(bank.branch), bank.isPrimary ? 1 : 0, bank.isActive === false ? 0 : 1
+          nullable(bank.accountTypeId), nullable(bank.accountHolderName), nullable(bank.ifsc), nullable(bank.branch), bank.isPrimary ? 1 : 0, bank.isActive === false ? 0 : 1
         ]
       );
     }
@@ -456,7 +457,7 @@ type AddressRow = { id: number | string; uuid: string; address_type_id: string |
 type EmailRow = { id: number | string; uuid: string; email: string | null; email_type: string | null; is_primary: number | boolean; is_active: number | boolean };
 type PhoneRow = { id: number | string; uuid: string; phone_number: string | null; phone_type: string | null; is_primary: number | boolean; is_active: number | boolean };
 type SocialRow = { id: number | string; uuid: string; platform: string | null; url: string | null; is_active: number | boolean };
-type BankRow = { id: number | string; uuid: string; bank_name: string | null; account_number: string | null; account_holder_name: string | null; ifsc: string | null; branch: string | null; is_primary: number | boolean; is_active: number | boolean };
+type BankRow = { id: number | string; uuid: string; bank_name: string | null; account_number: string | null; account_type_id: string | null; account_holder_name: string | null; ifsc: string | null; branch: string | null; is_primary: number | boolean; is_active: number | boolean };
 type GstRow = { id: number | string; uuid: string; gstin: string | null; state: string | null; is_default: number | boolean; is_active: number | boolean };
 
 function contactValues(contact: ContactProfile) {

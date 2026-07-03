@@ -6,8 +6,11 @@ import { cn } from "@codexsun/ui/lib/utils"
 import { apiGet, apiPost } from "../api"
 
 type Props = {
-  emptyLabel?: string
+  createEnabled?: boolean
+  createPayload?: ((name: string) => Record<string, unknown>) | undefined
+  emptyLabel?: string | undefined
   definitionKey: string
+  filterRecord?: ((record: CommonLookupRecord) => boolean) | undefined
   value: string
   onChange: (value: string | null) => void
 }
@@ -19,6 +22,7 @@ type CommonLookupRecord = {
   isActive?: boolean
   name?: string
   ratePercent?: number
+  [key: string]: unknown
 }
 
 type LookupOption = {
@@ -27,10 +31,19 @@ type LookupOption = {
   value: string
 }
 
-export function CommonRecordAutocomplete({ definitionKey, emptyLabel = "No records found.", value, onChange }: Props) {
+export function CommonRecordAutocomplete({
+  createEnabled = true,
+  createPayload,
+  definitionKey,
+  emptyLabel = "No records found.",
+  filterRecord,
+  value,
+  onChange,
+}: Props) {
   const queryClient = useQueryClient()
   const rootRef = useRef<HTMLDivElement | null>(null)
   const [isOpen, setIsOpen] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const [query, setQuery] = useState("")
   const recordsQuery = useQuery({
     queryKey: ["tenant", "common-lookup", definitionKey],
@@ -39,13 +52,13 @@ export function CommonRecordAutocomplete({ definitionKey, emptyLabel = "No recor
   const options = useMemo<LookupOption[]>(
     () =>
       (recordsQuery.data ?? [])
-        .filter((record) => record.isActive !== false)
+        .filter((record) => record.isActive !== false && (!filterRecord || filterRecord(record)))
         .map((record) => ({
           value: String(record.id),
           label: getCommonRecordLabel(record),
           ...(record.code ? { meta: record.code } : {}),
         })),
-    [recordsQuery.data],
+    [filterRecord, recordsQuery.data],
   )
   const selected = useMemo(() => findOption(options, value), [options, value])
   const filtered = useMemo(() => {
@@ -56,7 +69,7 @@ export function CommonRecordAutocomplete({ definitionKey, emptyLabel = "No recor
     )
   }, [options, query])
   const exact = useMemo(() => findOption(options, query), [options, query])
-  const canCreate = Boolean(query.trim() && !exact && !recordsQuery.isLoading)
+  const canCreate = Boolean(createEnabled && query.trim() && !exact && !recordsQuery.isLoading && !isCreating)
 
   useEffect(() => {
     if (isOpen) return
@@ -81,13 +94,18 @@ export function CommonRecordAutocomplete({ definitionKey, emptyLabel = "No recor
   async function createOption() {
     const name = query.trim()
     if (!name) return
-    const created = await apiPost<CommonLookupRecord>("/core/common/records", { definitionKey, name }, "tenant")
-    void queryClient.invalidateQueries({ queryKey: ["tenant", "common-lookup", definitionKey] })
-    selectOption({
-      value: String(created.id),
-      label: getCommonRecordLabel(created),
-      ...(created.code ? { meta: created.code } : {}),
-    })
+    setIsCreating(true)
+    try {
+      const created = await apiPost<CommonLookupRecord>("/core/common/records", { definitionKey, name, ...(createPayload ? createPayload(name) : {}) }, "tenant")
+      void queryClient.invalidateQueries({ queryKey: ["tenant", "common-lookup", definitionKey] })
+      selectOption({
+        value: String(created.id),
+        label: getCommonRecordLabel(created),
+        ...(created.code ? { meta: created.code } : {}),
+      })
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   return (
@@ -150,9 +168,10 @@ export function CommonRecordAutocomplete({ definitionKey, emptyLabel = "No recor
               {option.value === value ? <Check className="size-4 shrink-0 text-primary" strokeWidth={3} /> : <span className="size-4 shrink-0" />}
             </button>
           ))}
-          {canCreate ? (
+          {canCreate || isCreating ? (
             <button
               type="button"
+              disabled={isCreating}
               className={cn("flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-primary transition-colors hover:bg-accent/60")}
               onMouseDown={(event) => {
                 event.preventDefault()
@@ -160,7 +179,7 @@ export function CommonRecordAutocomplete({ definitionKey, emptyLabel = "No recor
               }}
             >
               <Plus className="size-4" />
-              Create "{query.trim()}"
+              {isCreating ? "Creating..." : `Create "${query.trim()}"`}
             </button>
           ) : null}
         </div>

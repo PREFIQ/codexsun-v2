@@ -20,7 +20,7 @@ import {
   CoreDefinitionService, CoreRecordService, InMemoryCoreRecordRepository,
   ContactService as CoreContactService, DatabaseContactRepository as CoreDatabaseContactRepository,
   CompanyService, DatabaseCompanyRepository,
-  ProductService, InMemoryProductRepository,
+  ProductService, DatabaseProductRepository,
   WorkOrderService, InMemoryWorkOrderRepository,
   createAllCommonModuleServices,
   registerAllCoreRoutes
@@ -171,7 +171,7 @@ export async function createApp() {
   const coreContactService = new CoreContactService(coreContactRepository);
   const coreCompanyRepository = new DatabaseCompanyRepository(masterDbPool);
   const coreCompanyService = new CompanyService(coreCompanyRepository);
-  const coreProductRepository = new InMemoryProductRepository();
+  const coreProductRepository = new DatabaseProductRepository(masterDbPool);
   const coreProductService = new ProductService(coreProductRepository);
   const coreWorkOrderRepository = new InMemoryWorkOrderRepository();
   const coreWorkOrderService = new WorkOrderService(coreWorkOrderRepository);

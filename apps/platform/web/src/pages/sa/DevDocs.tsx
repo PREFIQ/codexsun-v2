@@ -8,7 +8,7 @@ const sections = [
   { key: "modules", label: "Module System", content: "Modules are registered in platformModuleCatalog (catalog/contracts.ts). Activation stored in tenant_module_activation table. Feature gates: requireFeatureEnabled checks module activation for a tenant." },
   { key: "migrations", label: "Migrations", content: "MigrationRunner class in db/migration-runner.ts. Migrations are objects with id, description, up function. Master migrations are indexed in master-index.ts. The run command applies pending migrations." },
   { key: "api", label: "API Conventions", content: "All responses use ok()/fail() envelope helpers. Meta includes requestId, optional correlationId, optional tenantId. Routes are registered as Fastify plugins (register*Routes). Core routes use /core/* prefix." },
-  { key: "core", label: "Core App (apps/core)", content: "The core app owns common definitions (30 types), contacts, companies, and products. CoreRouteContext pattern injects platform guards at registration time. In-memory repositories with soft-delete (archive/restore)." },
+  { key: "core", label: "Core App (apps/core)", content: "The core app owns common definitions, contacts, companies, and products with tenant-scoped database persistence. CoreRouteContext pattern injects platform guards at registration time." },
   { key: "boundaries", label: "App Boundaries", content: "apps/core = master modules (owned by core). packages/platform = platform services (tenants, auth, audit, settings). apps/platform/api = API gateway + admin/tenant routes. apps/platform/web = React SPA frontend." },
 ]
 

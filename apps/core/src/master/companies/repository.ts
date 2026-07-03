@@ -39,16 +39,18 @@ export class DatabaseCompanyRepository implements CompanyRepository {
   async create(company: CompanyProfile): Promise<void> {
     await this.pool.execute(
       `INSERT INTO tenant_companies (
-         tenant_id, company_id, legal_name, trade_name, company_group_id, website, logo_url, notes,
+         tenant_id, company_id, legal_name, trade_name, company_group_id, website, logo_url, logo_dark_url, favicon_url, notes,
          status, created_by, updated_by, created_at, updated_at, deleted_at
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          legal_name = VALUES(legal_name),
          trade_name = VALUES(trade_name),
          company_group_id = VALUES(company_group_id),
          website = VALUES(website),
          logo_url = VALUES(logo_url),
+         logo_dark_url = VALUES(logo_dark_url),
+         favicon_url = VALUES(favicon_url),
          notes = VALUES(notes),
          status = VALUES(status),
          updated_by = VALUES(updated_by),
@@ -160,6 +162,8 @@ export class DatabaseCompanyRepository implements CompanyRepository {
       })),
       website: stringOrUndefined(row.website) ?? "",
       logoUrl: stringOrUndefined(row.logo_url) ?? "",
+      logoDarkUrl: stringOrUndefined(row.logo_dark_url) ?? "",
+      faviconUrl: stringOrUndefined(row.favicon_url) ?? "",
       notes: stringOrUndefined(row.notes) ?? "",
       status: row.status === "archived" ? "archived" : "active",
       createdBy: String(row.created_by ?? ""),
@@ -295,6 +299,8 @@ type CompanyRow = {
   company_group_id: string | null;
   website: string | null;
   logo_url: string | null;
+  logo_dark_url: string | null;
+  favicon_url: string | null;
   notes: string | null;
   status: string;
   created_by: string;
@@ -322,6 +328,8 @@ function companyValues(company: CompanyProfile) {
     nullable(company.companyGroupId),
     nullable(company.website),
     nullable(company.logoUrl),
+    nullable(company.logoDarkUrl),
+    nullable(company.faviconUrl),
     nullable(company.notes),
     company.status,
     company.createdBy,

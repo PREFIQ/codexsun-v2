@@ -36,6 +36,38 @@ const commonModules = [
   "sales-account-types",
 ]
 
+const commonSeedModules = [
+  ...commonModules,
+  "company-groups",
+  "address-book",
+  "contact-emails",
+  "contact-phones",
+  "contact-social-links",
+  "contact-bank-accounts",
+  "contact-gst-details",
+  "company-logos",
+  "company-emails",
+  "company-phones",
+  "company-social-links",
+  "company-bank-accounts",
+  "work-orders",
+  "sales",
+  "quotations",
+  "purchases",
+  "receipts",
+  "payments",
+  "purchase-receipts",
+  "delivery-notes",
+  "stock-ledger",
+  "mail",
+  "tasks",
+  "media-assets",
+  "site-sliders",
+  "blog",
+  "company-settings",
+  "document-settings",
+]
+
 const registryRoutes = [
   ["/tenant/foundation/users", "Users"],
   ["/tenant/foundation/rbac-roles", "Roles"],
@@ -108,6 +140,7 @@ test("tenant master and common modules save through UI and stay tenant-isolated"
   collectBrowserErrors(page, browserErrors)
 
   await loginAsTenant(page)
+  await expectCommonDefaultSeeds(page)
 
   await createTenantRecord(page, {
     code: `CON-${suffix}`,
@@ -209,6 +242,7 @@ test("application modules save through UI and keep application desk behaviour", 
 })
 
 async function loginAsTenant(page: Page) {
+  await waitForApiReady(page)
   await page.goto("/login")
   await page.getByLabel("Email").fill("admin@tenant.com")
   await page.getByLabel("Password").fill("admin@123")
@@ -216,6 +250,22 @@ async function loginAsTenant(page: Page) {
   await page.getByRole("button", { name: /Sign in/i }).click()
   await expect(page.getByRole("heading", { name: "Application Desk" })).toBeVisible()
   await expect(page.getByText("Shared workspace, company setup, roles")).toBeVisible()
+}
+
+async function waitForApiReady(page: Page) {
+  await expect
+    .poll(
+      async () => {
+        try {
+          const response = await page.request.get(`${apiBaseUrl}/health`)
+          return response.ok()
+        } catch {
+          return false
+        }
+      },
+      { timeout: 90_000 }
+    )
+    .toBe(true)
 }
 
 function routeForCommonModule(key: string) {
@@ -249,6 +299,32 @@ async function createTenantRecord(
     await expect(inputs.nth(3)).toHaveValue(contactType)
     await inputs.nth(4).fill("0")
     await inputs.nth(5).fill("0")
+    await page.getByRole("tab", { name: "Addresses" }).click()
+    const addressInputs = activePanelInputs(page)
+    await addressInputs.nth(1).fill("Contact line 1")
+    await createLookupValue(page, addressInputs.nth(3), `Contact Country ${input.code}`)
+    await createLookupValue(page, addressInputs.nth(4), `Contact State ${input.code}`)
+    await createLookupValue(page, addressInputs.nth(5), `Contact District ${input.code}`)
+    await createLookupValue(page, addressInputs.nth(6), `Contact City ${input.code}`)
+    await createLookupValue(page, addressInputs.nth(7), `60${Date.now().toString().slice(-4)}`)
+    await page.getByRole("button", { name: /^Save$/ }).click()
+    await expect(page.getByText(input.name).first()).toBeVisible()
+    return
+  }
+  if (input.path.includes("/products")) {
+    await inputs.nth(0).fill(input.name)
+    await inputs.nth(1).fill(input.code)
+    await createLookupValue(page, inputs.nth(2), `Finished Product ${input.code}`)
+    await createLookupValue(page, inputs.nth(3), `600${Date.now().toString().slice(-5)}`)
+    await createLookupValue(page, inputs.nth(4), `Pcs ${input.code}`)
+    await createLookupValue(page, inputs.nth(5), `5.${Date.now().toString().slice(-3)}%`)
+    await page.getByRole("tab", { name: "Image" }).click()
+    const imageBuffer = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="#0f766e"/></svg>')
+    await page.locator('[role="tabpanel"][data-state="active"] input[type="file"]').setInputFiles({ name: "product.svg", mimeType: "image/svg+xml", buffer: imageBuffer })
+    await page.getByRole("tab", { name: "Opening" }).click()
+    const openingInputs = activePanelInputs(page)
+    await openingInputs.nth(0).fill("12")
+    await openingInputs.nth(1).fill("99.50")
     await page.getByRole("button", { name: /^Save$/ }).click()
     await expect(page.getByText(input.name).first()).toBeVisible()
     return
@@ -299,15 +375,20 @@ async function createApplicationCompany(
   await page.getByRole("tab", { name: "Addresses" }).click()
   inputs = activePanelInputs(page)
   await inputs.nth(0).fill("Line 1")
-  await inputs.nth(2).fill("India")
-  await inputs.nth(5).fill("Chennai")
-  await inputs.nth(6).fill("600001")
+  const companyLocationSuffix = Date.now().toString()
+  await createLookupValue(page, inputs.nth(2), `Company Country ${companyLocationSuffix}`)
+  await createLookupValue(page, inputs.nth(3), `Company State ${companyLocationSuffix}`)
+  await createLookupValue(page, inputs.nth(4), `Company District ${companyLocationSuffix}`)
+  await createLookupValue(page, inputs.nth(5), `Company City ${companyLocationSuffix}`)
+  await createLookupValue(page, inputs.nth(6), `61${companyLocationSuffix.slice(-4)}`)
   await page.getByRole("button", { name: /^Add$/ }).click()
   inputs = activePanelInputs(page)
   await inputs.nth(7).fill("Branch line 1")
-  await inputs.nth(9).fill("India")
-  await inputs.nth(12).fill("Coimbatore")
-  await inputs.nth(13).fill("641001")
+  await createLookupValue(page, inputs.nth(9), `Branch Country ${companyLocationSuffix}`)
+  await createLookupValue(page, inputs.nth(10), `Branch State ${companyLocationSuffix}`)
+  await createLookupValue(page, inputs.nth(11), `Branch District ${companyLocationSuffix}`)
+  await createLookupValue(page, inputs.nth(12), `Branch City ${companyLocationSuffix}`)
+  await createLookupValue(page, inputs.nth(13), `62${companyLocationSuffix.slice(-4)}`)
 
   await page.getByRole("tab", { name: "Finance" }).click()
   inputs = activePanelInputs(page)
@@ -320,15 +401,21 @@ async function createApplicationCompany(
   await inputs.nth(4).fill("SBIN0000001")
 
   await page.getByRole("tab", { name: "Logo" }).click()
-  inputs = activePanelInputs(page)
-  await inputs.nth(0).fill("https://example.com/logo.png")
+  const logoInputs = page.locator('[role="tabpanel"][data-state="active"] input[type="file"]')
+  const svgBuffer = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="#111"/></svg>')
+  await logoInputs.nth(0).setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: svgBuffer })
+  await logoInputs.nth(1).setInputFiles({ name: "logo-dark.svg", mimeType: "image/svg+xml", buffer: svgBuffer })
+  await logoInputs.nth(2).setInputFiles({ name: "favicon.svg", mimeType: "image/svg+xml", buffer: svgBuffer })
 
   await page.getByRole("tab", { name: "More" }).click()
   inputs = activePanelInputs(page)
   await inputs.nth(0).fill("https://example.com")
   await inputs.nth(1).fill("https://linkedin.com/company/e2e")
 
+  const saveResponse = page.waitForResponse((response) => response.url().includes("/core/companies") && response.request().method() === "POST")
   await page.getByRole("button", { name: /^Save$/ }).click()
+  const response = await saveResponse
+  expect(response.status(), await response.text()).toBe(200)
   await expect(page.getByRole("row").filter({ hasText: input.legalName })).toBeVisible()
 }
 
@@ -442,16 +529,25 @@ async function switchDefaultCompany(
   await page.getByRole("button", { name: /^Edit switch$/ }).click()
   const selects = page.getByRole("combobox")
   await selects.nth(0).click()
-  await page.getByRole("option", { name: input.companyName }).click()
+  await page.getByRole("option", { name: input.companyName }).dispatchEvent("click")
   await selects.nth(1).click()
-  await page.getByRole("option", { name: input.accountingYear }).click()
+  await page.getByRole("option", { name: input.accountingYear }).dispatchEvent("click")
   await page.getByRole("button", { name: /^Update$/ }).click()
   await expect(page.getByText(input.companyName).first()).toBeVisible()
   await expect(page.getByText(input.accountingYear).first()).toBeVisible()
 }
 
 function activePanelInputs(page: Page) {
-  return page.locator('[role="tabpanel"][data-state="active"] input:not([type="checkbox"])')
+  return page.locator('[role="tabpanel"][data-state="active"] input:not([type="checkbox"]):not([type="file"])')
+}
+
+async function createLookupValue(page: Page, input: ReturnType<Page["locator"]>, value: string) {
+  await input.fill(value)
+  const createButton = page.getByRole("button", { name: `Create "${value}"` })
+  await createButton.click()
+  await expect(page.getByRole("button", { name: "Creating..." })).toHaveCount(0)
+  await expect(createButton).toHaveCount(0)
+  await expect(input).toHaveValue(new RegExp(escapeRegex(value)))
 }
 
 function valueForInput({
@@ -525,6 +621,37 @@ async function expectApiNotContains(page: Page, path: string, field: string, val
   const body = await response.json()
   expect(Array.isArray(body.data)).toBe(true)
   expect(body.data.some((record: Record<string, unknown>) => record[field] === value)).toBe(false)
+}
+
+async function expectCommonDefaultSeeds(page: Page) {
+  const auth = await tenantAuth(page)
+  for (const key of commonSeedModules) {
+    const response = await page.request.get(`${apiBaseUrl}/core/common/records?definitionKey=${key}`, {
+      headers: auth,
+    })
+    expect(response.status(), await response.text()).toBe(200)
+    const body = await response.json()
+    expect(Array.isArray(body.data)).toBe(true)
+    const first = body.data[0] as Record<string, unknown> | undefined
+    expect(first?.id).toBe("common-default-dash")
+    expect(first?.name).toBe("-")
+    expect(first?.isActive).toBe(true)
+    if (key === "countries" || key === "states") {
+      expect(first?.code).toBe("-")
+    }
+    if (key === "states") {
+      expect(first?.countryId).toBe("common-default-dash")
+    }
+    if (key === "districts") {
+      expect(first?.stateId).toBe("common-default-dash")
+    }
+    if (key === "cities") {
+      expect(first?.districtId).toBe("common-default-dash")
+    }
+    if (key === "hsn-codes" || key === "taxes") {
+      expect(first?.description).toBe("-")
+    }
+  }
 }
 
 async function forceDeleteCommonRecord(page: Page, name: string) {

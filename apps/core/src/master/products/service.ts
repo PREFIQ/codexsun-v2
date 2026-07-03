@@ -37,6 +37,9 @@ export class ProductService {
       ...(input.hsnCodeId !== undefined ? { hsnCodeId: input.hsnCodeId } : {}),
       ...(input.unitId !== undefined ? { unitId: input.unitId } : {}),
       ...(input.taxId !== undefined ? { taxId: input.taxId } : {}),
+      imageUrl: input.imageUrl ?? "",
+      openingStock: numberOrZero(input.openingStock),
+      openingPrice: numberOrZero(input.openingPrice),
       status: "active",
       createdBy: input.createdBy,
       createdAt: new Date().toISOString(),
@@ -49,13 +52,22 @@ export class ProductService {
 
   async update(input: ProductUpdateInput): Promise<ProductItem> {
     const existing = await this.getById(input.tenantId, input.itemId);
+    const nextCode = input.code?.trim();
+    if (nextCode && nextCode !== existing.code) {
+      const duplicate = await this.repository.getByCode(input.tenantId, nextCode);
+      if (duplicate && duplicate.itemId !== input.itemId) throw AppError.conflict(`Product with code '${nextCode}' already exists`);
+    }
     const updated: ProductItem = {
       ...existing,
+      ...(nextCode ? { code: nextCode } : {}),
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.productTypeId !== undefined ? { productTypeId: input.productTypeId } : {}),
       ...(input.hsnCodeId !== undefined ? { hsnCodeId: input.hsnCodeId } : {}),
       ...(input.unitId !== undefined ? { unitId: input.unitId } : {}),
       ...(input.taxId !== undefined ? { taxId: input.taxId } : {}),
+      ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
+      ...(input.openingStock !== undefined ? { openingStock: numberOrZero(input.openingStock) } : {}),
+      ...(input.openingPrice !== undefined ? { openingPrice: numberOrZero(input.openingPrice) } : {}),
       updatedBy: input.updatedBy,
       updatedAt: new Date().toISOString()
     };
@@ -75,4 +87,9 @@ export class ProductService {
     if (existing.status === "active") throw AppError.conflict("Product is already active");
     await this.repository.restore(tenantId, itemId);
   }
+}
+
+function numberOrZero(value: unknown) {
+  const numberValue = Number(value ?? 0);
+  return Number.isFinite(numberValue) ? numberValue : 0;
 }

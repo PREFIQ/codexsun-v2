@@ -1,6 +1,8 @@
 import type { CommonRecord } from "./contracts.js";
 import type { CompatibleDbPool } from "@codexsun/framework/db";
 
+const COMMON_DEFAULT_RECORD_ID = "common-default-dash";
+
 export interface CommonRepository<T extends CommonRecord> {
   list(tenantId: string): Promise<T[]>;
   getById(tenantId: string, id: string): Promise<T | null>;
@@ -17,7 +19,7 @@ export class BaseInMemoryRepository<T extends CommonRecord> implements CommonRep
   async list(tenantId: string): Promise<T[]> {
     return this.records
       .filter((r) => r.tenantId === tenantId)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt)) as T[];
+      .sort((a, b) => commonRecordSort(a, b)) as T[];
   }
 
   async getById(tenantId: string, id: string): Promise<T | null> {
@@ -67,8 +69,8 @@ export class DatabaseCommonRepository<T extends CommonRecord> implements CommonR
       `SELECT payload_json, is_active, created_at, updated_at, deleted_at
        FROM tenant_common_records
        WHERE tenant_id = ? AND module_key = ?
-       ORDER BY created_at ASC`,
-      [tenantId, this.moduleKey]
+       ORDER BY CASE WHEN record_id = ? THEN 0 ELSE 1 END, created_at ASC`,
+      [tenantId, this.moduleKey, COMMON_DEFAULT_RECORD_ID]
     );
     return rows.map((row) => rowToRecord<T>(row));
   }
@@ -174,4 +176,10 @@ function toSqlTimestamp(value: string) {
 
 function fromSqlTimestamp(value: Date | string) {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function commonRecordSort(a: CommonRecord, b: CommonRecord) {
+  if (a.id === COMMON_DEFAULT_RECORD_ID && b.id !== COMMON_DEFAULT_RECORD_ID) return -1;
+  if (b.id === COMMON_DEFAULT_RECORD_ID && a.id !== COMMON_DEFAULT_RECORD_ID) return 1;
+  return a.createdAt.localeCompare(b.createdAt);
 }

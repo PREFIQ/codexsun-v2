@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.65
+Current version: 1.0.69
 
-Release tag: v-1.0.65
+Release tag: v-1.0.69
 
-Changelog label: v 1.0.65
+Changelog label: v 1.0.69
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -19,6 +19,89 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 #### App Codebase Changes
 
 Records UI, API, service logic, tooling, and documentation changes.
+
+## v-1.0.69
+
+### [v 1.0.69] 2026-07-02 11:44 pm - Address Lookup Inline Create Fix
+
+#### Database Changes
+
+- Database update: Yes (auto-check).
+- Widened Company address `pincode` storage to `VARCHAR(80)` so lookup IDs can be saved safely.
+- Added bootstrap repair for existing Company address pincode columns.
+- Added idempotent bootstrap seeding for the `common-default-dash` record across all tenant common lookup modules.
+- Seeded required dash payload fields for Country, State, District, City, HSN, Tax, Priority, and Accounting Year so mandatory foreign references can safely map to `-`.
+- Added `tenant_products` persistence with image, opening stock, opening price, status, and lookup reference fields.
+- Added bootstrap repair for existing Product lookup/image/opening columns.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.69`.
+- Fixed Contact and Company Country inline create by sending the required generated country code.
+- Hardened shared lookup controls so inline create waits for the record to be created and selected before the next dependent field is used.
+- Ordered common lookup repositories so the system dash record is always returned first without relying on database timestamp behavior.
+- Hardened tenant UI e2e login to wait for API readiness before submitting credentials.
+- Added tenant UI e2e coverage that verifies the dash seed is first for all common lookup modules.
+- Replaced Product runtime storage with `DatabaseProductRepository` so Product records persist after app restart.
+- Removed the old `InMemoryProductRepository` Product implementation/export so Product can no longer be accidentally wired to memory storage.
+- Flattened the Product form to Details, Image, and Opening tabs with inline-create lookups for Product Type, HSN Code, Unit, and GST.
+- Extended Product e2e coverage to create inline lookup values, upload a Product SVG image, and save opening stock/price.
+- Extended tenant UI e2e to create Country, State, District, City, and Pincode from the frontend in both Contact and Company address forms.
+- Stabilized default-company selection in e2e when many historical test companies exist.
+- Verified core, API, UI, web type checks and tenant module e2e after the address lookup fix.
+
+## v-1.0.68
+
+### [v 1.0.68] 2026-07-02 11:05 pm - Company Logo Uploads
+
+#### Database Changes
+
+- Database update: Yes (auto-check).
+- Changed Company `logo_url` storage to `LONGTEXT` for persisted image uploads.
+- Added Company `logo_dark_url` and `favicon_url` columns with bootstrap repair for existing tenant databases.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.68`.
+- Added backend contract, API route, service, and repository wiring for Company logo, dark logo, and favicon values.
+- Replaced the Company Logo URL field with three SVG/PNG image upload controls for Logo, Logo dark, and Favicon.
+- Added image previews and remove actions for each Company logo slot.
+- Verified core, API, web type checks and tenant module e2e after the Company logo upload wiring.
+
+## v-1.0.67
+
+### [v 1.0.67] 2026-07-02 10:56 pm - Company Address Lookup Sequence
+
+#### Database Changes
+
+- Database update: No schema change.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.67`.
+- Extended the shared common-record autocomplete so inline create can pass parent reference data and filter dependent records.
+- Reworked Company address lookups so State depends on Country, District depends on State, City depends on District, and Pincode stays independent.
+- Kept inline create available for Company address lookups and now writes the correct parent reference when creating State, District, or City.
+- Updated the Company list to show Company Group and GSTIN in the main table.
+- Verified web type checks after the Company lookup sequence update.
+
+## v-1.0.66
+
+### [v 1.0.66] 2026-07-02 10:49 pm - Contact Lookup and Bank Account Type
+
+#### Database Changes
+
+- Database update: Yes (auto-check).
+- Added `account_type_id` to tenant contact bank accounts and wired bootstrap repair so existing tenant databases keep the new bank account type field without data reset.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.66`.
+- Reworked Contact address lookups so State depends on Country, District depends on State, City depends on District, and Pincode stays independent.
+- Kept inline create available for Contact address lookups and now writes the correct parent reference when creating State, District, or City.
+- Changed the Contact list to open Show from the contact code, removed Ledger from the list, and added Contact Type plus GSTIN.
+- Added Account Type lookup to Contact bank accounts and persisted it through backend save/load.
+- Verified core, API, web, and tenant module e2e checks after the Contact lookup and bank account update.
 
 ## v-1.0.65
 

@@ -4,6 +4,73 @@ import { env } from "../env.js";
 import { MigrationRunner } from "./migration-runner.js";
 import { masterMigrations } from "./migrations/master-index.js";
 
+const COMMON_DEFAULT_RECORD_ID = "common-default-dash";
+const COMMON_DEFAULT_CREATED_AT = "2000-01-01T00:00:00.000Z";
+const COMMON_DEFAULT_CREATED_AT_SQL = "2000-01-01 00:00:00";
+const COMMON_DEFAULT_MODULE_KEYS = Array.from(
+  new Set([
+    "countries",
+    "states",
+    "districts",
+    "cities",
+    "pincodes",
+    "contact-groups",
+    "contact-types",
+    "company-groups",
+    "address-types",
+    "bank-names",
+    "bank-account-types",
+    "product-groups",
+    "product-categories",
+    "product-types",
+    "units",
+    "hsn-codes",
+    "taxes",
+    "brands",
+    "colours",
+    "sizes",
+    "styles",
+    "order-types",
+    "transports",
+    "warehouses",
+    "destinations",
+    "stock-rejection-types",
+    "currencies",
+    "priorities",
+    "payment-terms",
+    "accounting-year",
+    "months",
+    "sales-account-types",
+    "address-book",
+    "contact-emails",
+    "contact-phones",
+    "contact-social-links",
+    "contact-bank-accounts",
+    "contact-gst-details",
+    "company-logos",
+    "company-emails",
+    "company-phones",
+    "company-social-links",
+    "company-bank-accounts",
+    "work-orders",
+    "sales",
+    "quotations",
+    "purchases",
+    "receipts",
+    "payments",
+    "purchase-receipts",
+    "delivery-notes",
+    "stock-ledger",
+    "mail",
+    "tasks",
+    "media-assets",
+    "site-sliders",
+    "blog",
+    "company-settings",
+    "document-settings"
+  ])
+);
+
 type DbStatus = {
   error?: {
     code: string;
@@ -145,6 +212,8 @@ async function migrateMasterDatabase() {
      ON DUPLICATE KEY UPDATE tenant_id = tenant_id`,
     [tenantId]
   );
+
+  await seedCommonDefaultRecords(db);
 
   await db.end();
 }
@@ -400,6 +469,7 @@ async function repairMasterTenantSchema(db: ServerConnection) {
       uuid VARCHAR(80) NOT NULL,
       bank_name VARCHAR(180) NULL,
       account_number VARCHAR(80) NULL,
+      account_type_id VARCHAR(80) NULL,
       account_holder_name VARCHAR(180) NULL,
       ifsc VARCHAR(40) NULL,
       branch VARCHAR(180) NULL,
@@ -409,6 +479,43 @@ async function repairMasterTenantSchema(db: ServerConnection) {
       KEY ix_tenant_contact_bank_accounts_contact (tenant_id, contact_id)
     )
   `);
+  await ensureColumn(db, "tenant_contact_bank_accounts", "account_type_id", "VARCHAR(80) NULL");
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_products (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      tenant_id VARCHAR(120) NOT NULL,
+      item_id VARCHAR(80) NOT NULL,
+      code VARCHAR(80) NOT NULL,
+      name VARCHAR(220) NOT NULL,
+      product_type_id VARCHAR(80) NULL,
+      hsn_code_id VARCHAR(80) NULL,
+      unit_id VARCHAR(80) NULL,
+      tax_id VARCHAR(80) NULL,
+      image_url LONGTEXT NULL,
+      opening_stock DECIMAL(14,3) NOT NULL DEFAULT 0,
+      opening_price DECIMAL(14,2) NOT NULL DEFAULT 0,
+      status VARCHAR(30) NOT NULL DEFAULT 'active',
+      created_by VARCHAR(190) NOT NULL,
+      updated_by VARCHAR(190) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP NULL,
+      UNIQUE KEY uq_tenant_products_item (tenant_id, item_id),
+      UNIQUE KEY uq_tenant_products_code (tenant_id, code),
+      KEY ix_tenant_products_name (tenant_id, name),
+      KEY ix_tenant_products_status (tenant_id, status)
+    )
+  `);
+  await ensureColumn(db, "tenant_products", "product_type_id", "VARCHAR(80) NULL");
+  await ensureColumn(db, "tenant_products", "hsn_code_id", "VARCHAR(80) NULL");
+  await ensureColumn(db, "tenant_products", "unit_id", "VARCHAR(80) NULL");
+  await ensureColumn(db, "tenant_products", "tax_id", "VARCHAR(80) NULL");
+  await ensureColumn(db, "tenant_products", "image_url", "LONGTEXT NULL");
+  await ensureColumn(db, "tenant_products", "opening_stock", "DECIMAL(14,3) NOT NULL DEFAULT 0");
+  await ensureColumn(db, "tenant_products", "opening_price", "DECIMAL(14,2) NOT NULL DEFAULT 0");
+  await ensureColumn(db, "tenant_products", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+  await ensureColumn(db, "tenant_products", "deleted_at", "TIMESTAMP NULL");
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS tenant_contact_social_links (
@@ -448,7 +555,9 @@ async function repairMasterTenantSchema(db: ServerConnection) {
       trade_name VARCHAR(180) NULL,
       company_group_id VARCHAR(80) NULL,
       website VARCHAR(220) NULL,
-      logo_url VARCHAR(260) NULL,
+      logo_url LONGTEXT NULL,
+      logo_dark_url LONGTEXT NULL,
+      favicon_url LONGTEXT NULL,
       notes TEXT NULL,
       status VARCHAR(30) NOT NULL DEFAULT 'active',
       created_by VARCHAR(190) NOT NULL,
@@ -462,6 +571,9 @@ async function repairMasterTenantSchema(db: ServerConnection) {
     )
   `);
   await ensureColumn(db, "tenant_companies", "company_group_id", "VARCHAR(80) NULL");
+  await ensureColumn(db, "tenant_companies", "logo_dark_url", "LONGTEXT NULL");
+  await ensureColumn(db, "tenant_companies", "favicon_url", "LONGTEXT NULL");
+  await db.execute("ALTER TABLE `tenant_companies` MODIFY COLUMN `logo_url` LONGTEXT NULL");
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS tenant_company_phones (
@@ -504,7 +616,7 @@ async function repairMasterTenantSchema(db: ServerConnection) {
       state VARCHAR(120) NULL,
       district VARCHAR(120) NULL,
       city VARCHAR(120) NULL,
-      pincode VARCHAR(30) NULL,
+      pincode VARCHAR(80) NULL,
       gst_state_code VARCHAR(20) NULL,
       is_default TINYINT(1) NOT NULL DEFAULT 0,
       address_type VARCHAR(80) NOT NULL DEFAULT 'Registered',
@@ -513,6 +625,7 @@ async function repairMasterTenantSchema(db: ServerConnection) {
       KEY ix_tenant_company_addresses_company (tenant_id, company_id)
     )
   `);
+  await db.execute("ALTER TABLE `tenant_company_addresses` MODIFY COLUMN `pincode` VARCHAR(80) NULL");
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS tenant_company_bank_accounts (
@@ -583,6 +696,117 @@ async function ensureIndex(db: ServerConnection, tableName: string, indexName: s
       }
     }
   }
+}
+
+async function seedCommonDefaultRecords(db: ServerConnection) {
+  const [tenantRows] = await db.execute<Array<{ id: number | string }>>("SELECT id FROM tenants");
+  const now = new Date().toISOString();
+  const nowSql = now.slice(0, 19).replace("T", " ");
+
+  for (const tenant of tenantRows) {
+    const tenantId = String(tenant.id);
+    for (const moduleKey of COMMON_DEFAULT_MODULE_KEYS) {
+      const payload = commonDefaultPayload(moduleKey, tenantId, now);
+      await db.execute(
+        `INSERT INTO tenant_common_records
+           (tenant_id, module_key, record_id, is_active, payload_json, created_at, updated_at, deleted_at)
+         VALUES (?, ?, ?, 1, ?, ?, ?, NULL)
+         ON DUPLICATE KEY UPDATE
+           is_active = 1,
+           payload_json = VALUES(payload_json),
+           created_at = VALUES(created_at),
+           updated_at = VALUES(updated_at),
+           deleted_at = NULL`,
+        [
+          tenantId,
+          moduleKey,
+          COMMON_DEFAULT_RECORD_ID,
+          JSON.stringify(payload),
+          COMMON_DEFAULT_CREATED_AT_SQL,
+          nowSql
+        ]
+      );
+    }
+  }
+}
+
+function commonDefaultPayload(moduleKey: string, tenantId: string, updatedAt: string) {
+  const base: Record<string, unknown> = {
+    id: COMMON_DEFAULT_RECORD_ID,
+    tenantId,
+    name: "-",
+    isActive: true,
+    isDefault: true,
+    isSystemDefault: true,
+    createdAt: COMMON_DEFAULT_CREATED_AT,
+    updatedAt
+  };
+
+  if (moduleKey === "countries") {
+    return {
+      ...base,
+      code: "-",
+      phoneCode: "-"
+    };
+  }
+
+  if (moduleKey === "states") {
+    return {
+      ...base,
+      code: "-",
+      countryId: COMMON_DEFAULT_RECORD_ID
+    };
+  }
+
+  if (moduleKey === "districts") {
+    return {
+      ...base,
+      stateId: COMMON_DEFAULT_RECORD_ID
+    };
+  }
+
+  if (moduleKey === "cities") {
+    return {
+      ...base,
+      districtId: COMMON_DEFAULT_RECORD_ID
+    };
+  }
+
+  if (moduleKey === "hsn-codes") {
+    return {
+      ...base,
+      code: "-",
+      description: "-"
+    };
+  }
+
+  if (moduleKey === "taxes") {
+    return {
+      ...base,
+      ratePercent: 0,
+      description: "-"
+    };
+  }
+
+  if (moduleKey === "priorities") {
+    return {
+      ...base,
+      colour: "-",
+      tag: "-"
+    };
+  }
+
+  if (moduleKey === "accounting-year") {
+    return {
+      ...base,
+      startDate: "-",
+      endDate: "-",
+      booksStart: "-",
+      isCurrentYear: false
+    };
+  }
+
+  return base;
 }
 
 async function migrateTenantDatabase() {

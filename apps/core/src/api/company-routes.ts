@@ -31,7 +31,7 @@ export async function registerCoreCompanyRoutes(app: FastifyInstance, ctx: CoreR
       legalName: string; tradeName?: string; companyGroupId?: string;
       phone?: any[]; email?: any[]; addresses?: any[];
       bankAccounts?: any[]; taxIdentities?: any[];
-      website?: string; logoUrl?: string; notes?: string;
+      website?: string; logoUrl?: string; logoDarkUrl?: string; faviconUrl?: string; notes?: string;
     };
     const company = await app.coreCompanyService.create({
       tenantId, legalName: body.legalName,
@@ -44,6 +44,8 @@ export async function registerCoreCompanyRoutes(app: FastifyInstance, ctx: CoreR
       ...(body.taxIdentities !== undefined ? { taxIdentities: body.taxIdentities } : {}),
       ...(body.website !== undefined ? { website: body.website } : {}),
       ...(body.logoUrl !== undefined ? { logoUrl: body.logoUrl } : {}),
+      ...(body.logoDarkUrl !== undefined ? { logoDarkUrl: body.logoDarkUrl } : {}),
+      ...(body.faviconUrl !== undefined ? { faviconUrl: body.faviconUrl } : {}),
       ...(body.notes !== undefined ? { notes: body.notes } : {}),
       createdBy: session.email
     });
@@ -68,7 +70,7 @@ export async function registerCoreCompanyRoutes(app: FastifyInstance, ctx: CoreR
       legalName?: string; tradeName?: string; companyGroupId?: string;
       phone?: any[]; email?: any[]; addresses?: any[];
       bankAccounts?: any[]; taxIdentities?: any[];
-      website?: string; logoUrl?: string; notes?: string;
+      website?: string; logoUrl?: string; logoDarkUrl?: string; faviconUrl?: string; notes?: string;
     };
     const company = await app.coreCompanyService.update({
       tenantId, companyId: id,
@@ -82,6 +84,8 @@ export async function registerCoreCompanyRoutes(app: FastifyInstance, ctx: CoreR
       ...(body.taxIdentities !== undefined ? { taxIdentities: body.taxIdentities } : {}),
       ...(body.website !== undefined ? { website: body.website } : {}),
       ...(body.logoUrl !== undefined ? { logoUrl: body.logoUrl } : {}),
+      ...(body.logoDarkUrl !== undefined ? { logoDarkUrl: body.logoDarkUrl } : {}),
+      ...(body.faviconUrl !== undefined ? { faviconUrl: body.faviconUrl } : {}),
       ...(body.notes !== undefined ? { notes: body.notes } : {}),
       updatedBy: session.email
     });

@@ -39,6 +39,7 @@ export async function registerCoreProductRoutes(app: FastifyInstance, ctx: CoreR
     const body = request.body as {
       code: string; name: string;
       productTypeId?: string; hsnCodeId?: string; unitId?: string; taxId?: string;
+      imageUrl?: string; openingStock?: number; openingPrice?: number;
     };
     const product = await app.coreProductService.create({
       tenantId, code: body.code, name: body.name,
@@ -46,6 +47,9 @@ export async function registerCoreProductRoutes(app: FastifyInstance, ctx: CoreR
       ...(body.hsnCodeId !== undefined ? { hsnCodeId: body.hsnCodeId } : {}),
       ...(body.unitId !== undefined ? { unitId: body.unitId } : {}),
       ...(body.taxId !== undefined ? { taxId: body.taxId } : {}),
+      ...(body.imageUrl !== undefined ? { imageUrl: body.imageUrl } : {}),
+      ...(body.openingStock !== undefined ? { openingStock: body.openingStock } : {}),
+      ...(body.openingPrice !== undefined ? { openingPrice: body.openingPrice } : {}),
       createdBy: session.email
     });
     await auditRecordEvent(app, {
@@ -66,16 +70,21 @@ export async function registerCoreProductRoutes(app: FastifyInstance, ctx: CoreR
     ctx.guardPermission(session, "core.product.manage");
     const { id } = request.params as { id: string };
     const body = request.body as {
-      name?: string;
+      code?: string; name?: string;
       productTypeId?: string; hsnCodeId?: string; unitId?: string; taxId?: string;
+      imageUrl?: string; openingStock?: number; openingPrice?: number;
     };
     const product = await app.coreProductService.update({
       tenantId, itemId: id,
+      ...(body.code !== undefined ? { code: body.code } : {}),
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.productTypeId !== undefined ? { productTypeId: body.productTypeId } : {}),
       ...(body.hsnCodeId !== undefined ? { hsnCodeId: body.hsnCodeId } : {}),
       ...(body.unitId !== undefined ? { unitId: body.unitId } : {}),
       ...(body.taxId !== undefined ? { taxId: body.taxId } : {}),
+      ...(body.imageUrl !== undefined ? { imageUrl: body.imageUrl } : {}),
+      ...(body.openingStock !== undefined ? { openingStock: body.openingStock } : {}),
+      ...(body.openingPrice !== undefined ? { openingPrice: body.openingPrice } : {}),
       updatedBy: session.email
     });
     await auditRecordEvent(app, {

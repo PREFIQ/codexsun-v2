@@ -72,6 +72,7 @@ export function WorkspaceLookup({
   const [createQuery, setCreateQuery] = useState("")
   const [isOpen, setIsOpen] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const [selectedDisplayValue, setSelectedDisplayValue] = useState("")
   const [selectedFallbackOption, setSelectedFallbackOption] = useState<WorkspaceLookupOption | null>(null)
   const [query, setQuery] = useState("")
@@ -98,7 +99,7 @@ export function WorkspaceLookup({
     () => allOptions.find((option) => isExactMatch(option, normalizedQuery)),
     [allOptions, normalizedQuery],
   )
-  const canCreate = Boolean(createMode !== "none" && query.trim() && !exactOption && !disabled && !loading)
+  const canCreate = Boolean(createMode !== "none" && query.trim() && !exactOption && !disabled && !loading && !isCreating)
   const optionCount = filteredOptions.length + (canCreate ? 1 : 0)
 
   useEffect(() => {
@@ -172,14 +173,19 @@ export function WorkspaceLookup({
   async function createOption(name: string) {
     const normalizedName = name.trim()
     if (!normalizedName) return null
-    const createdResult = await onCreate?.(normalizedName)
-    const created = createdResult ?? {
-      label: normalizedName,
-      value: normalizeLookupValue(normalizedName),
+    setIsCreating(true)
+    try {
+      const createdResult = await onCreate?.(normalizedName)
+      const created = createdResult ?? {
+        label: normalizedName,
+        value: normalizeLookupValue(normalizedName),
+      }
+      setCreatedOptions((current) => mergeOptions(current, [created]))
+      selectOption(created)
+      return created
+    } finally {
+      setIsCreating(false)
     }
-    setCreatedOptions((current) => mergeOptions(current, [created]))
-    selectOption(created)
-    return created
   }
 
   function handleCreate() {
@@ -313,10 +319,11 @@ export function WorkspaceLookup({
                     </button>
                   )
                 })}
-                {canCreate ? (
+                {canCreate || isCreating ? (
                   <button
                     data-active={activeIndex === filteredOptions.length}
                     type="button"
+                    disabled={isCreating}
                     className={cn(
                       "flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-primary transition-colors",
                       activeIndex === filteredOptions.length ? "bg-accent/80" : "hover:bg-accent/60",
@@ -327,7 +334,7 @@ export function WorkspaceLookup({
                     }}
                   >
                     <Plus className="size-4" />
-                    {(createLabel ?? "Create")} "{query.trim()}"
+                    {isCreating ? "Creating..." : `${createLabel ?? "Create"} "${query.trim()}"`}
                   </button>
                 ) : null}
               </div>,

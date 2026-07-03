@@ -32,6 +32,8 @@ export class CompanyService {
       taxIdentities: input.taxIdentities ?? [],
       ...(input.website !== undefined ? { website: input.website } : {}),
       ...(input.logoUrl !== undefined ? { logoUrl: input.logoUrl } : {}),
+      ...(input.logoDarkUrl !== undefined ? { logoDarkUrl: input.logoDarkUrl } : {}),
+      ...(input.faviconUrl !== undefined ? { faviconUrl: input.faviconUrl } : {}),
       ...(input.notes !== undefined ? { notes: input.notes } : {}),
       status: "active",
       createdBy: input.createdBy,
@@ -57,6 +59,8 @@ export class CompanyService {
       ...(input.taxIdentities !== undefined ? { taxIdentities: input.taxIdentities } : {}),
       ...(input.website !== undefined ? { website: input.website } : {}),
       ...(input.logoUrl !== undefined ? { logoUrl: input.logoUrl } : {}),
+      ...(input.logoDarkUrl !== undefined ? { logoDarkUrl: input.logoDarkUrl } : {}),
+      ...(input.faviconUrl !== undefined ? { faviconUrl: input.faviconUrl } : {}),
       ...(input.notes !== undefined ? { notes: input.notes } : {}),
       updatedBy: input.updatedBy,
       updatedAt: new Date().toISOString()

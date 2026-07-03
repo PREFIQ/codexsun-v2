@@ -16,6 +16,8 @@ export type CompanyProfile = {
   taxIdentities: TaxIdentityBlock[];
   website?: string;
   logoUrl?: string;
+  logoDarkUrl?: string;
+  faviconUrl?: string;
   notes?: string;
   status: "active" | "archived";
   createdBy: string;
@@ -37,6 +39,8 @@ export type CompanyCreateInput = {
   taxIdentities?: TaxIdentityBlock[];
   website?: string;
   logoUrl?: string;
+  logoDarkUrl?: string;
+  faviconUrl?: string;
   notes?: string;
   createdBy: string;
 };
@@ -54,6 +58,8 @@ export type CompanyUpdateInput = {
   taxIdentities?: TaxIdentityBlock[];
   website?: string;
   logoUrl?: string;
+  logoDarkUrl?: string;
+  faviconUrl?: string;
   notes?: string;
   updatedBy: string;
 };

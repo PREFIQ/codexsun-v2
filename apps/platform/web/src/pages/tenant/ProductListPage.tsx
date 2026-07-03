@@ -1,25 +1,28 @@
 import { useMemo, useState, type ReactNode } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { ArrowLeft, CheckCircle2, Plus, RefreshCw, Save, X } from "lucide-react"
+import { ArrowLeft, CheckCircle2, ImagePlus, Plus, RefreshCw, Save, X } from "lucide-react"
 import { Button } from "@codexsun/ui/components/button"
 import { Input } from "@codexsun/ui/components/input"
 import { Label } from "@codexsun/ui/components/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@codexsun/ui/components/tabs"
 import { WorkspacePage } from "@codexsun/ui/workspace"
 import { WorkspaceFilters } from "@codexsun/ui/workspace/filters"
-import { WorkspaceLookup, type WorkspaceLookupOption } from "@codexsun/ui/workspace/lookup"
 import { WorkspacePagination } from "@codexsun/ui/workspace/pagination"
 import { WorkspaceRowActions } from "@codexsun/ui/workspace/row-actions"
 import { WorkspaceStatusBadge } from "@codexsun/ui/workspace/status"
 import { cn } from "@codexsun/ui/lib/utils"
 import { apiGet, apiPost, apiPut } from "../../api"
+import { CommonRecordAutocomplete } from "../../components/CommonRecordAutocomplete"
 
 type ProductRecord = {
   code: string
   hsnCodeId?: string
   itemId: string
+  imageUrl?: string
   name: string
+  openingPrice?: number
+  openingStock?: number
   productTypeId?: string
   status: "active" | "archived"
   taxId?: string
@@ -32,7 +35,10 @@ type ProductForm = {
   code: string
   hsnCodeId: string
   isActive: boolean
+  imageUrl: string
   name: string
+  openingPrice: string
+  openingStock: string
   productTypeId: string
   taxId: string
   unitId: string
@@ -204,7 +210,10 @@ function ProductUpsertPage({
     code: record?.code ?? "",
     hsnCodeId: record?.hsnCodeId ?? "",
     isActive: record?.status !== "archived",
+    imageUrl: record?.imageUrl ?? "",
     name: record?.name ?? "",
+    openingPrice: String(record?.openingPrice ?? 0),
+    openingStock: String(record?.openingStock ?? 0),
     productTypeId: record?.productTypeId ?? "",
     taxId: record?.taxId ?? "",
     unitId: record?.unitId ?? "",
@@ -225,6 +234,9 @@ function ProductUpsertPage({
         hsnCodeId: optional(form.hsnCodeId),
         unitId: optional(form.unitId),
         taxId: optional(form.taxId),
+        imageUrl: form.imageUrl,
+        openingStock: numberValue(form.openingStock),
+        openingPrice: numberValue(form.openingPrice),
       }
       const saved = record
         ? await apiPut<ProductRecord>(`/core/products/${record.itemId}`, payload, "tenant")
@@ -272,6 +284,18 @@ function ProductUpsertPage({
                 >
                   Details
                 </TabsTrigger>
+                <TabsTrigger
+                  value="image"
+                  className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                >
+                  Image
+                </TabsTrigger>
+                <TabsTrigger
+                  value="opening"
+                  className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                >
+                  Opening
+                </TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value="details" className="m-0">
@@ -284,6 +308,56 @@ function ProductUpsertPage({
                   <LookupField definitionKey="units" label="Unit" value={form.unitId} onChange={(unitId) => setForm((current) => ({ ...current, unitId }))} />
                   <LookupField definitionKey="taxes" label="GST %" value={form.taxId} onChange={(taxId) => setForm((current) => ({ ...current, taxId }))} />
                   <StatusCard label="Active" checked={form.isActive} onChange={(isActive) => setForm((current) => ({ ...current, isActive }))} className="md:col-span-2" />
+                </div>
+              </SectionShell>
+            </TabsContent>
+            <TabsContent value="image" className="m-0">
+              <SectionShell>
+                <div className="grid gap-5 md:grid-cols-[340px_1fr]">
+                  <div className="grid gap-2">
+                    <Label>Product Image</Label>
+                    <label className="flex h-44 cursor-pointer items-center justify-center rounded-md border border-dashed border-border bg-muted/20 text-sm font-medium text-muted-foreground hover:bg-muted/40">
+                      <input
+                        accept="image/png,image/svg+xml"
+                        className="sr-only"
+                        type="file"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0]
+                          if (!file) return
+                          if (!["image/png", "image/svg+xml"].includes(file.type)) {
+                            toast.error("Use PNG or SVG image")
+                            event.currentTarget.value = ""
+                            return
+                          }
+                          void fileToDataUrl(file).then((imageUrl) => setForm((current) => ({ ...current, imageUrl })))
+                        }}
+                      />
+                      <span className="flex items-center gap-2">
+                        <ImagePlus className="size-4" />
+                        Upload PNG/SVG
+                      </span>
+                    </label>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Preview</Label>
+                    <div className="flex h-44 items-center justify-center overflow-hidden rounded-md border border-border bg-background">
+                      {form.imageUrl ? <img alt={form.name || "Product"} className="max-h-full max-w-full object-contain" src={form.imageUrl} /> : null}
+                    </div>
+                    {form.imageUrl ? (
+                      <Button type="button" variant="outline" className="w-fit" onClick={() => setForm((current) => ({ ...current, imageUrl: "" }))}>
+                        <X className="size-4" />
+                        Remove
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </SectionShell>
+            </TabsContent>
+            <TabsContent value="opening" className="m-0">
+              <SectionShell>
+                <div className="grid items-end gap-5 md:grid-cols-2">
+                  <TextField label="Opening Stock" value={form.openingStock} onChange={(openingStock) => setForm((current) => ({ ...current, openingStock }))} />
+                  <TextField label="Opening Price" value={form.openingPrice} onChange={(openingPrice) => setForm((current) => ({ ...current, openingPrice }))} />
                 </div>
               </SectionShell>
             </TabsContent>
@@ -315,41 +389,14 @@ function LookupField({
   onChange: (value: string) => void
   value: string
 }) {
-  const queryClient = useQueryClient()
-  const lookupQuery = useQuery({
-    queryKey: ["tenant", "common-lookup", definitionKey],
-    queryFn: () => apiGet<Array<{ id: string; code?: string; description?: string; name?: string }>>(`/core/common/records?definitionKey=${definitionKey}`, "tenant"),
-  })
-  const options = useMemo<WorkspaceLookupOption[]>(
-    () =>
-      (lookupQuery.data ?? []).map((record) => ({
-        value: record.id,
-        label: record.name ?? record.description ?? record.code ?? record.id,
-        ...(record.code ? { meta: record.code } : {}),
-      })),
-    [lookupQuery.data],
-  )
-
   return (
     <div className="grid gap-2">
       <Label>{label}</Label>
-      <WorkspaceLookup
-        createLabel="Create"
-        createMode="inline"
-        loading={lookupQuery.isLoading}
-        options={options}
-        placeholder=""
+      <CommonRecordAutocomplete
+        definitionKey={definitionKey}
         value={value}
-        onCreate={async (name) => {
-          const created = await apiPost<{ id: string; code?: string; description?: string; name?: string }>("/core/common/records", { definitionKey, name }, "tenant")
-          void queryClient.invalidateQueries({ queryKey: ["tenant", "common-lookup", definitionKey] })
-          return {
-            value: created.id,
-            label: created.name ?? created.description ?? created.code ?? name,
-            ...(created.code ? { meta: created.code } : {}),
-          }
-        }}
-        onValueChange={(nextValue) => onChange(nextValue)}
+        createPayload={(name) => createPayloadForLookup(definitionKey, name)}
+        onChange={(nextValue) => onChange(nextValue ?? "")}
       />
     </div>
   )
@@ -459,6 +506,37 @@ async function restoreProduct(product: ProductRecord, queryClient: ReturnType<ty
 function optional(value: string) {
   const trimmed = value.trim()
   return trimmed ? trimmed : undefined
+}
+
+function createPayloadForLookup(definitionKey: string, name: string) {
+  if (definitionKey === "hsn-codes") {
+    return {
+      code: name.trim(),
+      description: name.trim(),
+    }
+  }
+  if (definitionKey === "taxes") {
+    const ratePercent = Number(name.replace("%", "").trim())
+    return {
+      description: name.trim().endsWith("%") ? name.trim() : `${name.trim()}%`,
+      ratePercent: Number.isFinite(ratePercent) ? ratePercent : 0,
+    }
+  }
+  return {}
+}
+
+function numberValue(value: string) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ""))
+    reader.onerror = () => reject(reader.error ?? new Error("File read failed"))
+    reader.readAsDataURL(file)
+  })
 }
 
 function productLookupLabel(record: { code?: string; description?: string; id: string; name?: string; ratePercent?: number }) {

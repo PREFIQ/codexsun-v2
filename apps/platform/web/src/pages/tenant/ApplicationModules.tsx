@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ExternalLink,
+  ImageIcon,
   KeyRound,
   LockKeyhole,
   Plus,
@@ -15,6 +16,7 @@ import {
   Settings2,
   ShieldCheck,
   Trash2,
+  Upload,
   UserRoundCog,
   UsersRound,
   X,
@@ -72,6 +74,8 @@ type CompanyRecord = {
   taxIdentities: Array<{ taxId: string; type: "gstin" | "pan" | "tan" | "cin" | "other"; value: string; isDefault: boolean }>
   website?: string
   logoUrl?: string
+  logoDarkUrl?: string
+  faviconUrl?: string
   notes?: string
   status: "active" | "archived"
   createdAt: string
@@ -109,6 +113,8 @@ type CompanyForm = {
   bankAccounts: CompanyBankAccount[]
   socialLinks: CompanySocialLink[]
   logoUrl: string
+  logoDarkUrl: string
+  faviconUrl: string
   notes: string
   isActive: boolean
 }
@@ -382,10 +388,11 @@ export function ApplicationCompanyPage({ onBack }: { onBack?: () => void }) {
               <tr className="border-b bg-muted/45 text-left text-xs font-semibold uppercase text-muted-foreground">
                 <th className="w-16 px-4 py-3">#</th>
                 <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Tenant</th>
+                <th className="px-4 py-3">Company Group</th>
                 <th className="px-4 py-3">Industry</th>
                 <th className="px-4 py-3">Phone</th>
                 <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">GSTIN</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Updated</th>
                 <th className="w-24 px-4 py-3 text-right">Action</th>
@@ -409,10 +416,11 @@ export function ApplicationCompanyPage({ onBack }: { onBack?: () => void }) {
                     </button>
                     {company.tradeName ? <div className="text-xs text-muted-foreground">{company.legalName}</div> : null}
                   </td>
-                  <td className="px-4 py-3">{shortId(company.tenantId)}</td>
+                  <td className="px-4 py-3">{company.companyGroupId || "-"}</td>
                   <td className="px-4 py-3">{company.notes ? readMeta(company.notes).industry || "General" : "General"}</td>
                   <td className="px-4 py-3">{company.phone?.[0]?.number ?? ""}</td>
                   <td className="px-4 py-3">{company.email?.[0]?.address ?? ""}</td>
+                  <td className="px-4 py-3">{company.taxIdentities.find((tax) => tax.type === "gstin")?.value ?? ""}</td>
                   <td className="px-4 py-3">
                     <WorkspaceStatusBadge label={company.status} tone={company.status === "active" ? "success" : "danger"} />
                   </td>
@@ -433,7 +441,7 @@ export function ApplicationCompanyPage({ onBack }: { onBack?: () => void }) {
               ))}
               {!filtered.length ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-muted-foreground">
                     {companiesQuery.isLoading ? "Loading companies..." : "No companies found."}
                   </td>
                 </tr>
@@ -501,6 +509,9 @@ function CompanyShowPage({
             ["Company group", record.companyGroupId],
             ["Industry", meta.industry || "General"],
             ["Website", record.website],
+            ["Logo", record.logoUrl ? "Set" : ""],
+            ["Logo dark", record.logoDarkUrl ? "Set" : ""],
+            ["Favicon", record.faviconUrl ? "Set" : ""],
             ["Status", <WorkspaceStatusBadge key="status" label={record.status} tone={record.status === "active" ? "success" : "danger"} />],
           ]}
         />
@@ -830,11 +841,44 @@ function CompanyUpsertPage({ onCancel, onSaved, record }: { onCancel: () => void
                       </div>
                       <TextField className="md:col-span-2" label="Address line 1" value={address.line1} onChange={(line1) => updateArray(setForm, "addresses", index, { line1 })} />
                       <TextField className="md:col-span-2" label="Address line 2" value={address.line2 ?? ""} onChange={(line2) => updateArray(setForm, "addresses", index, { line2 })} />
-                      <TextField label="Country" value={address.country} onChange={(country) => updateArray(setForm, "addresses", index, { country })} />
-                      <TextField label="State" value={address.state ?? ""} onChange={(state) => updateArray(setForm, "addresses", index, { state })} />
-                      <TextField label="District" value={address.district ?? ""} onChange={(district) => updateArray(setForm, "addresses", index, { district })} />
-                      <TextField label="City" value={address.city ?? ""} onChange={(city) => updateArray(setForm, "addresses", index, { city })} />
-                      <TextField label="Pincode" value={address.pincode ?? ""} onChange={(pincode) => updateArray(setForm, "addresses", index, { pincode })} />
+                      <LookupField
+                        definitionKey="countries"
+                        label="Country"
+                        value={address.country}
+                        createPayload={(name) => ({ code: codeFromName(name) })}
+                        onChange={(country) => updateArray(setForm, "addresses", index, { country, state: "", district: "", city: "" })}
+                      />
+                      <LookupField
+                        definitionKey="states"
+                        label="State"
+                        value={address.state ?? ""}
+                        onChange={(state) => updateArray(setForm, "addresses", index, { state, district: "", city: "" })}
+                        createEnabled={Boolean(address.country)}
+                        createPayload={(name) => ({ code: codeFromName(name), countryId: address.country })}
+                        emptyLabel={address.country ? "No states found." : "Select country first."}
+                        filterRecord={(record) => sameId(record.countryId, address.country)}
+                      />
+                      <LookupField
+                        definitionKey="districts"
+                        label="District"
+                        value={address.district ?? ""}
+                        onChange={(district) => updateArray(setForm, "addresses", index, { district, city: "" })}
+                        createEnabled={Boolean(address.state)}
+                        createPayload={() => ({ stateId: address.state })}
+                        emptyLabel={address.state ? "No districts found." : "Select state first."}
+                        filterRecord={(record) => sameId(record.stateId, address.state ?? "")}
+                      />
+                      <LookupField
+                        definitionKey="cities"
+                        label="City"
+                        value={address.city ?? ""}
+                        onChange={(city) => updateArray(setForm, "addresses", index, { city })}
+                        createEnabled={Boolean(address.district)}
+                        createPayload={() => ({ districtId: address.district })}
+                        emptyLabel={address.district ? "No cities found." : "Select district first."}
+                        filterRecord={(record) => sameId(record.districtId, address.district ?? "")}
+                      />
+                      <LookupField definitionKey="pincodes" label="Pincode" value={address.pincode ?? ""} onChange={(pincode) => updateArray(setForm, "addresses", index, { pincode })} />
                       <StatusCard label="Default address" checked={address.isDefault} onChange={(value) => updatePrimary(setForm, "addresses", index, value, "isDefault")} />
                     </div>
                   ))}
@@ -887,18 +931,10 @@ function CompanyUpsertPage({ onCancel, onSaved, record }: { onCancel: () => void
 
             <TabsContent value="logo" className="m-0">
               <SectionShell>
-                <div className="grid items-end gap-5 md:grid-cols-2">
-                  <TextField label="Logo URL" value={form.logoUrl} onChange={(logoUrl) => updateForm(setForm, { logoUrl })} />
-                  <div className="rounded-md border border-border bg-background p-4">
-                    <div className="text-sm font-medium">Logo preview</div>
-                    <div className="mt-3 grid h-28 place-items-center rounded-md border border-dashed border-border bg-muted/30">
-                      {form.logoUrl ? (
-                        <img alt="Company logo preview" className="max-h-24 max-w-full object-contain" src={form.logoUrl} />
-                      ) : (
-                        <Building2 className="size-8 text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
+                <div className="grid gap-5 md:grid-cols-3">
+                  <LogoUploadField label="Logo" value={form.logoUrl} onChange={(logoUrl) => updateForm(setForm, { logoUrl })} />
+                  <LogoUploadField label="Logo dark" value={form.logoDarkUrl} onChange={(logoDarkUrl) => updateForm(setForm, { logoDarkUrl })} darkPreview />
+                  <LogoUploadField label="Favicon" value={form.faviconUrl} onChange={(faviconUrl) => updateForm(setForm, { faviconUrl })} compact />
                 </div>
               </SectionShell>
             </TabsContent>
@@ -1768,11 +1804,110 @@ function TextField({
   )
 }
 
-function LookupField({ definitionKey, label, onChange, value }: { definitionKey: string; label: string; onChange: (value: string) => void; value: string }) {
+function LogoUploadField({
+  compact,
+  darkPreview,
+  label,
+  onChange,
+  value,
+}: {
+  compact?: boolean
+  darkPreview?: boolean
+  label: string
+  onChange: (value: string) => void
+  value: string
+}) {
+  const inputId = useMemo(() => `company-logo-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${newId()}`, [label])
+
+  async function handleFile(file: File | undefined) {
+    if (!file) return
+    const isAllowed = file.type === "image/png" || file.type === "image/svg+xml" || /\.(png|svg)$/i.test(file.name)
+    if (!isAllowed) {
+      toast.error("Only SVG or PNG files are allowed")
+      return
+    }
+    const dataUrl = await readFileAsDataUrl(file)
+    onChange(dataUrl)
+  }
+
+  return (
+    <div className="rounded-md border border-border bg-background p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor={inputId}>{label}</Label>
+        {value ? (
+          <Button aria-label={`Remove ${label}`} type="button" size="icon" variant="outline" onClick={() => onChange("")}>
+            <Trash2 className="size-4" />
+          </Button>
+        ) : null}
+      </div>
+      <div className={cn("mt-3 grid place-items-center rounded-md border border-dashed border-border p-3", compact ? "h-24" : "h-32", darkPreview ? "bg-zinc-950" : "bg-muted/30")}>
+        {value ? (
+          <img alt={`${label} preview`} className={cn("max-w-full object-contain", compact ? "max-h-16" : "max-h-24")} src={value} />
+        ) : (
+          <ImageIcon className={cn("size-8", darkPreview ? "text-zinc-400" : "text-muted-foreground")} />
+        )}
+      </div>
+      <input
+        id={inputId}
+        className="hidden"
+        type="file"
+        accept=".svg,.png,image/svg+xml,image/png"
+        onChange={(event) => {
+          void handleFile(event.target.files?.[0])
+          event.target.value = ""
+        }}
+      />
+      <Button asChild type="button" variant="outline" className="mt-3 w-full">
+        <label htmlFor={inputId} className="cursor-pointer">
+          <Upload className="size-4" />
+          Upload SVG/PNG
+        </label>
+      </Button>
+    </div>
+  )
+}
+
+type CommonLookupRecord = {
+  code?: string
+  description?: string
+  id: string | number
+  isActive?: boolean
+  name?: string
+  ratePercent?: number
+  [key: string]: unknown
+}
+
+function LookupField({
+  createEnabled = true,
+  createPayload,
+  definitionKey,
+  emptyLabel,
+  filterRecord,
+  label,
+  onChange,
+  value,
+}: {
+  createEnabled?: boolean
+  createPayload?: (name: string) => Record<string, unknown>
+  definitionKey: string
+  emptyLabel?: string
+  filterRecord?: (record: CommonLookupRecord) => boolean
+  label: string
+  onChange: (value: string) => void
+  value: string
+}) {
   return (
     <div className="grid gap-2">
       <Label>{label}</Label>
-      <CommonRecordAutocomplete definitionKey={definitionKey} value={value} onChange={(nextValue) => onChange(nextValue ?? "")} />
+      <CommonRecordAutocomplete
+        createEnabled={createEnabled}
+        createPayload={createPayload}
+        definitionKey={definitionKey}
+        emptyLabel={emptyLabel}
+        filterRecord={filterRecord}
+        value={value}
+        onChange={(nextValue) => onChange(nextValue ?? "")}
+      />
     </div>
   )
 }
@@ -2160,6 +2295,8 @@ function companyToForm(record: CompanyRecord | null): CompanyForm {
     bankAccounts: normalizeRows(record?.bankAccounts, [emptyBank(true)]),
     socialLinks: normalizeRows(meta.socialLinks, [emptySocial()]),
     logoUrl: record?.logoUrl ?? "",
+    logoDarkUrl: record?.logoDarkUrl ?? "",
+    faviconUrl: record?.faviconUrl ?? "",
     notes: meta.notes || "",
     isActive: record?.status !== "archived",
   }
@@ -2245,6 +2382,8 @@ function companyPayload(form: CompanyForm, record: CompanyRecord | null) {
     taxIdentities,
     website: form.website.trim() || undefined,
     logoUrl: form.logoUrl.trim() || undefined,
+    logoDarkUrl: form.logoDarkUrl.trim() || undefined,
+    faviconUrl: form.faviconUrl.trim() || undefined,
     notes: writeMeta({
       industry: form.industry.trim() || "General",
       msmeNo: form.msmeNo.trim(),
@@ -2390,6 +2529,19 @@ function shortId(value: string) {
 
 function codeFromName(name: string) {
   return name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "APP"
+}
+
+function sameId(left: unknown, right: string) {
+  return Boolean(right) && String(left ?? "") === String(right)
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ""))
+    reader.onerror = () => reject(reader.error ?? new Error("Unable to read image"))
+    reader.readAsDataURL(file)
+  })
 }
 
 function formatDate(value: string | undefined) {
