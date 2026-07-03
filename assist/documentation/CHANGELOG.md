@@ -44,7 +44,13 @@ Records UI, API, service logic, tooling, and documentation changes.
 - Added tenant UI e2e coverage that verifies the dash seed is first for all common lookup modules.
 - Replaced Product runtime storage with `DatabaseProductRepository` so Product records persist after app restart.
 - Removed the old `InMemoryProductRepository` Product implementation/export so Product can no longer be accidentally wired to memory storage.
-- Flattened the Product form to Details, Image, and Opening tabs with inline-create lookups for Product Type, HSN Code, Unit, and GST.
+- Reworked the Product form with Details, Image, and Opening tabs: Details keeps required inline-create lookups for Product Type, HSN Code, Unit, and GST; Image owns upload/preview; Opening owns opening stock and opening price.
+- Simplified common autocomplete display labels to one name/description line, removing code-prefix labels and secondary code sublines.
+- Removed Product lookup children from the visible Master side menu while keeping direct Product child routes available for registry access.
+- Removed always-visible required-field info banners from tenant forms; required-field banners now appear only after a failed save validation.
+- Standardized tenant master/common validation UX so Contacts, Companies, Products, Work Orders, and Common Item forms show the same failed-save required banner, red invalid control borders, and helper text.
+- Moved generic Work Order/Common Item status switching into the Details form section instead of a separate Status card.
+- Added mandatory design-system/governance rules for failed-save validation banners, invalid control borders, helper text, and Details-section status placement.
 - Extended Product e2e coverage to create inline lookup values, upload a Product SVG image, and save opening stock/price.
 - Extended tenant UI e2e to create Country, State, District, City, and Pincode from the frontend in both Contact and Company address forms.
 - Stabilized default-company selection in e2e when many historical test companies exist.

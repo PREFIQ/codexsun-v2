@@ -24,6 +24,7 @@ const envSchema = z.object({
   TENANT_ADMIN_EMAIL: z.string().default(""),
   TENANT_ADMIN_NAME: z.string().default(""),
   TENANT_ADMIN_PASSWORD: z.string().default(""),
+  STORAGE_ROOT: z.string().default("storage"),
   CODEXSUN_DEV_SKIP_DB: z.string().default("")
 });
 

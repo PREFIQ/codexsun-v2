@@ -23,7 +23,8 @@ Do not copy old business logic from CXSUN. Use it only to understand flow, spaci
 - Do not use hardcoded business records, fake lookup rows, localStorage seeds, or frontend assumptions for module data.
 - Every module must be DB/API-backed before it is treated as complete.
 - Frontend validation and backend validation are both required.
-- Required fields must show a red `*` marker and must also show a form banner when missing.
+- Required fields must show a red `*` marker and must show a form banner only after save/update validation fails.
+- Missing required fields must mark the affected input, select, or autocomplete with a red border and a helper message below the control.
 - Errors, warnings, duplicate messages, relationship blockers, and server/database errors must appear in the shared form banner.
 - Every create, update, delete, suspend, restore, activation, and lifecycle action must be audited.
 - Show pages must include an activity timeline/card when the backend supports the module.
@@ -128,7 +129,8 @@ Required behavior:
 - Add `noValidate` to forms so browser-native validation does not replace the CODEXSUN banner pattern.
 - Frontend validation runs before submit.
 - Backend validation runs before database write.
-- Missing required fields show the shared error/warning banner.
+- Do not show required-field info banners before the user tries to save.
+- Missing required fields show the shared error banner, red control border, and field helper text after save/update is attempted.
 - Duplicate errors from backend show in the same banner.
 - Server and database errors show in the same banner with a useful message.
 - New record button label is `Save`.
@@ -152,6 +154,7 @@ Use consistent form density.
 - Do not use oversized rounded fields.
 - Keep action buttons in a footer row.
 - Keep destructive actions away from primary save/update actions.
+- Put the Active/Status switch inside the Details section for normal master/common forms; do not create a separate Status card unless the status area has multiple business fields.
 - Avoid fields that do not have business meaning. Example: remove `owner` from modules unless the backend actually uses it.
 
 ## Controls Standard
@@ -331,7 +334,7 @@ E2E tests:
 - List loads.
 - Search/filter works.
 - New form shows required `*`.
-- Missing required fields show form banner.
+- Missing required fields show the error banner, red control border, and helper text.
 - Save creates a record.
 - Refresh keeps the record.
 - Show page opens and displays current data.
@@ -356,7 +359,7 @@ Before marking a module complete, check all items:
 - [ ] Uses shared show cards and detail table.
 - [ ] Uses shared upsert panel/grid/field/banner.
 - [ ] Required fields show red `*`.
-- [ ] Missing/duplicate/server errors show form banner.
+- [ ] Missing/duplicate/server errors show the shared form banner, and missing fields show red control borders plus helper text.
 - [ ] Uses `WorkspaceSelect`, not native `<select>`.
 - [ ] Uses `WorkspaceLookup` for references/autocomplete.
 - [ ] Lookup options are real database data.

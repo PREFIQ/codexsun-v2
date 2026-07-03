@@ -32,6 +32,7 @@ import { WorkspaceFilters } from "@codexsun/ui/workspace/filters"
 import { WorkspacePagination } from "@codexsun/ui/workspace/pagination"
 import { WorkspaceRowActions } from "@codexsun/ui/workspace/row-actions"
 import { WorkspaceStatusBadge } from "@codexsun/ui/workspace/status"
+import { WorkspaceFormBanner } from "@codexsun/ui/workspace/upsert"
 import { cn } from "@codexsun/ui/lib/utils"
 import { apiGet, apiPost, apiPut, getTenantId } from "../../api"
 import { CommonRecordAutocomplete } from "../../components/CommonRecordAutocomplete"
@@ -708,6 +709,7 @@ function CompanyUpsertPage({ onCancel, onSaved, record }: { onCancel: () => void
   const queryClient = useQueryClient()
   const [form, setForm] = useState<CompanyForm>(() => companyToForm(record))
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const hasErrors = Object.keys(errors).length > 0
   const mutation = useMutation({
     mutationFn: async () => {
       if (!form.legalName.trim()) {
@@ -748,11 +750,17 @@ function CompanyUpsertPage({ onCancel, onSaved, record }: { onCancel: () => void
       }
     >
       <form
+        noValidate
         onSubmit={(event) => {
           event.preventDefault()
           mutation.mutate()
         }}
       >
+        {hasErrors ? (
+          <WorkspaceFormBanner title="Required fields" tone="error">
+            Fill the required fields before saving.
+          </WorkspaceFormBanner>
+        ) : null}
         <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
           <Tabs defaultValue="details">
             <div className="border-b border-border px-6 pt-2">
@@ -1798,7 +1806,13 @@ function TextField({
         {label}
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
-      <Input className="h-11 rounded-md" type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      <Input
+        aria-invalid={Boolean(error)}
+        className={cn("h-11 rounded-md", error && "border-destructive focus-visible:ring-destructive/30")}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
       {error ? <p className="text-xs font-medium text-destructive">{error}</p> : null}
     </div>
   )
@@ -1882,6 +1896,7 @@ function LookupField({
   createPayload,
   definitionKey,
   emptyLabel,
+  error,
   filterRecord,
   label,
   onChange,
@@ -1891,6 +1906,7 @@ function LookupField({
   createPayload?: (name: string) => Record<string, unknown>
   definitionKey: string
   emptyLabel?: string
+  error?: string | undefined
   filterRecord?: (record: CommonLookupRecord) => boolean
   label: string
   onChange: (value: string) => void
@@ -1905,9 +1921,11 @@ function LookupField({
         definitionKey={definitionKey}
         emptyLabel={emptyLabel}
         filterRecord={filterRecord}
+        invalid={Boolean(error)}
         value={value}
         onChange={(nextValue) => onChange(nextValue ?? "")}
       />
+      {error ? <p className="text-xs font-medium text-destructive">{error}</p> : null}
     </div>
   )
 }

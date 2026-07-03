@@ -36,6 +36,7 @@ export function WorkspaceLookup({
   disabled = false,
   emptyLabel = "No matches found.",
   loading = false,
+  invalid = false,
   onCreate,
   onTextChange,
   onValueChange,
@@ -54,6 +55,7 @@ export function WorkspaceLookup({
   disabled?: boolean
   emptyLabel?: string
   loading?: boolean
+  invalid?: boolean
   onCreate?: ((name: string) => WorkspaceLookupOption | Promise<WorkspaceLookupOption | undefined> | void | Promise<void>) | undefined
   onTextChange?: ((value: string) => void) | undefined
   onValueChange: (value: string, option?: WorkspaceLookupOption | null) => void
@@ -210,7 +212,8 @@ export function WorkspaceLookup({
             ref={inputRef}
             aria-autocomplete="list"
             aria-expanded={isOpen}
-            className="h-11 w-full rounded-md bg-background pl-9 pr-9"
+            aria-invalid={invalid}
+            className={cn("h-11 w-full rounded-md bg-background pl-9 pr-9", invalid && "border-destructive focus-visible:ring-destructive/30")}
             disabled={disabled}
           placeholder={placeholder}
           required={required}

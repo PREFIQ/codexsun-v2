@@ -14,6 +14,7 @@ import { WorkspaceLookup, type WorkspaceLookupOption } from "@codexsun/ui/worksp
 import { WorkspacePagination } from "@codexsun/ui/workspace/pagination"
 import { WorkspaceRowActions } from "@codexsun/ui/workspace/row-actions"
 import { WorkspaceStatusBadge } from "@codexsun/ui/workspace/status"
+import { WorkspaceFormBanner } from "@codexsun/ui/workspace/upsert"
 import { cn } from "@codexsun/ui/lib/utils"
 import { apiGet, apiPost, apiPut } from "../../api"
 
@@ -497,6 +498,7 @@ function ContactUpsertPage({
   const queryClient = useQueryClient()
   const [form, setForm] = useState<ContactForm>(() => contactToForm(record))
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const hasErrors = Object.keys(errors).length > 0
   const nextCodeQuery = useQuery({
     enabled: !record,
     queryKey: ["tenant", "contacts", "next-code"],
@@ -547,12 +549,17 @@ function ContactUpsertPage({
       }
     >
       <form
+        noValidate
         onSubmit={(event) => {
           event.preventDefault()
           mutation.mutate()
         }}
       >
-
+      {hasErrors ? (
+        <WorkspaceFormBanner title="Required fields" tone="error">
+          Fill the required fields before saving.
+        </WorkspaceFormBanner>
+      ) : null}
       <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
         <Tabs defaultValue="details">
           <div className="border-b border-border px-6 pt-2">
@@ -806,7 +813,6 @@ function LookupField({
       (lookupQuery.data ?? []).filter((record) => record.isActive !== false && (!filterRecord || filterRecord(record))).map((record) => ({
         value: String(record.id),
         label: record.name ?? record.description ?? record.code ?? record.id,
-        ...(record.code ? { meta: record.code } : {}),
       })),
     [filterRecord, lookupQuery.data],
   )
@@ -822,6 +828,7 @@ function LookupField({
         createMode={createEnabled ? "inline" : "none"}
         {...(emptyLabel ? { emptyLabel } : {})}
         loading={lookupQuery.isLoading}
+        invalid={Boolean(error)}
         options={options}
         placeholder=""
         value={value}
@@ -831,7 +838,6 @@ function LookupField({
           const option: WorkspaceLookupOption = {
             value: created.id,
             label: created.name ?? created.description ?? created.code ?? name,
-            ...(created.code ? { meta: created.code } : {}),
           }
           return option
         }}
@@ -865,7 +871,13 @@ function TextField({
         {label}
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
-      <Input className="h-11 rounded-md" type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      <Input
+        aria-invalid={Boolean(error)}
+        className={cn("h-11 rounded-md", error && "border-destructive focus-visible:ring-destructive/30")}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
       {error ? <p className="text-xs font-medium text-destructive">{error}</p> : null}
     </div>
   )

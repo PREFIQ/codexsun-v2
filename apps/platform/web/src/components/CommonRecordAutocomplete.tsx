@@ -11,6 +11,7 @@ type Props = {
   emptyLabel?: string | undefined
   definitionKey: string
   filterRecord?: ((record: CommonLookupRecord) => boolean) | undefined
+  invalid?: boolean | undefined
   value: string
   onChange: (value: string | null) => void
 }
@@ -27,7 +28,6 @@ type CommonLookupRecord = {
 
 type LookupOption = {
   label: string
-  meta?: string
   value: string
 }
 
@@ -37,6 +37,7 @@ export function CommonRecordAutocomplete({
   definitionKey,
   emptyLabel = "No records found.",
   filterRecord,
+  invalid = false,
   value,
   onChange,
 }: Props) {
@@ -56,7 +57,6 @@ export function CommonRecordAutocomplete({
         .map((record) => ({
           value: String(record.id),
           label: getCommonRecordLabel(record),
-          ...(record.code ? { meta: record.code } : {}),
         })),
     [filterRecord, recordsQuery.data],
   )
@@ -65,7 +65,7 @@ export function CommonRecordAutocomplete({
     const term = query.trim().toLowerCase()
     if (!term) return options
     return options.filter((option) =>
-      [option.label, option.value, option.meta].filter(Boolean).some((part) => String(part).toLowerCase().includes(term)),
+      [option.label, option.value].filter(Boolean).some((part) => String(part).toLowerCase().includes(term)),
     )
   }, [options, query])
   const exact = useMemo(() => findOption(options, query), [options, query])
@@ -101,7 +101,6 @@ export function CommonRecordAutocomplete({
       selectOption({
         value: String(created.id),
         label: getCommonRecordLabel(created),
-        ...(created.code ? { meta: created.code } : {}),
       })
     } finally {
       setIsCreating(false)
@@ -115,7 +114,8 @@ export function CommonRecordAutocomplete({
         <Input
           aria-autocomplete="list"
           aria-expanded={isOpen}
-          className="h-11 w-full rounded-md bg-background pl-9 pr-9"
+          aria-invalid={invalid}
+          className={cn("h-11 w-full rounded-md bg-background pl-9 pr-9", invalid && "border-destructive focus-visible:ring-destructive/30")}
           role="combobox"
           value={query}
           onBlur={() => {
@@ -163,7 +163,6 @@ export function CommonRecordAutocomplete({
             >
               <span className="min-w-0">
                 <span className="block truncate font-medium">{option.label}</span>
-                {option.meta ? <span className="block truncate text-xs text-muted-foreground">{option.meta}</span> : null}
               </span>
               {option.value === value ? <Check className="size-4 shrink-0 text-primary" strokeWidth={3} /> : <span className="size-4 shrink-0" />}
             </button>
@@ -199,8 +198,8 @@ function isRecordIdLike(value: string) {
 }
 
 function getCommonRecordLabel(record: CommonLookupRecord) {
+  if (record.name) return String(record.name)
+  if (record.description) return String(record.description)
   if (record.ratePercent !== undefined && record.ratePercent !== null) return `${record.ratePercent}%`
-  if (record.code && record.description) return `${record.code} - ${record.description}`
-  if (record.code && record.name) return `${record.code} - ${record.name}`
-  return String(record.name ?? record.description ?? record.code ?? record.id)
+  return String(record.code ?? record.id)
 }

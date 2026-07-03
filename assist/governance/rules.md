@@ -32,6 +32,8 @@
 - Use the workspace lookup (`WorkspaceLookup`) for master/reference autocomplete fields. Use inline create for small common masters such as colour/label, and popup create for heavier masters such as contact/tenant.
 - Lookup/autocomplete options must come from API/database data and must refresh after creating a new option.
 - Upsert forms must use shared required markers, `WorkspaceFormBanner`, and frontend validation before submit.
+- Required-field banners must not be shown as passive info. Show the error banner only after save/update validation fails, and mark each invalid input, select, or autocomplete with a red border plus helper text.
+- Normal master/common upsert forms must keep Active/Status inside the Details section instead of a separate Status card unless status has multiple business-specific controls.
 - Lists must use database-backed data, shared table headers, shared status badges, shared row actions, and shared pagination.
 - Show pages must use shared detail cards and include record activity where the backend supports it.
 - Avoid custom one-off UI unless a module has a real domain need.

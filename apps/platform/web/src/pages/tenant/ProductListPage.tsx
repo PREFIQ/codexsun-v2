@@ -11,6 +11,7 @@ import { WorkspaceFilters } from "@codexsun/ui/workspace/filters"
 import { WorkspacePagination } from "@codexsun/ui/workspace/pagination"
 import { WorkspaceRowActions } from "@codexsun/ui/workspace/row-actions"
 import { WorkspaceStatusBadge } from "@codexsun/ui/workspace/status"
+import { WorkspaceFormBanner } from "@codexsun/ui/workspace/upsert"
 import { cn } from "@codexsun/ui/lib/utils"
 import { apiGet, apiPost, apiPut } from "../../api"
 import { CommonRecordAutocomplete } from "../../components/CommonRecordAutocomplete"
@@ -219,11 +220,13 @@ function ProductUpsertPage({
     unitId: record?.unitId ?? "",
   }))
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const hasErrors = Object.keys(errors).length > 0
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!form.name.trim()) {
-        setErrors({ name: "Name is required" })
-        toast.error("Name is required")
+      const nextErrors = requiredProductErrors(form)
+      if (Object.keys(nextErrors).length) {
+        setErrors(nextErrors)
+        toast.error("Complete required product fields")
         throw new Error("Validation failed")
       }
       setErrors({})
@@ -269,11 +272,17 @@ function ProductUpsertPage({
       }
     >
       <form
+        noValidate
         onSubmit={(event) => {
           event.preventDefault()
           mutation.mutate()
         }}
       >
+        {hasErrors ? (
+          <WorkspaceFormBanner title="Required fields" tone="error">
+            Fill the required fields before saving.
+          </WorkspaceFormBanner>
+        ) : null}
         <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
           <Tabs defaultValue="details">
             <div className="border-b border-border px-6 pt-2">
@@ -303,10 +312,10 @@ function ProductUpsertPage({
                 <div className="grid items-end gap-5 md:grid-cols-2">
                   <TextField label="Name" required value={form.name} {...(errors.name ? { error: errors.name } : {})} onChange={(name) => setForm((current) => ({ ...current, name }))} />
                   <TextField label="Code" value={form.code} onChange={(code) => setForm((current) => ({ ...current, code: code.toUpperCase() }))} />
-                  <LookupField definitionKey="product-types" label="Product Type" value={form.productTypeId} onChange={(productTypeId) => setForm((current) => ({ ...current, productTypeId }))} />
-                  <LookupField definitionKey="hsn-codes" label="HSN Code" value={form.hsnCodeId} onChange={(hsnCodeId) => setForm((current) => ({ ...current, hsnCodeId }))} />
-                  <LookupField definitionKey="units" label="Unit" value={form.unitId} onChange={(unitId) => setForm((current) => ({ ...current, unitId }))} />
-                  <LookupField definitionKey="taxes" label="GST %" value={form.taxId} onChange={(taxId) => setForm((current) => ({ ...current, taxId }))} />
+                  <LookupField definitionKey="product-types" error={errors.productTypeId} label="Product Type" required value={form.productTypeId} onChange={(productTypeId) => setForm((current) => ({ ...current, productTypeId }))} />
+                  <LookupField definitionKey="hsn-codes" error={errors.hsnCodeId} label="HSN Code" required value={form.hsnCodeId} onChange={(hsnCodeId) => setForm((current) => ({ ...current, hsnCodeId }))} />
+                  <LookupField definitionKey="units" error={errors.unitId} label="Unit" required value={form.unitId} onChange={(unitId) => setForm((current) => ({ ...current, unitId }))} />
+                  <LookupField definitionKey="taxes" error={errors.taxId} label="GST %" required value={form.taxId} onChange={(taxId) => setForm((current) => ({ ...current, taxId }))} />
                   <StatusCard label="Active" checked={form.isActive} onChange={(isActive) => setForm((current) => ({ ...current, isActive }))} className="md:col-span-2" />
                 </div>
               </SectionShell>
@@ -380,24 +389,33 @@ function ProductUpsertPage({
 
 function LookupField({
   definitionKey,
+  error,
   label,
   onChange,
+  required,
   value,
 }: {
   definitionKey: string
+  error?: string | undefined
   label: string
   onChange: (value: string) => void
+  required?: boolean | undefined
   value: string
 }) {
   return (
     <div className="grid gap-2">
-      <Label>{label}</Label>
+      <Label>
+        {label}
+        {required ? <span className="ml-1 text-destructive">*</span> : null}
+      </Label>
       <CommonRecordAutocomplete
         definitionKey={definitionKey}
+        invalid={Boolean(error)}
         value={value}
         createPayload={(name) => createPayloadForLookup(definitionKey, name)}
         onChange={(nextValue) => onChange(nextValue ?? "")}
       />
+      {error ? <p className="text-xs font-medium text-destructive">{error}</p> : null}
     </div>
   )
 }
@@ -423,7 +441,12 @@ function TextField({
         {label}
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
-      <Input className="h-11 rounded-md" value={value} onChange={(event) => onChange(event.target.value)} />
+      <Input
+        aria-invalid={Boolean(error)}
+        className={cn("h-11 rounded-md", error && "border-destructive focus-visible:ring-destructive/30")}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
       {error ? <p className="text-xs font-medium text-destructive">{error}</p> : null}
     </div>
   )
@@ -508,6 +531,16 @@ function optional(value: string) {
   return trimmed ? trimmed : undefined
 }
 
+function requiredProductErrors(form: ProductForm) {
+  const errors: Record<string, string> = {}
+  if (!form.name.trim()) errors.name = "Name is required"
+  if (!form.productTypeId.trim()) errors.productTypeId = "Product Type is required"
+  if (!form.hsnCodeId.trim()) errors.hsnCodeId = "HSN Code is required"
+  if (!form.unitId.trim()) errors.unitId = "Unit is required"
+  if (!form.taxId.trim()) errors.taxId = "GST % is required"
+  return errors
+}
+
 function createPayloadForLookup(definitionKey: string, name: string) {
   if (definitionKey === "hsn-codes") {
     return {
@@ -540,10 +573,10 @@ function fileToDataUrl(file: File) {
 }
 
 function productLookupLabel(record: { code?: string; description?: string; id: string; name?: string; ratePercent?: number }) {
+  if (record.name) return record.name
+  if (record.description) return record.description
   if (record.ratePercent !== undefined && record.ratePercent !== null) return `${record.ratePercent}%`
-  if (record.code && record.description) return `${record.code} - ${record.description}`
-  if (record.code && record.name) return `${record.code} - ${record.name}`
-  return record.name ?? record.description ?? record.code ?? record.id
+  return record.code ?? record.id
 }
 
 function lookupLabel(labels: Map<string, string> | undefined, value: string | undefined) {

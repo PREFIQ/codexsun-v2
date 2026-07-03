@@ -501,6 +501,7 @@ function TenantRecordDialog({
 }) {
   const [form, setForm] = useState<FormState>(initialForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const hasErrors = Object.keys(errors).length > 0
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -510,6 +511,7 @@ function TenantRecordDialog({
           <DialogDescription className="sr-only">Add or update common module values.</DialogDescription>
         </DialogHeader>
         <form
+          noValidate
           onSubmit={(event) => {
             event.preventDefault()
             const nextErrors = validateForm(fields, form)
@@ -519,6 +521,11 @@ function TenantRecordDialog({
           }}
         >
           <div className="max-h-[64vh] space-y-4 overflow-y-auto px-5 py-5">
+            {hasErrors ? (
+              <WorkspaceFormBanner title="Required fields" tone="error">
+                Fill the required fields before saving.
+              </WorkspaceFormBanner>
+            ) : null}
             {fields.map((field) => (
               <DialogFormField key={field.key} errors={errors} field={field} form={form} setErrors={setErrors} setForm={setForm} />
             ))}
@@ -581,6 +588,7 @@ function DialogFormField({
       ) : field.autocompleteDefinitionKey ? (
         <CommonRecordAutocomplete
           definitionKey={field.autocompleteDefinitionKey}
+          invalid={Boolean(error)}
           value={value}
           onChange={(nextValue) => updateValue(nextValue ?? "")}
           {...(field.emptyLabel ? { emptyLabel: field.emptyLabel } : {})}
@@ -723,6 +731,7 @@ function TenantRecordForm({
   const [activeTab, setActiveTab] = useState(tabs?.[0]?.value ?? "details")
   const [form, setForm] = useState<FormState>(initialForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const hasErrors = Object.keys(errors).length > 0
   const tabList = tabs?.length ? tabs : [{ value: "details", label: "Details", fields: fields.map((field) => field.key) }]
 
   function renderField(field: TenantFormField) {
@@ -746,10 +755,11 @@ function TenantRecordForm({
         onChange={(event) => updateValue((event.target as HTMLTextAreaElement).value)}
       />
     ) : field.autocompleteDefinitionKey ? (
-      <CommonRecordAutocomplete
-        definitionKey={field.autocompleteDefinitionKey}
-        value={value}
-        onChange={(nextValue) => updateValue(nextValue ?? "")}
+        <CommonRecordAutocomplete
+          definitionKey={field.autocompleteDefinitionKey}
+          invalid={Boolean(error)}
+          value={value}
+          onChange={(nextValue) => updateValue(nextValue ?? "")}
         {...(field.emptyLabel ? { emptyLabel: field.emptyLabel } : {})}
       />
     ) : (
@@ -784,6 +794,7 @@ function TenantRecordForm({
     >
       <form
         className="space-y-4"
+        noValidate
         onSubmit={(event) => {
           event.preventDefault()
           const nextErrors = validateForm(fields, form)
@@ -792,9 +803,11 @@ function TenantRecordForm({
           onSave(form)
         }}
       >
-        <WorkspaceFormBanner title="Required fields" tone="info">
-          Fields marked with * must be filled before saving.
-        </WorkspaceFormBanner>
+        {hasErrors ? (
+          <WorkspaceFormBanner title="Required fields" tone="error">
+            Fill the required fields before saving.
+          </WorkspaceFormBanner>
+        ) : null}
         <WorkspaceFormPanel>
           <WorkspaceAnimatedTabs
             value={activeTab}
@@ -808,16 +821,18 @@ function TenantRecordForm({
                     .map((key) => fields.find((field) => field.key === key))
                     .filter((field): field is TenantFormField => Boolean(field))
                     .map(renderField)}
+                  {tab.value === "details" ? (
+                    <div className="md:col-span-2">
+                      <TenantStatusCard
+                        checked={form.isActive !== "false"}
+                        help="Keep this record available for tenant lookup and transaction entry."
+                        onChange={(checked) => setForm((current) => ({ ...current, isActive: checked ? "true" : "false" }))}
+                      />
+                    </div>
+                  ) : null}
                 </WorkspaceFormGrid>
               ),
             }))}
-          />
-        </WorkspaceFormPanel>
-        <WorkspaceFormPanel title="Status">
-          <TenantStatusCard
-            checked={form.isActive !== "false"}
-            help="Keep this record available for tenant lookup and transaction entry."
-            onChange={(checked) => setForm((current) => ({ ...current, isActive: checked ? "true" : "false" }))}
           />
         </WorkspaceFormPanel>
         <WorkspaceFormPanel>
