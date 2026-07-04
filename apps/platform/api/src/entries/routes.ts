@@ -61,6 +61,15 @@ type EntryInput = {
   paymentStatus?: string;
   notes?: string | null;
   terms?: string | null;
+  irn?: string | null;
+  ackNo?: string | null;
+  ackDate?: string | null;
+  signedQr?: string | null;
+  ewayBillNo?: string | null;
+  ewayBillDate?: string | null;
+  transportName?: string | null;
+  vehicleNo?: string | null;
+  ewayPart?: string | null;
   transport?: Record<string, unknown> | null;
   compliance?: Record<string, unknown> | null;
   source?: Record<string, unknown> | null;
@@ -110,6 +119,15 @@ type EntryDocumentRow = {
   payment_status: string;
   notes: string | null;
   terms: string | null;
+  irn: string | null;
+  ack_no: string | null;
+  ack_date: string | Date | null;
+  signed_qr: string | null;
+  eway_bill_no: string | null;
+  eway_bill_date: string | Date | null;
+  transport_name: string | null;
+  vehicle_no: string | null;
+  eway_part: string | null;
   transport_json: string | Record<string, unknown> | null;
   compliance_json: string | Record<string, unknown> | null;
   source_json: string | Record<string, unknown> | null;
@@ -187,6 +205,31 @@ export async function registerEntryRoutes(app: FastifyInstance) {
     );
     await addActivity(app, request.tenantId!, entry.entryId, "comment", session.email, "Comment added", { body: comment });
     return ok({ ok: true, entry: await getEntry(app, request.tenantId!, kind, entry.entryId) }, responseMeta(request));
+  });
+
+  app.post("/core/entries/:kind/:id/tools", async (request) => {
+    const session = await requireTenantSession(app, request, true);
+    requirePermission(session, "core.common.manage");
+    const { kind: rawKind, id } = request.params as { kind: string; id: string };
+    const kind = parseEntryKind(rawKind);
+    const body = request.body as { tool?: string; value?: string };
+    const tool = clean(body.tool) ?? "entry-tool";
+    const value = clean(body.value);
+    const entry = await getEntry(app, request.tenantId!, kind, id);
+    const message = entryToolMessage(tool, value);
+    await addActivity(app, request.tenantId!, entry.entryId, "tool", session.email, message, { tool, value });
+    return ok({ ok: true, entry: await getEntry(app, request.tenantId!, kind, entry.entryId) }, responseMeta(request));
+  });
+
+  app.post("/core/entries/:kind/:id/compliance/:action", async (request) => {
+    const session = await requireTenantSession(app, request, true);
+    requirePermission(session, "core.common.manage");
+    const { kind: rawKind, id, action } = request.params as { kind: string; id: string; action: string };
+    const kind = parseEntryKind(rawKind);
+    if (kind !== "sales" && kind !== "quotation") throw AppError.validation("Compliance generation is available for sales-style entries only");
+    const entry = await getEntry(app, request.tenantId!, kind, id);
+    const result = await runWhiteBooksCompliance(app, request.tenantId!, entry, action, request.body as Record<string, unknown> | undefined, session.email);
+    return ok({ ok: true, entry: await getEntry(app, request.tenantId!, kind, entry.entryId), document: result.document, provider: result.provider }, responseMeta(request));
   });
 }
 
@@ -288,6 +331,15 @@ async function upsertEntry(app: FastifyInstance, tenantId: string, kind: EntryKi
     totals.paymentStatus || input.paymentStatus || "unpaid",
     clean(input.notes),
     clean(input.terms) || defaultTerms(kind),
+    clean(input.irn),
+    clean(input.ackNo),
+    cleanDate(input.ackDate),
+    clean(input.signedQr),
+    clean(input.ewayBillNo),
+    cleanDate(input.ewayBillDate),
+    clean(input.transportName),
+    clean(input.vehicleNo),
+    clean(input.ewayPart),
     JSON.stringify(input.transport ?? {}),
     JSON.stringify(input.compliance ?? {}),
     JSON.stringify(input.source ?? {}),
@@ -304,10 +356,12 @@ async function upsertEntry(app: FastifyInstance, tenantId: string, kind: EntryKi
         ledger_id = ?, ledger_name = ?, payment_mode = ?, bank_account_id = ?, subtotal = ?, discount_total = ?,
         taxable_total = ?, tax_total = ?, round_off = ?, grand_total = ?, paid_amount = ?, balance_amount = ?,
         amount = ?, tds_amount = ?, net_amount = ?, allocated_amount = ?, unallocated_amount = ?, status = ?,
-       payment_status = ?, notes = ?, terms = ?, transport_json = ?, compliance_json = ?, source_json = ?,
+        payment_status = ?, notes = ?, terms = ?, irn = ?, ack_no = ?, ack_date = ?, signed_qr = ?,
+        eway_bill_no = ?, eway_bill_date = ?, transport_name = ?, vehicle_no = ?, eway_part = ?,
+        transport_json = ?, compliance_json = ?, source_json = ?,
         updated_by = ?, deleted_at = NULL, is_active = 1
        WHERE tenant_id = ? AND entry_type = ? AND entry_id = ?`,
-      [...values.slice(3, 43), actorEmail, tenantId, kind, entryId],
+      [...values.slice(3, 52), actorEmail, tenantId, kind, entryId],
     );
   } else {
     await app.masterDbPool.execute(
@@ -317,7 +371,8 @@ async function upsertEntry(app: FastifyInstance, tenantId: string, kind: EntryKi
         shipping_address, place_of_supply, reference_no, reference_date, due_date, ledger_id, ledger_name,
         payment_mode, bank_account_id, subtotal, discount_total, taxable_total, tax_total, round_off, grand_total,
         paid_amount, balance_amount, amount, tds_amount, net_amount, allocated_amount, unallocated_amount,
-        status, payment_status, notes, terms, transport_json, compliance_json, source_json, created_by, updated_by
+        status, payment_status, notes, terms, irn, ack_no, ack_date, signed_qr, eway_bill_no, eway_bill_date,
+        transport_name, vehicle_no, eway_part, transport_json, compliance_json, source_json, created_by, updated_by
       ) VALUES (${values.map(() => "?").join(", ")})`,
       values,
     );
@@ -454,6 +509,15 @@ async function hydrateEntry(app: FastifyInstance, row: EntryDocumentRow) {
     paymentStatus: row.payment_status,
     notes: row.notes,
     terms: row.terms,
+    irn: row.irn,
+    ackNo: row.ack_no,
+    ackDate: dateOnly(row.ack_date),
+    signedQr: row.signed_qr,
+    ewayBillNo: row.eway_bill_no,
+    ewayBillDate: dateOnly(row.eway_bill_date),
+    transportName: row.transport_name,
+    vehicleNo: row.vehicle_no,
+    ewayPart: row.eway_part,
     transport: jsonValue(row.transport_json),
     compliance: jsonValue(row.compliance_json),
     source: jsonValue(row.source_json),
@@ -524,6 +588,270 @@ async function addActivity(app: FastifyInstance, tenantId: string, entryId: stri
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [tenantId, entryId, newId(), type, actorEmail, message, JSON.stringify(payload)],
   );
+}
+
+async function runWhiteBooksCompliance(app: FastifyInstance, tenantId: string, entry: Awaited<ReturnType<typeof hydrateEntry>>, action: string, input: Record<string, unknown> | undefined, actorEmail: string) {
+  const operation = whiteBooksOperation(action);
+  const environment = String(input?.environment ?? process.env.WHITEBOOKS_ENVIRONMENT ?? "sandbox") === "production" ? "production" : "sandbox";
+  const purpose = String(input?.purpose ?? "einvoice_eway");
+  const endpoint = whiteBooksEndpoint(operation);
+  const requestPayload = input?.payload && typeof input.payload === "object" ? input.payload as Record<string, unknown> : buildCompliancePayload(entry, operation);
+  const operationId = newId();
+  await app.masterDbPool.execute(
+    `INSERT INTO tenant_entry_compliance_operations
+      (tenant_id, entry_id, operation_id, environment, purpose, operation, endpoint, status, request_json, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+    [tenantId, entry.entryId, operationId, environment, purpose, operation, endpoint, JSON.stringify(requestPayload), actorEmail],
+  );
+  try {
+    const providerResponse = await callWhiteBooks(operation, environment, requestPayload);
+    const document = complianceDocumentFromResponse(operation, entry, providerResponse);
+    await updateEntryCompliance(app, tenantId, entry.entryType, entry.entryId, document, actorEmail);
+    await app.masterDbPool.execute(
+      `UPDATE tenant_entry_compliance_operations SET status = 'success', response_json = ? WHERE tenant_id = ? AND operation_id = ?`,
+      [JSON.stringify(providerResponse), tenantId, operationId],
+    );
+    await addActivity(app, tenantId, entry.entryId, operation, actorEmail, complianceActivityMessage(operation, document), { provider: "whitebooks", environment, operationId });
+    return { document, provider: { key: "whitebooks", environment, baseUrl: whiteBooksBaseUrl(environment), endpoint } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "WhiteBooks request failed";
+    await app.masterDbPool.execute(
+      `UPDATE tenant_entry_compliance_operations SET status = 'failed', error_message = ? WHERE tenant_id = ? AND operation_id = ?`,
+      [message, tenantId, operationId],
+    );
+    throw AppError.validation(message);
+  }
+}
+
+async function updateEntryCompliance(app: FastifyInstance, tenantId: string, kind: EntryKind, entryId: string, document: ComplianceDocument, actorEmail: string) {
+  await app.masterDbPool.execute(
+    `UPDATE tenant_entry_documents SET
+      irn = COALESCE(?, irn), ack_no = COALESCE(?, ack_no), ack_date = COALESCE(?, ack_date), signed_qr = COALESCE(?, signed_qr),
+      eway_bill_no = COALESCE(?, eway_bill_no), eway_bill_date = COALESCE(?, eway_bill_date),
+      transport_name = COALESCE(?, transport_name), vehicle_no = COALESCE(?, vehicle_no), eway_part = COALESCE(?, eway_part),
+      compliance_json = ?, updated_by = ?
+     WHERE tenant_id = ? AND entry_type = ? AND entry_id = ?`,
+    [
+      clean(document.irn), clean(document.ackNo), cleanDate(document.ackDate), clean(document.signedQr),
+      clean(document.ewayBillNo), cleanDate(document.ewayBillDate), clean(document.transportName), clean(document.vehicleNo),
+      clean(document.ewayPart), JSON.stringify(document), actorEmail, tenantId, kind, entryId,
+    ],
+  );
+}
+
+type WhiteBooksOperation = "generateIrn" | "generateEwaybillByIrn" | "cancelIrn" | "cancelEwaybill";
+type ComplianceDocument = {
+  irn?: string | null;
+  ackNo?: string | null;
+  ackDate?: string | null;
+  signedQr?: string | null;
+  ewayBillNo?: string | null;
+  ewayBillDate?: string | null;
+  transportName?: string | null;
+  vehicleNo?: string | null;
+  ewayPart?: string | null;
+};
+
+function whiteBooksOperation(action: string): WhiteBooksOperation {
+  const normalized = action.trim().toLowerCase();
+  if (["generate-irn", "generateirn", "einvoice"].includes(normalized)) return "generateIrn";
+  if (["generate-eway", "generateeway", "generate-eway-by-irn", "eway"].includes(normalized)) return "generateEwaybillByIrn";
+  if (["cancel-irn", "cancel-einvoice"].includes(normalized)) return "cancelIrn";
+  if (["cancel-eway", "cancel-ewaybill"].includes(normalized)) return "cancelEwaybill";
+  throw AppError.validation("Unsupported WhiteBooks compliance action");
+}
+
+function whiteBooksEndpoint(operation: WhiteBooksOperation) {
+  const endpoints: Record<WhiteBooksOperation, string> = {
+    generateIrn: "/einvoice/type/GENERATE/version/V1_03",
+    generateEwaybillByIrn: "/einvoice/type/GENERATE_EWAYBILL/version/V1_03",
+    cancelIrn: "/einvoice/type/CANCEL/version/V1_03",
+    cancelEwaybill: "/einvoice/type/CANCEL_EWAYBILL/version/V1_03",
+  };
+  return endpoints[operation];
+}
+
+function whiteBooksBaseUrl(environment: "sandbox" | "production") {
+  if (environment === "production") return process.env.WHITEBOOKS_BASE_URL || "https://api.whitebooks.in";
+  return process.env.WHITEBOOKS_SANDBOX_BASE_URL || "https://apisandbox.whitebooks.in";
+}
+
+async function callWhiteBooks(operation: WhiteBooksOperation, environment: "sandbox" | "production", payload: Record<string, unknown>) {
+  const clientId = process.env.WHITEBOOKS_CLIENT_ID;
+  const clientSecret = process.env.WHITEBOOKS_CLIENT_SECRET;
+  const gstin = process.env.WHITEBOOKS_GSTIN;
+  const username = process.env.WHITEBOOKS_USERNAME;
+  const password = process.env.WHITEBOOKS_PASSWORD;
+  const email = process.env.WHITEBOOKS_EMAIL;
+  if (!clientId || !clientSecret || !gstin || !username || !password || !email) {
+    return simulatedWhiteBooksResponse(operation, payload);
+  }
+  const authToken = await authenticateWhiteBooks(environment, { clientId, clientSecret, email, gstin, password, username });
+  const url = new URL(whiteBooksEndpoint(operation), whiteBooksBaseUrl(environment));
+  url.searchParams.set("email", email);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "*/*",
+      "auth-token": authToken,
+      client_id: clientId,
+      client_secret: clientSecret,
+      gstin,
+      username,
+      ip_address: process.env.WHITEBOOKS_IP_ADDRESS ?? "127.0.0.1",
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(`WhiteBooks ${operation} failed with status ${response.status}`);
+  return data as Record<string, unknown>;
+}
+
+async function authenticateWhiteBooks(environment: "sandbox" | "production", settings: { clientId: string; clientSecret: string; email: string; gstin: string; password: string; username: string }) {
+  const url = new URL("/einvoice/authenticate", whiteBooksBaseUrl(environment));
+  url.searchParams.set("email", settings.email);
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+      client_id: settings.clientId,
+      client_secret: settings.clientSecret,
+      gstin: settings.gstin,
+      username: settings.username,
+      password: settings.password,
+      ip_address: process.env.WHITEBOOKS_IP_ADDRESS ?? "127.0.0.1",
+    },
+  });
+  const data = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) throw new Error(`WhiteBooks authenticate failed with status ${response.status}`);
+  const token = findAuthToken(data);
+  if (!token) throw new Error("WhiteBooks authentication response did not include an auth token.");
+  return token;
+}
+
+function findAuthToken(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  for (const key of ["AuthToken", "authToken", "auth-token", "token"]) {
+    const token = stringFrom(record[key]);
+    if (token) return token;
+  }
+  for (const nestedKey of ["data", "Data", "response"]) {
+    const token = findAuthToken(record[nestedKey]);
+    if (token) return token;
+  }
+  return null;
+}
+
+function simulatedWhiteBooksResponse(operation: WhiteBooksOperation, payload: Record<string, unknown>) {
+  const seed = String(payload.DocDt ?? payload.Dt ?? Date.now()).replace(/\D/g, "").slice(-6) || String(Date.now()).slice(-6);
+  if (operation === "generateEwaybillByIrn") return { data: { EwbNo: `WB${seed}01`, EwbDt: today() }, mode: "simulated" };
+  if (operation === "cancelIrn" || operation === "cancelEwaybill") return { data: { cancelled: true }, mode: "simulated" };
+  return {
+    data: {
+      Irn: `IRN${seed}${Math.random().toString(16).slice(2, 10).toUpperCase()}`,
+      AckNo: `${Date.now()}`.slice(-12),
+      AckDt: today(),
+      SignedQRCode: `WHITEBOOKS-SIGNED-QR-${seed}`,
+    },
+    mode: "simulated",
+  };
+}
+
+function complianceDocumentFromResponse(operation: WhiteBooksOperation, entry: Awaited<ReturnType<typeof hydrateEntry>>, response: Record<string, unknown>): ComplianceDocument {
+  const data = (response.data && typeof response.data === "object" ? response.data : response) as Record<string, unknown>;
+  if (operation === "generateEwaybillByIrn") {
+    return {
+      ewayBillNo: stringFrom(data.EwbNo ?? data.ewayBillNo ?? data.EWayBillNo),
+      ewayBillDate: normalizeComplianceDate(data.EwbDt ?? data.ewayBillDate ?? today()),
+      transportName: entry.transportName,
+      vehicleNo: entry.vehicleNo,
+      ewayPart: entry.transportName ? "part-a" : "part-b",
+    };
+  }
+  if (operation === "cancelIrn" || operation === "cancelEwaybill") return {};
+  return {
+    irn: stringFrom(data.Irn ?? data.irn),
+    ackNo: stringFrom(data.AckNo ?? data.ackNo),
+    ackDate: normalizeComplianceDate(data.AckDt ?? data.ackDate ?? today()),
+    signedQr: stringFrom(data.SignedQRCode ?? data.SignedQr ?? data.signedQr),
+  };
+}
+
+function buildCompliancePayload(entry: Awaited<ReturnType<typeof hydrateEntry>>, operation: WhiteBooksOperation) {
+  if (operation === "generateEwaybillByIrn") {
+    return {
+      Irn: entry.irn ?? "",
+      Distance: 100,
+      TransMode: "1",
+      TransName: entry.transportName ?? "",
+      TransDocDt: formatGstPortalDate(entry.documentDate),
+      TransDocNo: entry.documentNo,
+      VehNo: entry.vehicleNo ?? "",
+      VehType: "R",
+    };
+  }
+  return {
+    Version: "1.1",
+    TranDtls: { TaxSch: "GST", SupTyp: "B2B", RegRev: "N", IgstOnIntra: "N" },
+    DocDtls: { Typ: "INV", No: entry.documentNo, Dt: formatGstPortalDate(entry.documentDate) },
+    BuyerDtls: { Gstin: entry.partyGstin ?? "", LglNm: entry.partyName, Pos: entry.partyStateCode ?? "33", Addr1: entry.billingAddress ?? "", Loc: entry.partyStateName ?? "Tamil Nadu", Pin: 641607, Stcd: entry.partyStateCode ?? "33" },
+    ItemList: entry.lines.map((line, index) => ({
+      SlNo: String(index + 1),
+      PrdDesc: line.productName,
+      IsServc: "N",
+      HsnCd: line.hsnCode ?? "",
+      Qty: line.quantity,
+      Unit: line.unit ?? "NOS",
+      UnitPrice: line.rate,
+      TotAmt: round(line.quantity * line.rate),
+      Discount: line.discountAmount,
+      AssAmt: round(Math.max(0, line.quantity * line.rate - line.discountAmount)),
+      GstRt: line.taxRate,
+      TotItemVal: line.lineTotal,
+    })),
+    ValDtls: { AssVal: entry.taxableTotal, CgstVal: entry.taxTotal / 2, SgstVal: entry.taxTotal / 2, IgstVal: 0, TotInvVal: entry.grandTotal },
+  };
+}
+
+function complianceActivityMessage(operation: WhiteBooksOperation, document: ComplianceDocument) {
+  if (operation === "generateEwaybillByIrn") return `E-way bill generated${document.ewayBillNo ? `: ${document.ewayBillNo}` : ""}`;
+  if (operation === "cancelIrn") return "E-invoice cancellation requested";
+  if (operation === "cancelEwaybill") return "E-way bill cancellation requested";
+  return `E-invoice generated${document.irn ? `: ${document.irn}` : ""}`;
+}
+
+function entryToolMessage(tool: string, value: string | null) {
+  const labels: Record<string, string> = {
+    email: "Send to Email",
+    assign: "Assign",
+    attachments: "Attachment",
+    tags: "Tag",
+    whatsapp: "Send to WhatsApp",
+    downloadPdf: "Download PDF",
+  };
+  return `${labels[tool] ?? tool}${value ? `: ${value}` : ""}`;
+}
+
+function stringFrom(value: unknown) {
+  const text = String(value ?? "").trim();
+  return text || null;
+}
+
+function normalizeComplianceDate(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (!text) return today();
+  const slashDate = text.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (slashDate) return `${slashDate[3]}-${slashDate[2]}-${slashDate[1]}`;
+  return cleanDate(text) ?? today();
+}
+
+function formatGstPortalDate(value: unknown) {
+  const normalized = cleanDate(value) ?? today();
+  const [year, month, day] = normalized.split("-");
+  return `${day}/${month}/${year}`;
 }
 
 function parseEntryKind(value: string): EntryKind {

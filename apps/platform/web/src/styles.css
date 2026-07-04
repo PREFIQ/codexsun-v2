@@ -440,3 +440,73 @@
     grid-template-columns: 1fr !important;
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body:has(.sales-print-root) {
+    background: #fff !important;
+    margin: 0 !important;
+  }
+
+  body:has(.sales-print-root),
+  body:has(.sales-print-root) #root {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    width: auto !important;
+  }
+
+  body:has(.sales-print-root) * {
+    visibility: hidden !important;
+  }
+
+  body:has(.sales-print-root) *:has(.sales-print-root) {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  body:has(.sales-print-root) *:has(.sales-print-root) > *:not(.sales-print-root):not(:has(.sales-print-root)) {
+    display: none !important;
+  }
+
+  body:has(.sales-print-root) .sales-print-root,
+  body:has(.sales-print-root) .sales-print-root * {
+    visibility: visible !important;
+  }
+
+  body:has(.sales-print-root) .sales-print-root {
+    background: #fff !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    display: block !important;
+    margin: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    position: static !important;
+    width: 210mm !important;
+  }
+
+  body:has(.sales-print-root) .sales-invoice-print-sheet {
+    border: 0 !important;
+    box-shadow: none !important;
+    break-after: auto !important;
+    height: 297mm !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    page-break-inside: avoid !important;
+    width: 210mm !important;
+  }
+
+  body:has(.sales-print-root) .sales-print-copy:not(:last-child),
+  body:has(.sales-print-root) .sales-print-extended-page:not(:last-child) {
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+}

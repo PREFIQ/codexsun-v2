@@ -8,6 +8,7 @@ import { migration as m006 } from "./006_platform_registry.js";
 import { migration as m007 } from "./007_platform_registry_drilldown.js";
 import { migration as m008 } from "./008_platform_media_assets.js";
 import { migration as m009 } from "./009_tenant_entries.js";
+import { migration as m010 } from "./010_tenant_entry_compliance.js";
 
 export const masterMigrations: Migration[] = [
   m001,
@@ -18,5 +19,6 @@ export const masterMigrations: Migration[] = [
   m006,
   m007,
   m008,
-  m009
+  m009,
+  m010
 ];

@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.69
+Current version: 1.0.70
 
-Release tag: v-1.0.69
+Release tag: v-1.0.70
 
-Changelog label: v 1.0.69
+Changelog label: v 1.0.70
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -19,6 +19,30 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 #### App Codebase Changes
 
 Records UI, API, service logic, tooling, and documentation changes.
+
+## v-1.0.70
+
+### [v 1.0.70] 2026-07-04 6:32 pm - Billing Sales Invoice E-Invoice E-Way Print
+
+#### Database Changes
+
+- Database update: Yes (manual).
+- Added tenant entry compliance persistence for sales e-invoice and e-way provider state, including IRN, acknowledgement, signed QR, e-way bill, transport, vehicle, provider payload, status, and audit metadata.
+- Extended tenant sales entry storage to carry GST compliance fields alongside invoice header, address, tax, item, comment, and activity data.
+- Registered the new tenant entry compliance migration in the tenant migration index so new and upgraded tenant databases receive the sales compliance tables consistently.
+
+#### App Codebase Changes
+
+- Bumped workspace packages and lockfile to `1.0.70`.
+- Added sales e-invoice and e-way API operations using the WhiteBooks integration shape, with sandbox/production environment support and safe simulated fallback when provider credentials are not configured.
+- Rebuilt the tenant Sales show page with CXSUN-style invoice preview, copy selectors, previous/next navigation, comments, activity timeline, and entry tools for email, assignment, attachments, tags, and WhatsApp actions.
+- Added Sales edit tabs for Details, Address, E-way, E-invoice, and Terms, including e-invoice/e-way generate actions and persisted compliance fields.
+- Added customer, work order, product, transport, e-way part, billing address, and shipping address autocomplete behavior for Sales, including inline create/edit popups for contact and address records.
+- Reworked the sales tax invoice print layout to match the CXSUN invoice pattern with A4 isolation, app-shell-free print output, configurable Original/Duplicate/Office copies, and one-page or paged invoice rendering.
+- Ported CXSUN sales print line planning: 12 item rows for single-page invoices, 24 item rows for continuation pages, and 11 rows on the final totals/signature page.
+- Tightened sales print item columns, added PO/DC print columns when sales layout settings enable them, removed item-row horizontal rules, and moved IRN/Ack/E-way details into the right-side invoice compliance panel.
+- Lightened shared autocomplete field styling so lookup controls read consistently across Sales, address, transport, work order, ledger, and product inputs.
+- Verified Platform Web type checks after the Sales billing, compliance, address, and print updates.
 
 ## v-1.0.69
 

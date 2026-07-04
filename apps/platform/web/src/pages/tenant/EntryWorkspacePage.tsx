@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowUpRight, Download, Pencil, Plus, Printer, RefreshCw, Save, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, Download, Mail, MessageCircle, Paperclip, Pencil, Plus, Printer, RefreshCw, Save, Send, Settings2, Tag, Trash2, UserRound, X } from "lucide-react";
+import { Badge } from "@codexsun/ui/components/badge";
 import { Button } from "@codexsun/ui/components/button";
+import { Dialog, DialogContent } from "@codexsun/ui/components/dialog";
 import { Input } from "@codexsun/ui/components/input";
 import { Switch } from "@codexsun/ui/components/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@codexsun/ui/components/tabs";
@@ -28,7 +30,7 @@ import {
 import { buildShowingLabel } from "@codexsun/ui/workspace/utils";
 import { cn } from "@codexsun/ui/lib/utils";
 import { ApiError } from "@codexsun/platform/api-client";
-import { apiGet, apiPost } from "../../api";
+import { apiGet, apiPost, apiPut } from "../../api";
 import { CommonRecordAutocomplete } from "../../components/CommonRecordAutocomplete";
 
 export type EntryKind = "quotation" | "sales" | "purchase" | "receipt" | "payment";
@@ -73,6 +75,8 @@ type EntryRecord = {
   partyName: string;
   partyType?: string | null;
   partyGstin?: string | null;
+  partyStateCode?: string | null;
+  partyStateName?: string | null;
   supplierBillNo?: string | null;
   supplierBillDate?: string | null;
   billingAddress?: string | null;
@@ -100,6 +104,15 @@ type EntryRecord = {
   paymentStatus: string;
   notes?: string | null;
   terms?: string | null;
+  irn?: string | null;
+  ackNo?: string | null;
+  ackDate?: string | null;
+  signedQr?: string | null;
+  ewayBillNo?: string | null;
+  ewayBillDate?: string | null;
+  transportName?: string | null;
+  vehicleNo?: string | null;
+  ewayPart?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -135,6 +148,15 @@ type EntryForm = {
   paymentStatus: string;
   notes: string;
   terms: string;
+  irn: string;
+  ackNo: string;
+  ackDate: string;
+  signedQr: string;
+  ewayBillNo: string;
+  ewayBillDate: string;
+  transportName: string;
+  vehicleNo: string;
+  ewayPart: string;
   lines: EntryLine[];
   allocations: EntryAllocation[];
 };
@@ -142,7 +164,7 @@ type EntryForm = {
 type ViewState = { mode: "list" } | { mode: "show"; entry: EntryRecord } | { mode: "upsert"; entry: EntryRecord | null };
 
 type ContactLookupRecord = {
-  addressBook?: Array<{ addressLine1?: string; addressLine2?: string; cityId?: string | null; countryId?: string | null; districtId?: string | null; pincodeId?: string | null; stateId?: string | null }>;
+  addressBook?: ContactAddressBookEntry[];
   contactId: string;
   code?: string;
   legalName?: string;
@@ -151,6 +173,21 @@ type ContactLookupRecord = {
   primaryEmail?: string;
   primaryPhone?: string;
   status?: string;
+};
+
+type ContactAddressBookEntry = {
+  addressLine1?: string;
+  addressLine2?: string;
+  addressTypeId?: string | null;
+  cityId?: string | null;
+  countryId?: string | null;
+  districtId?: string | null;
+  id?: string;
+  isActive?: boolean;
+  isDefault?: boolean;
+  pincodeId?: string | null;
+  stateId?: string | null;
+  uuid?: string;
 };
 
 type ProductLookupRecord = {
@@ -166,15 +203,20 @@ type ProductLookupRecord = {
 };
 
 type CommonLookupRecord = {
+  address?: string;
   code?: string;
+  contactNo?: string;
+  contactPerson?: string;
   description?: string;
   countryId?: string | number;
   districtId?: string | number;
+  gst?: string;
   id: string | number;
   isActive?: boolean;
   name?: string;
   ratePercent?: number;
   stateId?: string | number;
+  vehicleNo?: string;
 };
 
 type SalesContactForm = {
@@ -359,6 +401,7 @@ const supplyOptions = [
 export function EntryWorkspacePage({ kind }: { kind: EntryKind }) {
   const meta = entryMeta[kind];
   const queryClient = useQueryClient();
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [view, setView] = useState<ViewState>({ mode: "list" });
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -392,6 +435,22 @@ export function EntryWorkspacePage({ kind }: { kind: EntryKind }) {
       setView({ mode: "show", entry: result.entry });
     },
   });
+  const commentMutation = useMutation({
+    mutationFn: ({ body, entry }: { body: string; entry: EntryRecord }) => apiPost<{ ok: boolean; entry: EntryRecord }>(`/core/entries/${kind}/${entry.entryId}/comments`, { body }, "tenant"),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["tenant", "entries", kind] });
+      setView({ mode: "show", entry: result.entry });
+    },
+    onError: (error) => toast.error("Comment failed", { description: apiErrorText(error, "Could not add comment") }),
+  });
+  const toolMutation = useMutation({
+    mutationFn: ({ entry, tool, value }: { entry: EntryRecord; tool: string; value?: string }) => apiPost<{ ok: boolean; entry: EntryRecord }>(`/core/entries/${kind}/${entry.entryId}/tools`, { tool, value }, "tenant"),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["tenant", "entries", kind] });
+      setView({ mode: "show", entry: result.entry });
+    },
+    onError: (error) => toast.error("Entry tool failed", { description: apiErrorText(error, "Could not run tool") }),
+  });
 
   const entries = entriesQuery.data ?? [];
   const filtered = useMemo(() => {
@@ -415,9 +474,21 @@ export function EntryWorkspacePage({ kind }: { kind: EntryKind }) {
         kind={kind}
         onArchive={() => archiveMutation.mutate(entry)}
         onBack={() => setView({ mode: "list" })}
+        onComment={(body) => commentMutation.mutate({ entry, body })}
         onEdit={() => setView({ mode: "upsert", entry })}
         onNew={() => setView({ mode: "upsert", entry: null })}
+        onNext={() => {
+          const index = entries.findIndex((item) => item.entryId === entry.entryId);
+          const next = entries[index + 1];
+          if (next) setView({ mode: "show", entry: next });
+        }}
+        onPrevious={() => {
+          const index = entries.findIndex((item) => item.entryId === entry.entryId);
+          const previous = entries[index - 1];
+          if (previous) setView({ mode: "show", entry: previous });
+        }}
         onRestore={() => restoreMutation.mutate(entry)}
+        onTool={(tool, value) => toolMutation.mutate(value === undefined ? { entry, tool } : { entry, tool, value })}
       />
     );
   }
@@ -549,52 +620,90 @@ function EntryShowPage({
   kind,
   onArchive,
   onBack,
+  onComment,
   onEdit,
   onNew,
+  onNext,
+  onPrevious,
   onRestore,
+  onTool,
 }: {
   entry: EntryRecord;
   kind: EntryKind;
   onArchive: () => void;
   onBack: () => void;
+  onComment: (body: string) => void;
   onEdit: () => void;
   onNew: () => void;
+  onNext: () => void;
+  onPrevious: () => void;
   onRestore: () => void;
+  onTool: (tool: string, value?: string) => void;
 }) {
   const meta = entryMeta[kind];
+  const [printCopies, setPrintCopies] = useState<Array<"original" | "duplicate" | "office">>(["original"]);
+  function togglePrintCopy(copy: "original" | "duplicate" | "office") {
+    setPrintCopies((current) => current.includes(copy) ? current.filter((item) => item !== copy) : [...current, copy]);
+  }
   return (
     <WorkspacePage
-      title={`${meta.label} ${entry.documentNo}`}
-      description={`${meta.partyLabel}: ${entry.partyName}`}
+      title={kind === "sales" ? entry.partyName : `${meta.label} ${entry.documentNo}`}
+      description={kind === "sales" ? entry.documentNo : `${meta.partyLabel}: ${entry.partyName}`}
       actions={
         <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <Button type="button" variant="outline" className="h-9 rounded-md" onClick={onBack}><ArrowLeft className="size-4" />Back</Button>
           <Button type="button" variant="outline" className="h-9 rounded-md" onClick={onNew}><Plus className="size-4" />New</Button>
-          <Button type="button" className="h-9 rounded-md" onClick={onEdit}><Pencil className="size-4" />Edit</Button>
-          <Button type="button" variant="outline" className="h-9 rounded-md" onClick={() => window.print()}><Printer className="size-4" />Print</Button>
-          <Button type="button" variant="outline" className="h-9 rounded-md" onClick={() => window.print()}><Download className="size-4" />PDF</Button>
+        </div>
+      }
+    >
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 print:hidden">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" className="h-9 rounded-md" onClick={onBack}><ArrowLeft className="size-4" />Back</Button>
+          <Button type="button" variant="outline" className="h-9 rounded-md" onClick={onPrevious}><ChevronLeft className="size-4" />Prev</Button>
+          <Button type="button" variant="outline" className="h-9 rounded-md" onClick={onNext}><ChevronRight className="size-4" />Next</Button>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {kind === "sales" ? (
+            <div className="flex min-h-9 flex-wrap items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-sm shadow-sm">
+              {([
+                ["original", "Original"],
+                ["duplicate", "Duplicate"],
+                ["office", "Office Copy"],
+              ] as const).map(([value, label]) => (
+                <label key={value} className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-muted-foreground hover:bg-muted hover:text-foreground">
+                  <input type="checkbox" className="size-3.5 accent-primary" checked={printCopies.includes(value)} onChange={() => togglePrintCopy(value)} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          ) : null}
+          <Button type="button" className="h-9 rounded-md" onClick={() => window.print()}><Printer className="size-4" />Print</Button>
+          <Button type="button" variant="outline" className="h-9 rounded-md" onClick={onEdit}><Pencil className="size-4" />Edit</Button>
           {entry.isActive ? (
             <Button type="button" variant="destructive" className="h-9 rounded-md" onClick={onArchive}><Trash2 className="size-4" />Suspend</Button>
           ) : (
             <Button type="button" variant="outline" className="h-9 rounded-md" onClick={onRestore}>Restore</Button>
           )}
         </div>
-      }
-    >
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem] print:block">
-        <PrintPreview entry={entry} kind={kind} />
-        <div className="space-y-4 print:hidden">
-          <SummaryPanel entry={entry} />
-          <ActivityPanel entry={entry} />
-        </div>
+      </div>
+      <div className="space-y-4 print:block">
+        <PrintPreview entry={entry} kind={kind} printCopies={printCopies.length ? printCopies : ["original"]} />
+        <EntryConversation entry={entry} onComment={onComment} onTool={onTool} />
       </div>
     </WorkspacePage>
   );
 }
 
-function PrintPreview({ entry, kind }: { entry: EntryRecord; kind: EntryKind }) {
+function PrintPreview({ entry, kind, printCopies = ["original"] }: { entry: EntryRecord; kind: EntryKind; printCopies?: Array<"original" | "duplicate" | "office"> }) {
   const meta = entryMeta[kind];
   const isMoneyEntry = meta.usesAllocations;
+  const [settings] = useState<SalesSettingsState>(() => readSalesSettings());
+  if (kind === "sales") {
+    return (
+      <div className="sales-print-root mx-auto grid w-fit max-w-full gap-4 rounded-md border border-border/70 bg-card p-3 shadow-sm print:block print:w-[210mm] print:max-w-none print:border-0 print:bg-white print:p-0 print:shadow-none">
+        {printCopies.map((copy) => <SalesTaxInvoiceDocument key={copy} copy={copy} entry={entry} settings={settings} />)}
+      </div>
+    );
+  }
   return (
     <div className="rounded-md border border-border/70 bg-card/95 p-6 shadow-sm print:border-0 print:bg-white print:p-0 print:shadow-none">
       <div className="mx-auto min-h-[920px] max-w-[820px] bg-white p-8 text-foreground shadow-sm ring-1 ring-border/70 print:min-h-0 print:max-w-none print:p-0 print:shadow-none print:ring-0">
@@ -643,6 +752,419 @@ function PrintPreview({ entry, kind }: { entry: EntryRecord; kind: EntryKind }) 
   );
 }
 
+function SalesTaxInvoiceDocument({ copy, entry, settings }: { copy: "original" | "duplicate" | "office"; entry: EntryRecord; settings: SalesSettingsState }) {
+  const isCgstSgst = entry.placeOfSupply !== "igst";
+  const copyLabel = copy === "duplicate" ? "Duplicate" : copy === "office" ? "Office Copy" : "Original";
+  const columns = salesPrintItemColumns(settings, isCgstSgst);
+  const linePlan = getSalesPrintLinePlan(entry.lines);
+  if (linePlan.requiresTwoPageTemplate) {
+    const pages = getSalesPrintPagedLinePlan(entry.lines);
+    return (
+      <article className="sales-print-copy grid gap-4 print:block">
+        {pages.map((page, pageIndex) => (
+          <SalesTaxInvoicePage
+            key={`sales-print-page-${pageIndex}`}
+            columns={columns}
+            copyLabel={`${copyLabel} - Page ${pageIndex + 1} of ${pages.length}`}
+            entry={entry}
+            isCgstSgst={isCgstSgst}
+            isLastPage={pageIndex === pages.length - 1}
+            rows={page.rows}
+          />
+        ))}
+      </article>
+    );
+  }
+  return (
+    <article className="sales-print-copy">
+      <SalesTaxInvoicePage columns={columns} copyLabel={copyLabel} entry={entry} isCgstSgst={isCgstSgst} isLastPage rows={linePlan.rows} />
+    </article>
+  );
+}
+
+function SalesTaxInvoicePage({
+  columns,
+  copyLabel,
+  entry,
+  isCgstSgst,
+  isLastPage,
+  rows,
+}: {
+  columns: SalesPrintItemColumn[];
+  copyLabel: string;
+  entry: EntryRecord;
+  isCgstSgst: boolean;
+  isLastPage: boolean;
+  rows: SalesPrintLineRow[];
+}) {
+  return (
+    <div className="sales-print-extended-page sales-invoice-print-sheet mx-auto h-[297mm] w-[210mm] max-w-full overflow-hidden bg-white p-[7mm] text-[9px] leading-tight text-black shadow-sm ring-1 ring-border/70 print:m-0 print:h-[297mm] print:w-[210mm] print:max-w-none print:p-[7mm] print:shadow-none print:ring-0">
+      <div className="border border-neutral-300">
+        <div className="relative border-b border-neutral-300 px-2 py-2 text-center">
+          <div className="text-[12px] font-bold">TAX INVOICE</div>
+          <div className="absolute right-2 top-2 text-[8px]">{copyLabel}</div>
+        </div>
+        <div className="relative min-h-[35mm] border-b border-neutral-300 px-4 py-3 text-center font-['Times_New_Roman',serif]">
+          <div className="absolute left-4 top-6 flex size-16 items-center justify-center rounded-full border border-neutral-400 text-xl italic">CKF</div>
+          <h2 className="text-[27px] font-bold leading-none">COTTON KNIT FASHIONS</h2>
+          <p className="mt-3 text-[11px] leading-tight">8/1, TSR Layout, 4th street, Kongu Main Road<br />Tiruppur, Tiruppur -Dist, Tamil Nadu, India - 641607</p>
+          <p className="text-[10px] leading-tight">Email: sam@hariyaexports.com Phone: 9944935395</p>
+          <p className="text-[11px] font-bold leading-tight">GSTIN/UIN: 33ANKPS9182N1Z3</p>
+        </div>
+        <div className="grid grid-cols-2 border-b border-neutral-300">
+          <div className="grid grid-cols-[24mm_1fr] px-2 py-1.5">
+            <div>Invoice No:</div><div className="font-bold">{entry.documentNo}</div>
+            <div>Date:</div><div className="font-bold">{formatDate(entry.documentDate)}</div>
+            <div>Work Order:</div><div>{entry.referenceNo || "-"}</div>
+          </div>
+          <div className="border-l border-neutral-300 px-2 py-1.5">
+            {entry.irn ? (
+              <div className="grid grid-cols-[16mm_1fr] gap-1">
+                <span className="font-bold">IRN :</span>
+                <span className="break-all font-bold leading-tight">{entry.irn}</span>
+              </div>
+            ) : null}
+            {entry.ackNo || entry.ackDate ? (
+              <InlineInvoiceDetail leftLabel="Ack No.:" leftValue={entry.ackNo} rightLabel="Ack Date:" rightValue={entry.ackDate ? formatDate(entry.ackDate) : ""} />
+            ) : null}
+            {entry.ewayBillNo || entry.ewayBillDate ? (
+              <InlineInvoiceDetail leftLabel="E-Way Bill No.:" leftValue={entry.ewayBillNo} rightLabel="Date:" rightValue={entry.ewayBillDate ? formatDate(entry.ewayBillDate) : ""} />
+            ) : null}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 border-b border-neutral-300">
+          <SalesPartyBlock title="Buyer (Bill to)" entry={entry} address={entry.billingAddress ?? null} />
+          <SalesPartyBlock title="Buyer (Ship to)" entry={entry} address={entry.shippingAddress || entry.billingAddress || null} />
+        </div>
+        <table className="w-full table-fixed border-collapse">
+          <thead>
+            <tr className="bg-neutral-50">
+              {columns.map((column) => <InvoiceTh key={column.key} className={column.widthClass}>{column.label}</InvoiceTh>)}
+            </tr>
+          </thead>
+          <tbody>
+            {!isLastPage ? <SalesCarryForwardRow columns={columns} label="Carry forward to next page" /> : null}
+            {rows.map((row) => row.kind === "item"
+              ? <SalesPrintItemRow key={`item-${row.index}`} columns={columns} index={row.index} isCgstSgst={isCgstSgst} line={row.line} />
+              : <SalesPrintBlankRow key={`blank-${row.index}`} columns={columns} />)}
+            {isLastPage ? <SalesPrintTotalRow columns={columns} entry={entry} isCgstSgst={isCgstSgst} /> : <SalesCarryForwardRow columns={columns} label="To be continued..." />}
+          </tbody>
+        </table>
+        {isLastPage ? (
+          <>
+            <div className="grid grid-cols-[1fr_63mm] border-t border-neutral-300">
+              <div className="min-h-[28mm] px-2 py-2">
+                <p>We hereby certify that our registration under the GST Act 2017 is in force on the date on which sale of goods specified in this invoice is made by us and the sale is effected in the regular course of business.</p>
+                <p className="mt-2 font-bold">* Goods once sold will not be taken back unless agreed in writing.</p>
+                {entry.signedQr ? <p className="mt-2 break-all text-[8px]">Signed QR: {entry.signedQr}</p> : null}
+              </div>
+              <div className="border-l border-neutral-300">
+                <InvoiceTotal label="Taxable Value" value={money(entry.taxableTotal)} />
+                <InvoiceTotal label={isCgstSgst ? "Total CGST" : "Total IGST"} value={money(isCgstSgst ? entry.taxTotal / 2 : entry.taxTotal)} />
+                {isCgstSgst ? <InvoiceTotal label="Total SGST" value={money(entry.taxTotal / 2)} /> : null}
+                <InvoiceTotal label="Total GST" value={money(entry.taxTotal)} />
+                <InvoiceTotal label="Round Off" value={money(entry.roundOff)} />
+                <InvoiceTotal label="GRAND TOTAL" value={money(entry.grandTotal)} strong />
+              </div>
+            </div>
+            <div className="border-t border-neutral-300 px-2 py-1">
+              <span>Amount (in words)</span>
+              <div className="font-bold">{amountWords(entry.grandTotal)}</div>
+            </div>
+            <div className="grid min-h-[23mm] grid-cols-2 border-t border-neutral-300">
+              <div className="px-2 py-2">Receiver Sign</div>
+              <div className="flex flex-col justify-between border-l border-neutral-300 px-2 py-2 font-bold">
+                <div>For COTTON KNIT FASHIONS</div>
+                <div>Authorised Signatory</div>
+              </div>
+            </div>
+            <div className="border-t border-neutral-300 px-2 py-1 text-[8px] font-bold">Subject to Tiruppur Jurisdiction</div>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+type SalesPrintItemColumnKey = "cgst" | "gstPercent" | "hsn" | "igst" | "poDc" | "product" | "quantity" | "rate" | "serial" | "sgst" | "taxable" | "total";
+type SalesPrintItemColumn = { key: SalesPrintItemColumnKey; label: string; widthClass: string };
+type SalesPrintLineRow =
+  | { index: number; kind: "item"; line: EntryLine; lineCount: number }
+  | { index: number; kind: "blank" };
+
+const salesPrintMinimumItemLineBudget = 12;
+const salesPrintExtendedItemOnlyLineBudget = 24;
+const salesPrintFinalTotalsLineBudget = 11;
+
+function salesPrintItemColumns(settings: SalesSettingsState, isCgstSgst: boolean): SalesPrintItemColumn[] {
+  const showPo = settings.layout["sales-use-po"];
+  const showDc = settings.layout["sales-use-dc"];
+  const showPoDc = showPo || showDc;
+  return [
+    { key: "serial", label: "S.no", widthClass: "w-[9mm]" },
+    { key: "product", label: "Particulars", widthClass: showPoDc ? "w-[40mm]" : "w-[50mm]" },
+    { key: "hsn", label: "HSN", widthClass: "w-[13mm]" },
+    ...(showPoDc ? [{ key: "poDc" as const, label: [showPo ? "PO" : null, showDc ? "DC" : null].filter(Boolean).join(" / "), widthClass: "w-[18mm]" }] : []),
+    { key: "quantity", label: "Qty", widthClass: "w-[12mm]" },
+    { key: "rate", label: "Rate", widthClass: "w-[15mm]" },
+    { key: "taxable", label: "Taxable", widthClass: "w-[20mm]" },
+    { key: "gstPercent", label: "GST %", widthClass: "w-[11mm]" },
+    ...(isCgstSgst
+      ? [{ key: "cgst" as const, label: "CGST", widthClass: "w-[16mm]" }, { key: "sgst" as const, label: "SGST", widthClass: "w-[16mm]" }]
+      : [{ key: "igst" as const, label: "IGST", widthClass: "w-[22mm]" }]),
+    { key: "total", label: "Total", widthClass: "w-[19mm]" },
+  ];
+}
+
+function getSalesPrintLinePlan(lines: readonly EntryLine[]) {
+  const lineBudget = salesPrintMinimumItemLineBudget;
+  let usedLines = 0;
+  let requiresTwoPageTemplate = false;
+  const rows: SalesPrintLineRow[] = [];
+  lines.forEach((line, index) => {
+    const lineCount = getSalesItemPrintLineCount(line);
+    if (usedLines + lineCount > lineBudget) {
+      requiresTwoPageTemplate = true;
+      return;
+    }
+    usedLines += lineCount;
+    rows.push({ index, kind: "item", line, lineCount });
+  });
+  if (!requiresTwoPageTemplate) {
+    for (let index = rows.length; usedLines < lineBudget; index += 1) {
+      rows.push({ index, kind: "blank" });
+      usedLines += 1;
+    }
+  }
+  return { lineBudget, requiresTwoPageTemplate, rows, usedLines };
+}
+
+function getSalesPrintPagedLinePlan(lines: readonly EntryLine[]) {
+  const pages: Array<{ lineBudget: number; rows: SalesPrintLineRow[]; startIndex: number; usedLines: number }> = [];
+  let itemIndex = 0;
+  while (lines.length - itemIndex > salesPrintFinalTotalsLineBudget) {
+    const startIndex = itemIndex;
+    const rows: SalesPrintLineRow[] = [];
+    let usedLines = 0;
+    while (itemIndex < lines.length && usedLines < salesPrintExtendedItemOnlyLineBudget) {
+      const line = lines[itemIndex];
+      if (!line) break;
+      const lineCount = getSalesItemPrintLineCount(line);
+      if (usedLines + lineCount > salesPrintExtendedItemOnlyLineBudget) break;
+      rows.push({ index: itemIndex, kind: "item", line, lineCount });
+      usedLines += lineCount;
+      itemIndex += 1;
+    }
+    pages.push({ lineBudget: salesPrintExtendedItemOnlyLineBudget, rows, startIndex, usedLines });
+  }
+
+  const finalStartIndex = itemIndex;
+  const finalRows: SalesPrintLineRow[] = [];
+  let finalUsedLines = 0;
+  while (itemIndex < lines.length && finalUsedLines < salesPrintFinalTotalsLineBudget) {
+    const line = lines[itemIndex];
+    if (!line) break;
+    const lineCount = getSalesItemPrintLineCount(line);
+    if (finalUsedLines + lineCount > salesPrintFinalTotalsLineBudget) break;
+    finalRows.push({ index: itemIndex, kind: "item", line, lineCount });
+    finalUsedLines += lineCount;
+    itemIndex += 1;
+  }
+  for (let index = finalStartIndex + finalRows.length; finalUsedLines < salesPrintFinalTotalsLineBudget; index += 1) {
+    finalRows.push({ index, kind: "blank" });
+    finalUsedLines += 1;
+  }
+  pages.push({ lineBudget: salesPrintFinalTotalsLineBudget, rows: finalRows, startIndex: finalStartIndex, usedLines: finalUsedLines });
+  return pages;
+}
+
+function getSalesItemPrintLineCount(_line: EntryLine) {
+  return 1;
+}
+
+function SalesPrintItemRow({ columns, index, isCgstSgst, line }: { columns: SalesPrintItemColumn[]; index: number; isCgstSgst: boolean; line: EntryLine }) {
+  const tax = salesTaxBreakup(line, isCgstSgst);
+  const values: Record<SalesPrintItemColumnKey, ReactNode> = {
+    cgst: money(tax.cgst),
+    gstPercent: `${line.taxRate}%`,
+    hsn: line.hsnCode || "-",
+    igst: money(tax.igst),
+    poDc: [line.poNo, line.dcNo].filter(Boolean).join(" / ") || "-",
+    product: <><span className="font-bold">{line.productName}</span>{line.description ? ` - ${line.description}` : ""}</>,
+    quantity: money(line.quantity).replace(".00", ""),
+    rate: money(line.rate),
+    serial: index + 1,
+    sgst: money(tax.sgst),
+    taxable: money(tax.taxable),
+    total: money(tax.total),
+  };
+  const rightAligned = new Set<SalesPrintItemColumnKey>(["cgst", "igst", "quantity", "rate", "sgst", "taxable", "total"]);
+  return (
+    <tr className="h-[8mm] align-top">
+      {columns.map((column) => (
+        <InvoiceTd key={column.key} align={rightAligned.has(column.key) ? "right" : column.key === "product" ? "left" : "center"} className="border-b-0">{values[column.key]}</InvoiceTd>
+      ))}
+    </tr>
+  );
+}
+
+function SalesPrintBlankRow({ columns }: { columns: SalesPrintItemColumn[] }) {
+  return <tr className="h-[8mm]">{columns.map((column) => <InvoiceTd key={column.key} className="border-b-0">&nbsp;</InvoiceTd>)}</tr>;
+}
+
+function SalesCarryForwardRow({ columns, label }: { columns: SalesPrintItemColumn[]; label: string }) {
+  return <tr className="font-bold"><InvoiceTd align="right" colSpan={columns.length}>{label}</InvoiceTd></tr>;
+}
+
+function SalesPrintTotalRow({ columns, entry, isCgstSgst }: { columns: SalesPrintItemColumn[]; entry: EntryRecord; isCgstSgst: boolean }) {
+  const values: Partial<Record<SalesPrintItemColumnKey, ReactNode>> = {
+    cgst: money(isCgstSgst ? entry.taxTotal / 2 : 0),
+    igst: money(isCgstSgst ? 0 : entry.taxTotal),
+    quantity: money(entry.lines.reduce((sum, line) => sum + numberValue(line.quantity), 0)).replace(".00", ""),
+    sgst: money(isCgstSgst ? entry.taxTotal / 2 : 0),
+    taxable: money(entry.taxableTotal),
+    total: money(entry.grandTotal),
+  };
+  const quantityIndex = Math.max(1, columns.findIndex((column) => column.key === "quantity"));
+  return (
+    <tr className="font-bold">
+      <InvoiceTd className="whitespace-nowrap border-t border-neutral-300 text-[8px]">E&amp;OE</InvoiceTd>
+      {quantityIndex > 1 ? <InvoiceTd align="center" className="border-t border-neutral-300" colSpan={quantityIndex - 1}>Total</InvoiceTd> : null}
+      {columns.slice(quantityIndex).map((column) => (
+        <InvoiceTd key={column.key} align={["cgst", "igst", "quantity", "sgst", "taxable", "total"].includes(column.key) ? "right" : "center"} className="border-t border-neutral-300">
+          {values[column.key] ?? ""}
+        </InvoiceTd>
+      ))}
+    </tr>
+  );
+}
+
+function InlineInvoiceDetail({
+  leftLabel,
+  leftValue,
+  rightLabel,
+  rightValue,
+}: {
+  leftLabel: string;
+  leftValue?: ReactNode;
+  rightLabel: string;
+  rightValue?: ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-[auto_minmax(70px,1fr)_auto_auto] gap-x-2 whitespace-nowrap font-bold leading-tight">
+      <span>{leftLabel}</span>
+      <span>{leftValue || "-"}</span>
+      <span>{rightLabel}</span>
+      <span>{rightValue || "-"}</span>
+    </div>
+  );
+}
+
+function SalesPartyBlock({ address, entry, title }: { address?: string | null; entry: EntryRecord; title: string }) {
+  return (
+    <div className="min-h-[18mm] border-r border-neutral-300 px-2 py-1 last:border-r-0">
+      <div>{title}</div>
+      <div className="font-bold">M/s. {entry.partyName}</div>
+      <div>{address || "Address not set"}</div>
+      <div>GSTIN/UIN : {entry.partyGstin || "-"}</div>
+      <div>State Name : {entry.partyStateName || ""} <span className="ml-6">State Code : {entry.partyStateCode || ""}</span></div>
+    </div>
+  );
+}
+
+function EntryConversation({ entry, onComment, onTool }: { entry: EntryRecord; onComment: (body: string) => void; onTool: (tool: string, value?: string) => void }) {
+  const [comment, setComment] = useState("");
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px] print:hidden">
+      <div className="min-h-[280px] rounded-md border border-border/70 bg-card p-4 shadow-sm">
+        <h3 className="text-lg font-semibold">Comments</h3>
+        <div className="mt-4 flex items-center gap-3">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">A</div>
+          <Input className="h-10 rounded-md shadow-sm" placeholder="Type a reply / comment" value={comment} onChange={(event) => setComment(event.target.value)} />
+          <Button type="button" className="h-10 rounded-md px-4" disabled={!comment.trim()} onClick={() => { onComment(comment); setComment(""); }}>Add</Button>
+        </div>
+        {entry.comments.length ? (
+          <div className="mt-4 space-y-2">
+            {entry.comments.map((item) => <SideNote key={`${item.authorEmail}-${item.createdAt}`} title={item.authorEmail} body={item.body} meta={formatDateTime(item.createdAt)} />)}
+          </div>
+        ) : null}
+        <h3 className="mt-8 text-lg font-semibold">Activity</h3>
+        <div className="relative mt-5 space-y-5 before:absolute before:left-[6px] before:top-1 before:h-[calc(100%-0.25rem)] before:border-l-2 before:border-border">
+          {entry.activities.map((item) => (
+            <div key={`${item.activityType}-${item.createdAt}-${item.message}`} className="relative pl-9 text-sm">
+              <span className="absolute left-0 top-0.5 flex size-3.5 items-center justify-center rounded-full border border-muted-foreground/10 bg-muted-foreground/10 shadow-sm">
+                <span className="size-1.5 rounded-full bg-muted-foreground" />
+              </span>
+              <span>{item.message}</span>
+              <span className="text-muted-foreground"> - {formatDate(item.createdAt)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <EntryTools onTool={onTool} />
+    </div>
+  );
+}
+
+function EntryTools({ onTool }: { onTool: (tool: string, value?: string) => void }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const [value, setValue] = useState("");
+  const tools = [
+    { icon: Mail, id: "email", label: "Send to Email", placeholder: "email@example.com" },
+    { icon: UserRound, id: "assign", label: "Assign", placeholder: "Assignee" },
+    { icon: Paperclip, id: "attachments", label: "Attachments", placeholder: "Attachment note" },
+    { icon: Tag, id: "tags", label: "Tags", placeholder: "Tag" },
+    { icon: MessageCircle, id: "whatsapp", label: "Send to WhatsApp", placeholder: "WhatsApp number" },
+  ];
+  return (
+    <div className="h-fit rounded-md border border-border/70 bg-card shadow-sm">
+      <div className="flex items-center gap-2 border-b border-border/70 px-3 py-3 text-sm font-semibold"><Settings2 className="size-4" />Entry tools</div>
+      <div>
+        {tools.map((tool) => {
+          const Icon = tool.icon;
+          const active = open === tool.id;
+          return (
+            <div key={tool.id} className="border-b border-border/70 last:border-b-0">
+              <button type="button" className="flex w-full items-center justify-between px-3 py-3 text-left text-sm text-muted-foreground hover:bg-muted/40" onClick={() => { setOpen(active ? null : tool.id); setValue(""); }}>
+                <span className="flex items-center gap-3"><Icon className="size-4" />{tool.label}</span>
+                <Plus className="size-4" />
+              </button>
+              {active ? (
+                <div className="grid gap-2 px-3 pb-3">
+                  <Input className="h-9 rounded-md" placeholder={tool.placeholder} value={value} onChange={(event) => setValue(event.target.value)} />
+                  <Button type="button" className="h-8 rounded-md" onClick={() => { onTool(tool.id, value); setOpen(null); setValue(""); }}>Add</Button>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SideNote({ body, meta, title }: { body: string; meta: string; title: string }) {
+  return (
+    <div className="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+      <div className="font-medium">{title}</div>
+      <div className="mt-1">{body}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{meta}</div>
+    </div>
+  );
+}
+
+function InvoiceTh({ children, className }: { children: ReactNode; className?: string }) {
+  return <th className={cn("box-border overflow-hidden border-b border-r border-neutral-300 px-1 py-2 text-center font-bold last:border-r-0", className)}>{children}</th>;
+}
+
+function InvoiceTd({ align = "left", children, className, colSpan }: { align?: "center" | "left" | "right"; children?: ReactNode; className?: string; colSpan?: number }) {
+  return <td colSpan={colSpan} className={cn("box-border overflow-hidden break-words border-b border-r border-neutral-300 px-1 py-1 last:border-r-0", align === "center" && "text-center", align === "right" && "text-right tabular-nums", className)}>{children}</td>;
+}
+
+function InvoiceTotal({ label, strong, value }: { label: string; strong?: boolean; value: string }) {
+  return <div className={cn("grid grid-cols-[1fr_24mm] border-b border-neutral-300 px-1.5 py-1 last:border-b-0", strong && "font-bold")}><span>{label}</span><span className="text-right tabular-nums">{value}</span></div>;
+}
+
 function SalesUpsertPage({
   entry,
   existingEntries,
@@ -670,6 +1192,8 @@ function SalesUpsertPage({
   const [itemDraft, setItemDraft] = useState<EntryLine>(() => emptyLine());
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [generating, setGenerating] = useState<"einvoice" | "eway" | null>(null);
+  const [selectedContact, setSelectedContact] = useState<ContactLookupRecord | null>(null);
   const showPo = settings.layout["sales-use-po"];
   const showDc = settings.layout["sales-use-dc"];
   const showColour = settings.layout["sales-use-colour"];
@@ -723,6 +1247,45 @@ function SalesUpsertPage({
     if (printAfterSave) window.setTimeout(() => window.print(), 300);
   }
 
+  async function generateCompliance(type: "einvoice" | "eway") {
+    const nextErrors = validateEntryForm("sales", form);
+    if (type === "eway" && !form.irn.trim()) nextErrors.irn = "IRN is required before generating E-way bill.";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+    setGenerating(type);
+    const toastId = toast.loading(type === "einvoice" ? "Sending e-invoice request..." : "Sending E-way bill request...");
+    try {
+      const saved = await apiPost<{ ok: boolean; entry: EntryRecord }>(`/core/entries/sales/upsert`, payloadFromForm("sales", { ...form, status: "posted" }), "tenant");
+      const savedEntry = saved.entry;
+      setForm((current) => ({ ...current, entryId: savedEntry.entryId, status: savedEntry.status }));
+      const action = type === "einvoice" ? "generate-irn" : "generate-eway";
+      const result = await apiPost<{ ok: boolean; entry: EntryRecord; document?: Partial<EntryRecord> }>(
+        `/core/entries/sales/${encodeURIComponent(savedEntry.entryId)}/compliance/${action}`,
+        { payload: type === "einvoice" ? buildSalesEinvoicePayload({ ...form, entryId: savedEntry.entryId }) : buildSalesEwayPayload({ ...form, entryId: savedEntry.entryId, irn: savedEntry.irn ?? form.irn }) },
+        "tenant",
+      );
+      const nextEntry = result.entry;
+      setForm((current) => ({
+        ...current,
+        entryId: nextEntry.entryId,
+        irn: nextEntry.irn ?? current.irn,
+        ackNo: nextEntry.ackNo ?? current.ackNo,
+        ackDate: normalizeDateValue(nextEntry.ackDate, current.ackDate),
+        signedQr: nextEntry.signedQr ?? current.signedQr,
+        ewayBillNo: nextEntry.ewayBillNo ?? current.ewayBillNo,
+        ewayBillDate: normalizeDateValue(nextEntry.ewayBillDate, current.ewayBillDate),
+        transportName: nextEntry.transportName ?? current.transportName,
+        vehicleNo: nextEntry.vehicleNo ?? current.vehicleNo,
+        ewayPart: nextEntry.ewayPart ?? current.ewayPart,
+      }));
+      toast.success(type === "einvoice" ? "E-invoice generated" : "E-way bill generated", { description: type === "einvoice" ? "WhiteBooks IRN details saved." : "WhiteBooks E-way details saved.", id: toastId });
+    } catch (error) {
+      toast.error(type === "einvoice" ? "E-invoice failed" : "E-way bill failed", { description: apiErrorText(error, "WhiteBooks request failed"), id: toastId });
+    } finally {
+      setGenerating(null);
+    }
+  }
+
   return (
     <WorkspacePage
       title={entry ? `Edit ${entry.documentNo}` : "New Sales"}
@@ -758,17 +1321,22 @@ function SalesUpsertPage({
                       createEnabled
                       invalid={Boolean(errors.partyName)}
                       value={form.partyName}
-                      onChange={(partyName, contact) => update({
-                        partyName,
-                        partyId: contact?.contactId ?? form.partyId,
-                        partyGstin: contact?.gstin ?? form.partyGstin,
-                        billingAddress: contact ? contactAddressText(contact) || form.billingAddress : form.billingAddress,
-                        shippingAddress: contact ? contactAddressText(contact) || form.shippingAddress : form.shippingAddress,
-                      })}
+                      onChange={(partyName, contact) => {
+                        setSelectedContact(contact);
+                        const billingAddress = contact ? contactAddressText(contact, "billing") || contactAddressText(contact) || form.billingAddress : form.billingAddress;
+                        const shippingAddress = contact ? contactAddressText(contact, "shipping") || billingAddress || form.shippingAddress : form.shippingAddress;
+                        update({
+                          partyName,
+                          partyId: contact?.contactId ?? form.partyId,
+                          partyGstin: contact?.gstin ?? form.partyGstin,
+                          billingAddress,
+                          shippingAddress,
+                        });
+                      }}
                     />
                   </PlainField>
                   <PlainField label="Work Order no">
-                    <Input className="h-11 rounded-md" value={form.referenceNo} onChange={(event) => update({ referenceNo: event.target.value })} />
+                    <WorkOrderAutocomplete value={form.referenceNo} onChange={(referenceNo) => update({ referenceNo })} />
                   </PlainField>
                   <PlainField label="Sales Ledger">
                     <SalesLedgerAutocomplete value={salesLedgerLabel(form.ledgerName)} onChange={(ledgerName) => update({ ledgerName })} />
@@ -833,14 +1401,44 @@ function SalesUpsertPage({
           </TabsContent>
           <TabsContent value="address" className="m-0">
             <div className="grid gap-5 px-6 py-5 lg:grid-cols-2">
-              <PlainField label="Billing address"><Textarea className="min-h-28 rounded-md" value={form.billingAddress} onChange={(event) => update({ billingAddress: event.target.value })} /></PlainField>
-              <PlainField label="Shipping address"><Textarea className="min-h-28 rounded-md" value={form.shippingAddress} onChange={(event) => update({ shippingAddress: event.target.value })} /></PlainField>
+              <ContactAddressPicker
+                addressKind="billing"
+                contact={selectedContact}
+                label="Billing address"
+                value={form.billingAddress}
+                onChange={(billingAddress) => update({ billingAddress })}
+                onContactChange={(contact) => setSelectedContact(contact)}
+              />
+              <ContactAddressPicker
+                addressKind="shipping"
+                contact={selectedContact}
+                label="Shipping address"
+                value={form.shippingAddress}
+                onChange={(shippingAddress) => update({ shippingAddress })}
+                onContactChange={(contact) => setSelectedContact(contact)}
+              />
               <PlainField label="GSTIN"><Input className="h-11 rounded-md" value={form.partyGstin} onChange={(event) => update({ partyGstin: event.target.value.toUpperCase() })} /></PlainField>
               <PlainField label="Due date"><WorkspaceDatePicker ariaLabel="Due date" placeholder="Select due date" value={form.dueDate} onValueChange={(dueDate) => update({ dueDate })} /></PlainField>
             </div>
           </TabsContent>
-          <TabsContent value="eway" className="m-0"><SalesDocumentPlaceholder title="E-way status" /></TabsContent>
-          <TabsContent value="einvoice" className="m-0"><SalesDocumentPlaceholder title="E-invoice status" /></TabsContent>
+          <TabsContent value="eway" className="m-0">
+            <SalesDocumentTab
+              form={form}
+              generating={generating === "eway"}
+              type="eway"
+              onGenerate={() => void generateCompliance("eway")}
+              onUpdate={update}
+            />
+          </TabsContent>
+          <TabsContent value="einvoice" className="m-0">
+            <SalesDocumentTab
+              form={form}
+              generating={generating === "einvoice"}
+              type="einvoice"
+              onGenerate={() => void generateCompliance("einvoice")}
+              onUpdate={update}
+            />
+          </TabsContent>
           <TabsContent value="terms" className="m-0">
             <div className="grid gap-5 px-6 py-5 lg:grid-cols-2">
               <PlainField label="Notes"><Textarea className="min-h-28 rounded-md" value={form.notes} onChange={(event) => update({ notes: event.target.value })} /></PlainField>
@@ -1331,6 +1929,7 @@ function ContactPicker({
   value: string;
 }) {
   const queryClient = useQueryClient();
+  const [editContact, setEditContact] = useState<ContactLookupRecord | null>(null);
   const contactsQuery = useQuery({
     queryKey: ["tenant", "entry-contact-lookup"],
     queryFn: () => apiGet<ContactLookupRecord[]>("/core/contacts", "tenant"),
@@ -1354,53 +1953,222 @@ function ContactPicker({
   );
 
   return (
+    <>
+      <WorkspaceLookup
+        allowTextValue
+        createLabel="Create contact"
+        createDialogClassName="w-[min(62rem,calc(100vw-3rem))] max-w-none overflow-hidden p-0 duration-0 data-[state=open]:animate-none data-[state=closed]:animate-none"
+        createMode={createEnabled ? "popup" : "none"}
+        invalid={invalid}
+        loading={contactsQuery.isLoading}
+        options={options}
+        trailingAction={selectedContact ? (
+          <button
+            aria-label={`Edit contact ${selectedContact.name}`}
+            className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-sky-50 hover:text-sky-600"
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={(event) => {
+              event.preventDefault();
+              setEditContact(selectedContact);
+            }}
+          >
+            <ArrowUpRight className="size-4" />
+          </button>
+        ) : undefined}
+        value={value}
+        {...(createEnabled ? {
+          renderCreateForm: ({ initialName, onCancel, onCreated }) => (
+            <SalesContactCreateForm
+              initialName={initialName}
+              onCancel={onCancel}
+              onCreated={async (contact) => {
+                await queryClient.invalidateQueries({ queryKey: ["tenant", "entry-contact-lookup"] });
+                const option: ContactLookupOption = {
+                  value: contact.name,
+                  label: contact.name,
+                  ...(contact.code ? { description: contact.code } : {}),
+                  meta: [contact.gstin, contact.primaryPhone].filter(Boolean).join(" | "),
+                  contact,
+                };
+                onCreated(option);
+              }}
+            />
+          ),
+        } : {})}
+        onTextChange={(nextValue) => onChange(nextValue, null)}
+        onValueChange={(nextValue, option) => {
+          const contact = (option as ContactLookupOption | undefined)?.contact ?? null;
+          onChange(option?.label ?? nextValue, contact);
+        }}
+      />
+      <SalesContactDialog
+        contact={editContact}
+        initialTab="details"
+        open={Boolean(editContact)}
+        onOpenChange={(open) => { if (!open) setEditContact(null); }}
+        onSaved={async (contact) => {
+          await queryClient.invalidateQueries({ queryKey: ["tenant", "entry-contact-lookup"] });
+          onChange(contact.name, contact);
+        }}
+      />
+    </>
+  );
+}
+
+function ContactAddressPicker({
+  addressKind,
+  contact,
+  label,
+  onChange,
+  onContactChange,
+  value,
+}: {
+  addressKind: "billing" | "shipping";
+  contact: ContactLookupRecord | null;
+  label: string;
+  onChange: (value: string) => void;
+  onContactChange: (contact: ContactLookupRecord) => void;
+  value: string;
+}) {
+  const queryClient = useQueryClient();
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const options = useMemo<WorkspaceLookupOption[]>(
+    () => contactAddressOptions(contact, addressKind),
+    [addressKind, contact],
+  );
+  const createLabel = contact ? `Create ${addressKind} address` : "Select contact first";
+
+  return (
+    <>
+      <PlainField label={label}>
+        <div className="grid gap-2">
+        <WorkspaceLookup
+          allowTextValue
+          createLabel={createLabel}
+          createMode={contact ? "inline" : "none"}
+          dropdownMode="portal"
+          emptyLabel={contact ? "No saved address. Type one and create it." : "Select a customer to use saved addresses."}
+          options={options}
+          placeholder={contact ? `Search or create ${addressKind} address` : "Select contact first"}
+          value={value}
+          onCreate={async (addressText) => {
+            if (!contact) {
+              toast.error("Select a customer before creating an address.");
+              return { value: addressText, label: addressText };
+            }
+            const text = addressText.trim();
+            if (!text) throw new Error("Address is required");
+            const updated = await apiPut<ContactLookupRecord>(`/core/contacts/${encodeURIComponent(contact.contactId)}`, {
+              addressBook: [
+                ...(contact.addressBook ?? []).map((address) => ({ ...address, isDefault: address.isDefault ?? false, isActive: address.isActive ?? true })),
+                {
+                  addressLine1: text,
+                  addressLine2: "",
+                  addressTypeId: addressKind,
+                  cityId: "",
+                  countryId: "",
+                  districtId: "",
+                  isActive: true,
+                  isDefault: !(contact.addressBook ?? []).some((address) => address.isDefault),
+                  pincodeId: "",
+                  stateId: "",
+                },
+              ],
+            }, "tenant");
+            await queryClient.invalidateQueries({ queryKey: ["tenant", "entry-contact-lookup"] });
+            onContactChange(updated);
+            onChange(text);
+            toast.success(`${label} created`, { description: updated.name });
+            return { value: text, label: text };
+          }}
+          onTextChange={onChange}
+          onValueChange={(nextValue, option) => onChange(option?.label ?? nextValue)}
+        />
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <button
+            className="inline-flex items-center gap-1 rounded-sm text-muted-foreground transition-colors hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
+            type="button"
+            disabled={!value}
+            onClick={() => onChange("")}
+          >
+            <X className="size-3.5" />
+            Clear
+          </button>
+          <button
+            className="inline-flex items-center gap-1 rounded-sm text-muted-foreground transition-colors hover:text-sky-600 disabled:pointer-events-none disabled:opacity-50"
+            type="button"
+            disabled={!contact}
+            onClick={() => setIsContactDialogOpen(true)}
+          >
+            <ArrowUpRight className="size-3.5" />
+            Open contact address
+          </button>
+        </div>
+        </div>
+      </PlainField>
+      <SalesContactDialog
+        contact={contact}
+        initialTab="address"
+        open={Boolean(contact && isContactDialogOpen)}
+        onOpenChange={(open) => setIsContactDialogOpen(open)}
+        onSaved={async (updated) => {
+          await queryClient.invalidateQueries({ queryKey: ["tenant", "entry-contact-lookup"] });
+          onContactChange(updated);
+          onChange(contactAddressText(updated, addressKind) || contactAddressText(updated) || value);
+        }}
+      />
+    </>
+  );
+}
+
+function WorkOrderAutocomplete({ onChange, value }: { onChange: (value: string) => void; value: string }) {
+  const queryClient = useQueryClient();
+  const recordsQuery = useQuery({
+    queryKey: ["tenant", "common-lookup", "work-orders"],
+    queryFn: () => apiGet<CommonLookupRecord[]>("/core/common/records?definitionKey=work-orders", "tenant"),
+  });
+  const options = useMemo<WorkspaceLookupOption[]>(
+    () =>
+      (recordsQuery.data ?? [])
+        .filter((record) => record.isActive !== false)
+        .map((record) => {
+          const label = commonLookupLabel(record) || String(record.code ?? record.id);
+          return {
+            value: label,
+            label,
+            ...(record.code ? { description: String(record.code) } : {}),
+            ...(record.description && record.description !== label ? { meta: String(record.description) } : {}),
+          };
+        }),
+    [recordsQuery.data],
+  );
+
+  return (
     <WorkspaceLookup
       allowTextValue
-      createLabel="Create contact"
-      createDialogClassName="w-[min(62rem,calc(100vw-3rem))] max-w-none overflow-hidden p-0 duration-0 data-[state=open]:animate-none data-[state=closed]:animate-none"
-      createMode={createEnabled ? "popup" : "none"}
-      invalid={invalid}
-      loading={contactsQuery.isLoading}
+      createLabel="Create work order"
+      createMode="inline"
+      dropdownMode="portal"
+      emptyLabel="No work orders found."
+      loading={recordsQuery.isLoading && options.length === 0}
       options={options}
-      trailingAction={selectedContact ? (
-        <button
-          aria-label={`Edit contact ${selectedContact.name}`}
-          className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-sky-50 hover:text-sky-600"
-          type="button"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={(event) => {
-            event.preventDefault();
-            openContactEdit(selectedContact.contactId);
-          }}
-        >
-          <ArrowUpRight className="size-4" />
-        </button>
-      ) : undefined}
+      placeholder="Search or create work order"
       value={value}
-      {...(createEnabled ? {
-        renderCreateForm: ({ initialName, onCancel, onCreated }) => (
-          <SalesContactCreateForm
-            initialName={initialName}
-            onCancel={onCancel}
-            onCreated={async (contact) => {
-              await queryClient.invalidateQueries({ queryKey: ["tenant", "entry-contact-lookup"] });
-              const option: ContactLookupOption = {
-                value: contact.name,
-                label: contact.name,
-                ...(contact.code ? { description: contact.code } : {}),
-                meta: [contact.gstin, contact.primaryPhone].filter(Boolean).join(" | "),
-                contact,
-              };
-              onCreated(option);
-            }}
-          />
-        ),
-      } : {})}
-      onTextChange={(nextValue) => onChange(nextValue, null)}
-      onValueChange={(nextValue, option) => {
-        const contact = (option as ContactLookupOption | undefined)?.contact ?? null;
-        onChange(option?.label ?? nextValue, contact);
+      onCreate={async (name) => {
+        const created = await apiPost<CommonLookupRecord>("/core/common/records", {
+          definitionKey: "work-orders",
+          name,
+          code: codeFromName(name),
+          description: `${name} work order`,
+        }, "tenant");
+        await queryClient.invalidateQueries({ queryKey: ["tenant", "common-lookup", "work-orders"] });
+        const label = commonLookupLabel(created) || name.trim();
+        toast.success("Work order created", { description: label });
+        return { value: label, label, ...(created.code ? { description: String(created.code) } : {}) };
       }}
+      onTextChange={onChange}
+      onValueChange={(nextValue, option) => onChange(option?.label ?? nextValue)}
     />
   );
 }
@@ -1511,28 +2279,36 @@ function AddressLookup({
 }
 
 function SalesContactCreateForm({
+  contact,
+  initialTab = "details",
   initialName,
   onCancel,
   onCreated,
 }: {
+  contact?: ContactLookupRecord | null;
+  initialTab?: "address" | "details";
   initialName: string;
   onCancel: () => void;
   onCreated: (contact: ContactLookupRecord) => void | Promise<void>;
 }) {
+  const isEdit = Boolean(contact?.contactId);
   const nextCodeQuery = useQuery({
     queryKey: ["tenant", "contacts", "next-code", "sales-create"],
     queryFn: () => apiGet<{ code: string }>("/core/contacts/next-code", "tenant"),
+    enabled: !isEdit,
   });
-  const [form, setForm] = useState<SalesContactForm>(() => emptySalesContactForm(initialName));
-  const [activeTab, setActiveTab] = useState<"address" | "details">("details");
+  const [form, setForm] = useState<SalesContactForm>(() => salesContactFormFromContact(contact, initialName));
+  const [activeTab, setActiveTab] = useState<"address" | "details">(initialTab);
   const [error, setError] = useState<string | null>(null);
   const saveMutation = useMutation({
     mutationFn: async () => {
       const name = form.name.trim();
       if (!name) throw new Error("Customer name is required");
       const contactTypeId = await ensureCustomerContactType();
-      const addressBook = form.addressLine1.trim()
+      const existingAddresses = contact?.addressBook ?? [];
+      const editedAddress = form.addressLine1.trim()
         ? [{
+            ...(existingAddresses.find((address) => address.isDefault) ?? existingAddresses[0] ?? {}),
             addressLine1: form.addressLine1.trim(),
             addressLine2: form.addressLine2.trim(),
             addressTypeId: optional(form.addressTypeId) ?? "billing",
@@ -1545,7 +2321,12 @@ function SalesContactCreateForm({
             stateId: optional(form.stateId),
           }]
         : [];
-      return apiPost<ContactLookupRecord>("/core/contacts", {
+      const addressBook = isEdit
+        ? editedAddress.length
+          ? [editedAddress[0], ...existingAddresses.filter((address) => address.uuid !== editedAddress[0]?.uuid && address.id !== editedAddress[0]?.id)]
+          : existingAddresses
+        : editedAddress;
+      const payload = {
         code: form.code.trim() || nextCodeQuery.data?.code || codeFromName(name),
         contactTypeId,
         gstin: optional(form.gstin.toUpperCase()),
@@ -1556,11 +2337,14 @@ function SalesContactCreateForm({
         addressBook,
         contactEmails: form.email.trim() ? [{ email: form.email.trim(), emailType: "Primary", isActive: true, isPrimary: true }] : [],
         contactPhones: form.phone.trim() ? [{ phoneNumber: form.phone.trim(), phoneType: "Primary", isActive: true, isPrimary: true }] : [],
-      }, "tenant");
+      };
+      return isEdit && contact
+        ? apiPut<ContactLookupRecord>(`/core/contacts/${encodeURIComponent(contact.contactId)}`, payload, "tenant")
+        : apiPost<ContactLookupRecord>("/core/contacts", payload, "tenant");
     },
     onError: (saveError) => setError(apiErrorText(saveError, "Could not save contact")),
     onSuccess: async (contact) => {
-      toast.success("Contact created", { description: contact.name });
+      toast.success(isEdit ? "Contact updated" : "Contact created", { description: contact.name });
       await onCreated(contact);
     },
   });
@@ -1618,8 +2402,8 @@ function SalesContactCreateForm({
   return (
     <div className="grid h-[36rem] grid-rows-[auto_1fr_auto] overflow-hidden rounded-md bg-card">
       <div className="border-b border-border/70 px-6 py-4">
-        <h2 className="text-base font-semibold">Create contact</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Add invoice-ready customer details.</p>
+        <h2 className="text-base font-semibold">{isEdit ? "Edit contact" : "Create contact"}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{isEdit ? "Update invoice-ready customer details." : "Add invoice-ready customer details."}</p>
       </div>
       <WorkspaceAnimatedTabs
         className="min-h-0"
@@ -1633,11 +2417,47 @@ function SalesContactCreateForm({
       />
       <div className="flex flex-wrap items-center gap-3 border-t border-border/70 bg-muted/20 px-6 py-4">
         <Button type="button" disabled={saveMutation.isPending || !form.name.trim()} className="rounded-md" onClick={() => saveMutation.mutate()}>
-          <Save className={cn("size-4", saveMutation.isPending && "animate-spin")} />Save contact
+          <Save className={cn("size-4", saveMutation.isPending && "animate-spin")} />{isEdit ? "Update contact" : "Save contact"}
         </Button>
         <Button type="button" variant="outline" className="rounded-md" disabled={saveMutation.isPending} onClick={onCancel}><X className="size-4" />Cancel</Button>
       </div>
     </div>
+  );
+}
+
+function SalesContactDialog({
+  contact,
+  initialTab,
+  onOpenChange,
+  onSaved,
+  open,
+}: {
+  contact: ContactLookupRecord | null;
+  initialTab: "address" | "details";
+  onOpenChange: (open: boolean) => void;
+  onSaved: (contact: ContactLookupRecord) => void | Promise<void>;
+  open: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="w-[min(62rem,calc(100vw-3rem))] max-w-none overflow-hidden rounded-md p-0 duration-0 data-[state=open]:animate-none data-[state=closed]:animate-none"
+        onInteractOutside={(event) => event.preventDefault()}
+      >
+        {contact ? (
+          <SalesContactCreateForm
+            contact={contact}
+            initialName={contact.name}
+            initialTab={initialTab}
+            onCancel={() => onOpenChange(false)}
+            onCreated={async (updated) => {
+              await onSaved(updated);
+              onOpenChange(false);
+            }}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1759,6 +2579,157 @@ function SalesDocumentPlaceholder({ title }: { title: string }) {
     <div className="grid gap-5 px-6 py-5 lg:grid-cols-2">
       <PlainField label={title}><Input className="h-11 rounded-md" value="Not generated" readOnly /></PlainField>
       <PlainField label="Document no"><Input className="h-11 rounded-md" readOnly /></PlainField>
+    </div>
+  );
+}
+
+function SalesDocumentTab({
+  form,
+  generating,
+  onGenerate,
+  onUpdate,
+  type,
+}: {
+  form: EntryForm;
+  generating: boolean;
+  onGenerate: () => void;
+  onUpdate: (patch: Partial<EntryForm>) => void;
+  type: "einvoice" | "eway";
+}) {
+  const generated = type === "einvoice" ? Boolean(form.irn || form.ackNo || form.signedQr) : Boolean(form.ewayBillNo);
+  if (type === "einvoice") {
+    return (
+      <div className="space-y-5 px-6 py-5">
+        <SalesDocumentStatus generated={generated} generating={generating} label="E-invoice status" onGenerate={onGenerate} />
+        <PlainField label="IRN"><Input className="h-11 rounded-md" value={form.irn} onChange={(event) => onUpdate({ irn: event.target.value })} /></PlainField>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <PlainField label="Ack no"><Input className="h-11 rounded-md" value={form.ackNo} onChange={(event) => onUpdate({ ackNo: event.target.value })} /></PlainField>
+          <PlainField label="Ack date"><WorkspaceDatePicker ariaLabel="Ack date" placeholder="dd-mm-yyyy" value={form.ackDate} onValueChange={(ackDate) => onUpdate({ ackDate })} /></PlainField>
+        </div>
+        <PlainField label="Signed QR"><Textarea className="min-h-20 rounded-md" value={form.signedQr} onChange={(event) => onUpdate({ signedQr: event.target.value })} /></PlainField>
+        <WhiteBooksHelp />
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-5 px-6 py-5">
+      <SalesDocumentStatus generated={generated} generating={generating} label="E-way status" onGenerate={onGenerate} />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <PlainField label="E-way bill no"><Input className="h-11 rounded-md" value={form.ewayBillNo} onChange={(event) => onUpdate({ ewayBillNo: event.target.value })} /></PlainField>
+        <PlainField label="E-way bill date"><WorkspaceDatePicker ariaLabel="E-way bill date" placeholder="dd-mm-yyyy" value={form.ewayBillDate} onValueChange={(ewayBillDate) => onUpdate({ ewayBillDate })} /></PlainField>
+      </div>
+      <div className="grid gap-5 lg:grid-cols-[1fr_.48fr_.48fr]">
+        <PlainField label="Transport">
+          <TransportAutocomplete
+            value={form.transportName}
+            onChange={(transportName, transport) => onUpdate({
+              transportName,
+              vehicleNo: transport?.vehicleNo ? String(transport.vehicleNo).toUpperCase() : form.vehicleNo,
+              ewayPart: transportName.trim() ? "part-a" : form.ewayPart || "part-b",
+            })}
+          />
+        </PlainField>
+        <PlainField label="E-way part"><EwayPartAutocomplete value={form.ewayPart || "part-b"} onChange={(ewayPart) => onUpdate({ ewayPart })} /></PlainField>
+        <PlainField label="Vehicle no"><Input className="h-11 rounded-md" value={form.vehicleNo} onChange={(event) => onUpdate({ vehicleNo: event.target.value.toUpperCase() })} /></PlainField>
+      </div>
+      <PlainField label="Transport / vehicle notes"><Textarea className="min-h-20 rounded-md" value={form.notes} onChange={(event) => onUpdate({ notes: event.target.value })} /></PlainField>
+      <WhiteBooksHelp />
+    </div>
+  );
+}
+
+function SalesDocumentStatus({ generated, generating, label, onGenerate }: { generated: boolean; generating: boolean; label: string; onGenerate: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/40 px-3 py-2.5">
+      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        <span>{label}</span>
+        <Badge variant="outline" className={cn("h-6 rounded-md px-2 text-[11px]", generated ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700")}>
+          {generated ? "Generated" : "Not generated"}
+        </Badge>
+      </div>
+      <Button className="h-9 rounded-md" type="button" disabled={generating} onClick={onGenerate}>
+        <Send className={cn("size-4", generating && "animate-pulse")} />Generate
+      </Button>
+    </div>
+  );
+}
+
+function TransportAutocomplete({ onChange, value }: { onChange: (value: string, transport: CommonLookupRecord | null) => void; value: string }) {
+  const queryClient = useQueryClient();
+  const recordsQuery = useQuery({
+    queryKey: ["tenant", "common-lookup", "transports"],
+    queryFn: () => apiGet<CommonLookupRecord[]>("/core/common/records?definitionKey=transports", "tenant"),
+  });
+  const options = useMemo<Array<WorkspaceLookupOption & { transport: CommonLookupRecord }>>(
+    () =>
+      (recordsQuery.data ?? [])
+        .filter((record) => record.isActive !== false)
+        .map((record) => {
+          const label = commonLookupLabel(record) || String(record.code ?? record.id);
+          return {
+            value: label,
+            label,
+            ...(record.vehicleNo ? { description: String(record.vehicleNo) } : record.code ? { description: String(record.code) } : {}),
+            meta: [record.gst, record.contactNo, record.contactPerson].filter(Boolean).join(" | "),
+            transport: record,
+          };
+        }),
+    [recordsQuery.data],
+  );
+
+  return (
+    <WorkspaceLookup
+      allowTextValue
+      createLabel="Create transport"
+      createMode="inline"
+      dropdownMode="portal"
+      emptyLabel="No transports found."
+      loading={recordsQuery.isLoading && options.length === 0}
+      options={options}
+      placeholder="Search or create transport"
+      value={value}
+      onCreate={async (name) => {
+        const created = await apiPost<CommonLookupRecord>("/core/common/records", {
+          definitionKey: "transports",
+          name,
+          code: codeFromName(name),
+        }, "tenant");
+        await queryClient.invalidateQueries({ queryKey: ["tenant", "common-lookup", "transports"] });
+        const label = commonLookupLabel(created) || name.trim();
+        toast.success("Transport created", { description: label });
+        return { value: label, label, ...(created.code ? { description: String(created.code) } : {}) };
+      }}
+      onTextChange={(nextValue) => onChange(nextValue, null)}
+      onValueChange={(nextValue, option) => {
+        const transport = (option as (WorkspaceLookupOption & { transport?: CommonLookupRecord }) | undefined)?.transport ?? null;
+        onChange(option?.label ?? nextValue, transport);
+      }}
+    />
+  );
+}
+
+function EwayPartAutocomplete({ onChange, value }: { onChange: (value: string) => void; value: string }) {
+  const options = [
+    { value: "part-a", label: "Part A", description: "Transport details available" },
+    { value: "part-b", label: "Part B", description: "Vehicle details only or pending transport" },
+  ];
+  return (
+    <WorkspaceLookup
+      allowTextValue={false}
+      createMode="none"
+      dropdownMode="portal"
+      options={options}
+      placeholder="Select E-way part"
+      value={value}
+      onValueChange={(nextValue, option) => onChange(option?.value ?? nextValue)}
+    />
+  );
+}
+
+function WhiteBooksHelp() {
+  return (
+    <div className="rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+      WhiteBooks e-Invoice uses sandbox apisandbox.whitebooks.in or production api.whitebooks.in for real-time IRN, signed JSON/QR, e-way, and bulk-ready GST workflows. CODEXSUN stores every provider operation for audit before updating the invoice.
     </div>
   );
 }
@@ -1975,6 +2946,27 @@ function emptySalesContactForm(initialName: string): SalesContactForm {
   };
 }
 
+function salesContactFormFromContact(contact: ContactLookupRecord | null | undefined, initialName: string): SalesContactForm {
+  if (!contact) return emptySalesContactForm(initialName);
+  const address = contact.addressBook?.find((item) => item.isDefault) ?? contact.addressBook?.[0];
+  return {
+    addressLine1: address?.addressLine1 ?? "",
+    addressLine2: address?.addressLine2 ?? "",
+    addressTypeId: address?.addressTypeId ? String(address.addressTypeId) : "billing",
+    cityId: address?.cityId ? String(address.cityId) : "",
+    code: contact.code ?? "",
+    countryId: address?.countryId ? String(address.countryId) : "",
+    districtId: address?.districtId ? String(address.districtId) : "",
+    email: contact.primaryEmail ?? "",
+    gstin: contact.gstin ?? "",
+    legalName: contact.legalName ?? contact.name ?? "",
+    name: contact.name ?? initialName,
+    phone: contact.primaryPhone ?? "",
+    pincodeId: address?.pincodeId ? String(address.pincodeId) : "",
+    stateId: address?.stateId ? String(address.stateId) : "",
+  };
+}
+
 async function ensureCustomerContactType() {
   const records = await apiGet<CommonLookupRecord[]>("/core/common/records?definitionKey=contact-types", "tenant");
   const existing = records.find((record) => {
@@ -1991,12 +2983,42 @@ async function ensureCustomerContactType() {
   return String(created.id);
 }
 
-function contactAddressText(contact: ContactLookupRecord) {
-  const address = contact.addressBook?.find((item) => item.addressLine1 || item.addressLine2) ?? contact.addressBook?.[0];
+function contactAddressText(contact: ContactLookupRecord, preferredKind?: "billing" | "shipping") {
+  const addresses = (contact.addressBook ?? []).filter((item) => item.isActive !== false);
+  const address = preferredKind
+    ? addresses.find((item) => contactAddressKind(item) === preferredKind) ?? addresses.find((item) => item.isDefault) ?? addresses.find((item) => item.addressLine1 || item.addressLine2) ?? addresses[0]
+    : addresses.find((item) => item.isDefault) ?? addresses.find((item) => item.addressLine1 || item.addressLine2) ?? addresses[0];
   if (!address) return "";
   return [address.addressLine1, address.addressLine2, address.cityId, address.districtId, address.stateId, address.countryId, address.pincodeId]
     .filter(Boolean)
     .join(", ");
+}
+
+function contactAddressOptions(contact: ContactLookupRecord | null, preferredKind: "billing" | "shipping") {
+  if (!contact) return [];
+  const addresses = (contact.addressBook ?? []).filter((address) => address.isActive !== false);
+  const sorted = [...addresses].sort((left, right) => {
+    const leftScore = (contactAddressKind(left) === preferredKind ? 0 : 10) + (left.isDefault ? 0 : 1);
+    const rightScore = (contactAddressKind(right) === preferredKind ? 0 : 10) + (right.isDefault ? 0 : 1);
+    return leftScore - rightScore;
+  });
+  const seen = new Set<string>();
+  return sorted.flatMap((address) => {
+    const label = contactAddressText({ ...contact, addressBook: [address] });
+    if (!label || seen.has(label.toLowerCase())) return [];
+    seen.add(label.toLowerCase());
+    return [{
+      value: label,
+      label,
+      description: address.isDefault ? "Default address" : titleCase(contactAddressKind(address)),
+    }];
+  });
+}
+
+function contactAddressKind(address: ContactAddressBookEntry) {
+  const type = String(address.addressTypeId ?? "").trim().toLowerCase();
+  if (type.includes("ship")) return "shipping";
+  return "billing";
 }
 
 function matchesParentFilter(record: CommonLookupRecord, parentFilter: Record<string, string> | undefined) {
@@ -2585,6 +3607,15 @@ function formFromEntry(kind: EntryKind, entry: EntryRecord | null): EntryForm {
     paymentStatus: entry?.paymentStatus ?? "unpaid",
     notes: entry?.notes ?? "",
     terms: entry?.terms ?? defaultTerms(kind),
+    irn: entry?.irn ?? "",
+    ackNo: entry?.ackNo ?? "",
+    ackDate: normalizeDateValue(entry?.ackDate, ""),
+    signedQr: entry?.signedQr ?? "",
+    ewayBillNo: entry?.ewayBillNo ?? "",
+    ewayBillDate: normalizeDateValue(entry?.ewayBillDate, ""),
+    transportName: entry?.transportName ?? "",
+    vehicleNo: entry?.vehicleNo ?? "",
+    ewayPart: entry?.ewayPart ?? "part-b",
     lines: entry?.lines?.length ? entry.lines : usesAllocations ? [] : [emptyLine()],
     allocations: entry?.allocations?.length ? entry.allocations : usesAllocations ? [emptyAllocation(entryMeta[kind].allocationDocumentType)] : [],
   };
@@ -2686,4 +3717,79 @@ function formatDateTime(value: unknown) {
 
 function money(value: unknown) {
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(numberValue(value));
+}
+
+function buildSalesEinvoicePayload(form: EntryForm) {
+  const isCgstSgst = form.placeOfSupply !== "igst";
+  const totals = calculateSalesTotals(form.lines, form.roundOff);
+  return {
+    Version: "1.1",
+    TranDtls: { TaxSch: "GST", SupTyp: "B2B", RegRev: "N", IgstOnIntra: "N" },
+    DocDtls: { Typ: "INV", No: form.documentNo, Dt: formatGstPortalDate(form.documentDate) },
+    BuyerDtls: { Gstin: form.partyGstin, LglNm: form.partyName, Pos: isCgstSgst ? "33" : "96", Addr1: firstAddressLine(form.billingAddress), Loc: "Tiruppur", Pin: 641607, Stcd: isCgstSgst ? "33" : "96" },
+    ItemList: form.lines.map((line, index) => {
+      const tax = salesTaxBreakup(line, isCgstSgst);
+      return {
+        SlNo: String(index + 1),
+        PrdDesc: line.productName,
+        IsServc: "N",
+        HsnCd: line.hsnCode || "61091000",
+        Qty: numberValue(line.quantity),
+        Unit: line.unit || "NOS",
+        UnitPrice: numberValue(line.rate),
+        TotAmt: roundMoney(numberValue(line.quantity) * numberValue(line.rate)),
+        Discount: numberValue(line.discountAmount),
+        AssAmt: roundMoney(tax.taxable),
+        GstRt: numberValue(line.taxRate),
+        CgstAmt: roundMoney(tax.cgst),
+        SgstAmt: roundMoney(tax.sgst),
+        IgstAmt: roundMoney(tax.igst),
+        TotItemVal: roundMoney(tax.total),
+      };
+    }),
+    ValDtls: { AssVal: roundMoney(totals.taxable), CgstVal: isCgstSgst ? roundMoney(totals.gst / 2) : 0, SgstVal: isCgstSgst ? roundMoney(totals.gst / 2) : 0, IgstVal: isCgstSgst ? 0 : roundMoney(totals.gst), TotInvVal: roundMoney(totals.grand) },
+  };
+}
+
+function buildSalesEwayPayload(form: EntryForm) {
+  return {
+    Irn: form.irn,
+    Distance: 100,
+    TransMode: "1",
+    TransName: form.transportName,
+    TransDocDt: formatGstPortalDate(form.documentDate),
+    TransDocNo: form.documentNo,
+    VehNo: form.vehicleNo,
+    VehType: "R",
+  };
+}
+
+function formatGstPortalDate(value: unknown) {
+  const normalized = normalizeDateValue(value, localDateString());
+  const [year, month, day] = normalized.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function firstAddressLine(value: string) {
+  return value.split(/\r?\n/).find((line) => line.trim())?.trim() || "-";
+}
+
+function roundMoney(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function amountWords(value: number) {
+  const rounded = Math.round(numberValue(value));
+  if (rounded <= 0) return "Zero Rupees Only";
+  const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const underHundred = (n: number) => n < 20 ? units[n] : [tens[Math.floor(n / 10)], units[n % 10]].filter(Boolean).join(" ");
+  const underThousand = (n: number) => [n >= 100 ? `${units[Math.floor(n / 100)]} Hundred` : "", n % 100 ? underHundred(n % 100) : ""].filter(Boolean).join(" ");
+  const parts = [
+    [Math.floor(rounded / 10000000), "Crore"],
+    [Math.floor((rounded % 10000000) / 100000), "Lakh"],
+    [Math.floor((rounded % 100000) / 1000), "Thousand"],
+    [rounded % 1000, ""],
+  ] as const;
+  return `${parts.map(([n, label]) => n ? `${underThousand(n)} ${label}`.trim() : "").filter(Boolean).join(" ")} Rupees Only`;
 }

@@ -221,7 +221,7 @@ export function WorkspaceLookup({
             aria-autocomplete="list"
             aria-expanded={isOpen}
             aria-invalid={invalid}
-            className={cn("h-11 w-full rounded-md bg-background pl-9 pr-9", invalid && "border-destructive focus-visible:ring-destructive/30")}
+            className={cn("h-11 w-full rounded-md bg-muted/35 pl-9 pr-9 shadow-sm hover:bg-muted/45 focus-visible:bg-background", invalid && "border-destructive focus-visible:ring-destructive/30")}
             disabled={disabled}
           placeholder={placeholder}
           required={required}
