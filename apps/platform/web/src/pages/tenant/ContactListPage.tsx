@@ -147,11 +147,12 @@ const contactTabs: Array<[string, string]> = [
   ["more", "More"],
 ]
 
-export function ContactListPage({ onBack }: { onBack?: () => void }) {
+export function ContactListPage(_props: { onBack?: () => void }) {
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<"list" | "show" | "form">("list")
   const [editing, setEditing] = useState<ContactRecord | null>(null)
   const [viewing, setViewing] = useState<ContactRecord | null>(null)
+  const [appliedEditId, setAppliedEditId] = useState("")
   const [query, setQuery] = useState("")
   const contactsQuery = useQuery({
     queryKey: ["tenant", "contacts"],
@@ -177,6 +178,17 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
         .some((part) => String(part).toLowerCase().includes(normalized)),
     )
   }, [contacts, query])
+
+  useEffect(() => {
+    const editId = new URL(window.location.href).searchParams.get("edit") ?? ""
+    if (!editId || editId === appliedEditId || !contacts.length) return
+    const contact = contacts.find((item) => item.contactId === editId)
+    if (!contact) return
+    setEditing(contact)
+    setViewing(null)
+    setMode("form")
+    setAppliedEditId(editId)
+  }, [appliedEditId, contacts])
 
   function openNew() {
     setEditing(null)
@@ -239,12 +251,6 @@ export function ContactListPage({ onBack }: { onBack?: () => void }) {
       description="Standalone contact master with tax, communication, address, finance, and lookup-ready profile fields."
       actions={
         <>
-          {onBack ? (
-            <Button type="button" variant="outline" onClick={onBack}>
-              <ArrowLeft className="size-4" />
-              Back
-            </Button>
-          ) : null}
           <Button type="button" variant="outline" onClick={() => void contactsQuery.refetch()}>
             <RefreshCw className="size-4" />
             Refresh

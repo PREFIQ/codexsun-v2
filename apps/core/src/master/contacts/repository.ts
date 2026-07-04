@@ -92,7 +92,6 @@ export class DatabaseContactRepository implements ContactRepository {
       "SELECT next_number FROM tenant_contact_code_sequences WHERE tenant_id = ? LIMIT 1",
       [tenantId]
     );
-    if (rows[0]?.next_number !== undefined) return formatContactCode(Number(rows[0].next_number));
 
     const [maxRows] = await this.pool.execute<Array<{ max_code: number | string | null }>>(
       `SELECT MAX(CAST(SUBSTRING(code, 3) AS UNSIGNED)) AS max_code
@@ -100,7 +99,9 @@ export class DatabaseContactRepository implements ContactRepository {
        WHERE tenant_id = ? AND code REGEXP '^C-[0-9]+$'`,
       [tenantId]
     );
-    return formatContactCode(Number(maxRows[0]?.max_code ?? 0) + 1);
+    const nextFromSequence = Number(rows[0]?.next_number ?? 1);
+    const nextFromExisting = Number(maxRows[0]?.max_code ?? 0) + 1;
+    return formatContactCode(Math.max(nextFromSequence, nextFromExisting));
   }
 
   async create(contact: ContactProfile): Promise<void> {
@@ -478,9 +479,9 @@ function contactValues(contact: ContactProfile) {
     nullable(contact.tan),
     contact.tdsAvailable ? 1 : 0,
     contact.tcsAvailable ? 1 : 0,
-    contact.openingBalance ?? null,
+    contact.openingBalance ?? 0,
     nullable(contact.balanceType),
-    contact.creditLimit ?? null,
+    contact.creditLimit ?? 0,
     nullable(contact.website),
     nullable(contact.primaryEmail),
     nullable(contact.primaryPhone),

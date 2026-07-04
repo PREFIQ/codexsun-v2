@@ -71,6 +71,8 @@ The contract should answer:
 
 Modules should support activation and deactivation through tenant configuration.
 
+Tenant and industry activation must stay explicit. A module may be platform-scoped, tenant-scoped, industry-scoped, or integration-scoped, but tenant runtime access must still pass tenant context, active tenant checks, feature/module activation checks, permission checks, and tenant-owned data access.
+
 When a module is activated:
 
 - Required permissions are registered.
@@ -229,3 +231,7 @@ Current registered modules in `platformModuleCatalog`:
 6. **Subscription is scaffold-only** — The `SubscriptionService` class exists but has no real implementation. Full billing integration is deferred.
 7. **Industry scoping is defined but not implemented** — `ModuleScope` includes `"industry"` but no industry modules or tables exist yet.
 8. **GST/ZETRO are placeholders** — Tax identity types and HSN codes exist in core contracts; full compliance APIs and ZETRO assistant are future work.
+
+### Tenant Readiness Tracking
+
+`assist/architecture/tenant-readiness-track.md` is the source of truth for current multi-tenant, multi-database, multi-industry, and multi-company readiness. Update it whenever tenancy enforcement moves forward or a new blocker appears.

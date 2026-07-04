@@ -148,7 +148,7 @@ export function CommonRecordAutocomplete({
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
       </div>
       {isOpen ? (
-        <div className="absolute left-0 right-0 top-full z-[1400] mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-card p-1 shadow-2xl ring-1 ring-black/5">
+        <div className="absolute left-0 right-0 top-full z-[1400] mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-card p-1 shadow-2xl ring-1 ring-black/5 [scrollbar-color:hsl(var(--muted-foreground)/0.42)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent">
           {recordsQuery.isLoading ? <div className="px-3 py-2 text-sm text-muted-foreground">Loading...</div> : null}
           {!recordsQuery.isLoading && !filtered.length && !canCreate ? <div className="px-3 py-2 text-sm text-muted-foreground">{emptyLabel}</div> : null}
           {filtered.map((option) => (

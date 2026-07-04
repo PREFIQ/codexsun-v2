@@ -100,6 +100,9 @@ const registryRoutes = [
   ["/tenant/master/products/sizes", "Sizes"],
   ["/tenant/master/products/styles", "Styles"],
   ["/tenant/master/work-orders", "Work Orders"],
+  ["/tenant/settings/sales-settings", "Sales Settings"],
+  ["/tenant/settings/document-settings", "Document Settings"],
+  ["/tenant/settings/accounting-year", "Accounting Year"],
   ["/tenant/common/locations", "Common Module Index"],
   ["/tenant/common/locations/countries", "Countries"],
   ["/tenant/common/locations/states", "States"],
@@ -130,6 +133,11 @@ test("tenant registry routes open wired frontend modules", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Foundation" }).first()).toBeVisible()
   await expect(page.getByRole("button", { name: "Master" }).first()).toBeVisible()
   await expect(page.getByRole("button", { name: "Common" }).first()).toBeVisible()
+  await page.goto("/tenant/settings/sales-settings")
+  await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible()
+  await expect(page.getByRole("button", { name: "Sales Settings" }).first()).toBeVisible()
+  await expect(page.getByRole("button", { name: "Document Settings" }).first()).toBeVisible()
+  await expect(page.getByRole("button", { name: "Accounting Year" }).first()).toBeVisible()
   await page.goto("/tenant/master/products")
   await expect(page.getByRole("button", { name: "Products" }).first()).toBeVisible()
   await expect(page.getByRole("button", { name: "Product Groups" })).toHaveCount(0)
@@ -348,7 +356,7 @@ async function createTenantRecord(
   }
   await page.getByRole("button", { name: /^Save$/ }).click()
 
-  await expect(page.getByText(input.name).first()).toBeVisible()
+  await expectCreatedRecordVisible(page, input.name)
 }
 
 async function createApplicationCompany(
@@ -550,6 +558,18 @@ async function switchDefaultCompany(
 
 function activePanelInputs(page: Page) {
   return page.locator('[role="tabpanel"][data-state="active"] input:not([type="checkbox"]):not([type="file"])')
+}
+
+async function expectCreatedRecordVisible(page: Page, name: string) {
+  const row = page.getByRole("row").filter({ hasText: name }).first()
+  try {
+    await expect(row).toBeVisible({ timeout: 5_000 })
+    return
+  } catch {}
+
+  const search = page.locator("main input").first()
+  await search.fill(name)
+  await expect(row).toBeVisible()
 }
 
 async function createLookupValue(page: Page, input: ReturnType<Page["locator"]>, value: string) {

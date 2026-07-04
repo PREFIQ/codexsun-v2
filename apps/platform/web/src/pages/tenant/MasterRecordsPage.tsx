@@ -41,7 +41,7 @@ type RecordView = { mode: "list" } | { mode: "show"; record: { id: string; code:
 
 type Props = { definitionKey: string; onBack?: () => void }
 
-export function MasterRecordsPage({ definitionKey, onBack }: Props) {
+export function MasterRecordsPage({ definitionKey }: Props) {
   const [view, setView] = useState<RecordView>({ mode: "list" })
   const [searchValue, setSearchValue] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
@@ -132,10 +132,6 @@ export function MasterRecordsPage({ definitionKey, onBack }: Props) {
       description={`Master records for ${label.toLowerCase()}.`}
       actions={
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" className="h-9 rounded-md" onClick={onBack}>
-            <ArrowLeft className="size-4" />
-            Back
-          </Button>
           <Button type="button" className="h-9 rounded-md" onClick={() => setView({ mode: "upsert", record: null })}>
             <Plus className="size-4" />
             New

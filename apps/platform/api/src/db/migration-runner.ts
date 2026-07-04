@@ -39,7 +39,7 @@ export class MigrationRunner {
     }
     await migration.up(this.db);
     await this.db.execute(
-      `INSERT INTO \`${this.tableName}\` (id) VALUES (?)`,
+      `INSERT IGNORE INTO \`${this.tableName}\` (id) VALUES (?)`,
       [migration.id]
     );
     this.applied.add(migration.id);

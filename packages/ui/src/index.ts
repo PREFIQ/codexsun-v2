@@ -56,6 +56,7 @@ export * from "./components/tabs";
 export * from "./components/textarea";
 export * from "./components/toast";
 export { Toaster as ToastToaster } from "./components/toaster";
+export * from "./components/tree";
 export * from "./components/toggle";
 export * from "./components/toggle-group";
 export * from "./components/tooltip";

@@ -298,7 +298,7 @@ const defaultSettingsRecord: ApplicationSettingsRecord = {
   updatedAt: new Date().toISOString(),
 }
 
-export function ApplicationCompanyPage({ onBack }: { onBack?: () => void }) {
+export function ApplicationCompanyPage(_props: { onBack?: () => void }) {
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<"list" | "show" | "form">("list")
   const [editing, setEditing] = useState<CompanyRecord | null>(null)
@@ -364,12 +364,6 @@ export function ApplicationCompanyPage({ onBack }: { onBack?: () => void }) {
       description="Manage company identity, tenant context, address, tax, and bank details."
       actions={
         <>
-          {onBack ? (
-            <Button type="button" variant="outline" onClick={onBack}>
-              <ArrowLeft className="size-4" />
-              Back
-            </Button>
-          ) : null}
           <Button type="button" variant="outline" onClick={() => void companiesQuery.refetch()}>
             <RefreshCw className={cn("size-4", companiesQuery.isFetching && "animate-spin")} />
             Refresh
@@ -954,7 +948,7 @@ function CompanyUpsertPage({ onCancel, onSaved, record }: { onCancel: () => void
   )
 }
 
-export function ApplicationLocalModulePage({ moduleKey, onBack }: { moduleKey: AppModuleKey; onBack?: () => void }) {
+export function ApplicationLocalModulePage({ moduleKey }: { moduleKey: AppModuleKey; onBack?: () => void }) {
   const meta = appModuleMeta[moduleKey]
   const [records, setRecords] = useLocalRecords(moduleKey, meta.seed)
   const [query, setQuery] = useState("")
@@ -996,12 +990,6 @@ export function ApplicationLocalModulePage({ moduleKey, onBack }: { moduleKey: A
       description={meta.description}
       actions={
         <>
-          {onBack ? (
-            <Button type="button" variant="outline" onClick={onBack}>
-              <ArrowLeft className="size-4" />
-              Back
-            </Button>
-          ) : null}
           <Button type="button" variant="outline">
             <RefreshCw className="size-4" />
             Refresh
@@ -1092,7 +1080,7 @@ export function ApplicationLocalModulePage({ moduleKey, onBack }: { moduleKey: A
   )
 }
 
-export function ApplicationAccountingYearPage({ onBack }: { onBack?: () => void }) {
+export function ApplicationAccountingYearPage(_props: { onBack?: () => void }) {
   const meta = appModuleMeta["accounting-year"]
   const [records, setRecords] = useLocalRecords("accounting-year", meta.seed)
   const [query, setQuery] = useState("")
@@ -1134,12 +1122,6 @@ export function ApplicationAccountingYearPage({ onBack }: { onBack?: () => void 
       description="Manage financial year periods, defaults, and active status."
       actions={
         <>
-          {onBack ? (
-            <Button type="button" variant="outline" onClick={onBack}>
-              <ArrowLeft className="size-4" />
-              Back
-            </Button>
-          ) : null}
           <Button type="button" variant="outline">
             <RefreshCw className="size-4" />
             Refresh
@@ -1231,7 +1213,7 @@ export function ApplicationAccountingYearPage({ onBack }: { onBack?: () => void 
   )
 }
 
-export function ApplicationUsersPage({ onBack }: { onBack?: () => void }) {
+export function ApplicationUsersPage(_props: { onBack?: () => void }) {
   const [users, setUsers] = useApplicationUsers()
   const [roles] = useApplicationRoles()
   const [query, setQuery] = useState("")
@@ -1264,7 +1246,7 @@ export function ApplicationUsersPage({ onBack }: { onBack?: () => void }) {
   }
 
   return (
-    <WorkspacePage title="Users" description="Manage application users, role binding, and active state." actions={<ListActions label="New user" onBack={onBack} onNew={() => setMode("form")} />}>
+    <WorkspacePage title="Users" description="Manage application users, role binding, and active state." actions={<ListActions label="New user" onNew={() => setMode("form")} />}>
       <WorkspaceFilters searchValue={query} onSearchValueChange={setQuery} />
       <DataTable
         columns={["#", "Name", "Email", "Mobile", "Role", "Status", "Updated", "Action"]}
@@ -1349,7 +1331,7 @@ function UserUpsert({ onCancel, onSave, record, roles }: { onCancel: () => void;
   )
 }
 
-export function ApplicationRolesPage({ onBack }: { onBack?: () => void }) {
+export function ApplicationRolesPage(_props: { onBack?: () => void }) {
   const [roles, setRoles] = useApplicationRoles()
   const [query, setQuery] = useState("")
   const [mode, setMode] = useState<"list" | "form">("list")
@@ -1379,7 +1361,7 @@ export function ApplicationRolesPage({ onBack }: { onBack?: () => void }) {
   }
 
   return (
-    <WorkspacePage title="Roles" description="Manage role names and permission sets." actions={<ListActions label="New role" onBack={onBack} onNew={() => setMode("form")} />}>
+    <WorkspacePage title="Roles" description="Manage role names and permission sets." actions={<ListActions label="New role" onNew={() => setMode("form")} />}>
       <WorkspaceFilters searchValue={query} onSearchValueChange={setQuery} />
       <DataTable
         columns={["#", "Name", "Code", "Permissions", "Status", "Updated", "Action"]}
@@ -1472,10 +1454,10 @@ function RoleUpsert({ onCancel, onSave, record }: { onCancel: () => void; onSave
   )
 }
 
-export function ApplicationPermissionsPage({ onBack }: { onBack?: () => void }) {
+export function ApplicationPermissionsPage(_props: { onBack?: () => void }) {
   const [roles] = useApplicationRoles()
   return (
-    <WorkspacePage title="Permissions" description="Review permission keys and which roles currently use them." actions={onBack ? <BackAction onBack={onBack} /> : null}>
+    <WorkspacePage title="Permissions" description="Review permission keys and which roles currently use them.">
       <div className="grid gap-5">
         {permissionGroups.map((group) => (
           <div key={group.label} className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
@@ -1967,10 +1949,9 @@ function CollectionCard({ children, onAdd, title }: { children: ReactNode; onAdd
   )
 }
 
-function ListActions({ label, onBack, onNew }: { label: string; onBack?: (() => void) | undefined; onNew: () => void }) {
+function ListActions({ label, onNew }: { label: string; onNew: () => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {onBack ? <BackAction onBack={onBack} /> : null}
       <Button type="button" onClick={onNew}>
         <Plus className="size-4" />
         {label}

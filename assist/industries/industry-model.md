@@ -6,6 +6,8 @@ Industry packs let CODEXSUN adapt to different businesses without creating separ
 
 Each industry pack extends the platform through configuration, modules, workflows, templates, and reports.
 
+Industry packs are tenant-scoped. A tenant can activate one primary industry pack and, where the product allows, supporting packs or modules. Industry behavior must never be hard-coded to a customer or leaked into shared platform foundation.
+
 ## Industry Pack Contents
 
 An industry pack should define:
@@ -135,3 +137,21 @@ When an industry is activated for a tenant:
 - Relevant reports are enabled.
 - Offline sync rules are applied.
 
+## Current Implementation Status
+
+- Platform industry records are database-backed through the Super Admin industry registry.
+- Module scope supports `industry`.
+- Tenant runtime industry activation is not complete yet.
+- Industry packs do not yet apply tenant defaults, module activation, print templates, reports, dashboards, roles, or offline rules automatically.
+
+## Required Implementation Track
+
+Before industry-specific behavior is production-complete:
+
+- Add tenant industry activation storage.
+- Resolve active industry pack as part of tenant context.
+- Bind industry activation to tenant module activation.
+- Seed industry defaults per tenant.
+- Register industry-specific permissions.
+- Keep industry-specific workflows in industry modules or documented extension points.
+- Add tests proving activating an industry changes only the selected tenant.

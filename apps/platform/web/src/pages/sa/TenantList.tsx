@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowLeft, Bot, Building2, CheckCircle2, Globe2, Mail, Newspaper, Pencil, Plus, ReceiptText, RefreshCw, Save, X } from "lucide-react"
+import { ArrowLeft, Bot, Building2, CheckCircle2, Globe2, Image, Mail, Newspaper, Pencil, Plus, ReceiptText, RefreshCw, Save, X } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@codexsun/ui/components/button"
 import { Input } from "@codexsun/ui/components/input"
@@ -476,6 +476,11 @@ type TenantFormState = {
   tenantCode: string
   tenantName: string
   status: string
+  mediaDefaultCategory: string
+  mediaDefaultFolder: string
+  mediaDefaultVisibility: string
+  mediaMaxUploadMb: string
+  mediaPublicAssetsEnabled: boolean
 }
 
 type TenantAppAccess = {
@@ -535,6 +540,14 @@ const tenantAppAccess: TenantAppAccess[] = [
     icon: <Globe2 className="size-5" />,
     moduleKey: "app.sites",
     name: "Sites"
+  },
+  {
+    color: "bg-cyan-700",
+    description: "Tenant media asset storage for images, documents, public files, and reusable uploads.",
+    enabled: true,
+    icon: <Image className="size-5" />,
+    moduleKey: "app.media",
+    name: "Media"
   }
 ]
 
@@ -552,6 +565,7 @@ function TenantUpsertPage({
   onSubmit: (tenant: TenantFormState) => void
 }) {
   const isEdit = tenant !== null
+  const mediaSettings = readTenantMediaSettings(tenant?.payloadSettings)
   const [form, setForm] = useState<TenantFormState>({
     corporateId: tenant?.corporateId ?? toCorporateId(tenant?.tenantCode ?? ""),
     dbHost: tenant?.dbHost ?? "localhost",
@@ -566,7 +580,12 @@ function TenantUpsertPage({
     slug: tenant?.slug ?? toSlug(tenant?.tenantCode ?? ""),
     status: tenant?.status ?? "active",
     tenantCode: tenant?.tenantCode ?? "",
-    tenantName: tenant?.tenantName ?? ""
+    tenantName: tenant?.tenantName ?? "",
+    mediaDefaultCategory: mediaSettings.defaultCategory,
+    mediaDefaultFolder: mediaSettings.defaultFolder,
+    mediaDefaultVisibility: mediaSettings.defaultVisibility,
+    mediaMaxUploadMb: String(mediaSettings.maxUploadMb),
+    mediaPublicAssetsEnabled: mediaSettings.publicAssetsEnabled
   })
   const [activeTab, setActiveTab] = useState("details")
   const [localBanner, setLocalBanner] = useState("")
@@ -697,7 +716,7 @@ function TenantUpsertPage({
         <WorkspaceFormPanel
           footer={
             <>
-              <Button type="button" className="rounded-md bg-foreground text-background hover:bg-foreground/90" onClick={() => setActiveTab("settings")}>
+              <Button type="button" className="rounded-md bg-foreground text-background hover:bg-foreground/90" onClick={() => setActiveTab("media")}>
                 Next
               </Button>
               <Button type="button" variant="outline" className="rounded-md" onClick={onBack}>
@@ -750,6 +769,79 @@ function TenantUpsertPage({
                 onChange={(event) => setForm((current) => ({ ...current, dbSecretRef: event.target.value }))}
               />
             </WorkspaceFormField>
+          </WorkspaceFormGrid>
+        </WorkspaceFormPanel>
+      )
+    },
+    {
+      label: "Media Assets",
+      value: "media",
+      content: (
+        <WorkspaceFormPanel
+          footer={
+            <>
+              <Button type="button" className="rounded-md bg-foreground text-background hover:bg-foreground/90" onClick={() => setActiveTab("settings")}>
+                Next
+              </Button>
+              <Button type="button" variant="outline" className="rounded-md" onClick={onBack}>
+                <X className="size-4" />
+                Cancel
+              </Button>
+            </>
+          }
+        >
+          <div className="rounded-md border border-border/70 p-4">
+            <div className="flex items-start gap-3">
+              <div className="grid size-10 shrink-0 place-items-center rounded-md bg-cyan-700 text-white">
+                <Image className="size-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-foreground">Media asset settings</h2>
+                <p className="text-sm text-muted-foreground">Control the tenant default folder, category, visibility, and upload limit used by Media Assets.</p>
+              </div>
+            </div>
+          </div>
+          <WorkspaceFormGrid columns={2} className="mt-4">
+            <WorkspaceFormField label="Default category">
+              <Input
+                className="h-11 rounded-md"
+                value={form.mediaDefaultCategory}
+                onChange={(event) => setForm((current) => ({ ...current, mediaDefaultCategory: event.target.value }))}
+              />
+            </WorkspaceFormField>
+            <WorkspaceFormField label="Default folder">
+              <Input
+                className="h-11 rounded-md"
+                value={form.mediaDefaultFolder}
+                onChange={(event) => setForm((current) => ({ ...current, mediaDefaultFolder: event.target.value }))}
+              />
+            </WorkspaceFormField>
+            <WorkspaceFormField label="Default visibility">
+              <Input
+                className="h-11 rounded-md"
+                value={form.mediaDefaultVisibility}
+                onChange={(event) => setForm((current) => ({ ...current, mediaDefaultVisibility: event.target.value }))}
+              />
+            </WorkspaceFormField>
+            <WorkspaceFormField label="Upload limit MB">
+              <Input
+                className="h-11 rounded-md"
+                value={form.mediaMaxUploadMb}
+                onChange={(event) => setForm((current) => ({ ...current, mediaMaxUploadMb: event.target.value }))}
+              />
+            </WorkspaceFormField>
+            <div className="flex items-end md:col-span-2">
+              <div className="flex h-[4.5rem] w-full items-center justify-between rounded-md border border-border/70 bg-muted/35 px-4">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-foreground">Public media assets</div>
+                  <p className="mt-1 text-sm text-muted-foreground">Allow this tenant to mark uploaded media as public.</p>
+                </div>
+                <Switch
+                  checked={form.mediaPublicAssetsEnabled}
+                  onCheckedChange={(mediaPublicAssetsEnabled) => setForm((current) => ({ ...current, mediaPublicAssetsEnabled }))}
+                />
+              </div>
+            </div>
           </WorkspaceFormGrid>
         </WorkspaceFormPanel>
       )
@@ -826,6 +918,10 @@ function TenantUpsertPage({
             return
           }
           if (activeTab === "database") {
+            setActiveTab("media")
+            return
+          }
+          if (activeTab === "media") {
             setActiveTab("settings")
             return
           }
@@ -906,11 +1002,33 @@ function toTenantSavePayload(form: TenantFormState): TenantSavePayload {
     dbUser: form.dbUser.trim() || "root",
     enabledModuleKeys,
     mobile: form.mobile.replace(/\D/g, "") || null,
-    payloadSettings: { apps: { enabled: enabledModuleKeys } },
+    payloadSettings: {
+      apps: { enabled: enabledModuleKeys },
+      media: {
+        defaultCategory: form.mediaDefaultCategory.trim() || "files",
+        defaultFolder: form.mediaDefaultFolder.trim() || "media",
+        defaultVisibility: form.mediaDefaultVisibility.trim() || "private",
+        maxUploadMb: Number(form.mediaMaxUploadMb) || 10,
+        publicAssetsEnabled: form.mediaPublicAssetsEnabled
+      }
+    },
     slug: form.slug.trim() || toSlug(form.tenantCode),
     status: form.status,
     tenantCode: form.tenantCode.trim(),
     tenantName: form.tenantName.trim()
+  }
+}
+
+function readTenantMediaSettings(payloadSettings: Record<string, unknown> | undefined) {
+  const media = payloadSettings?.media && typeof payloadSettings.media === "object" && !Array.isArray(payloadSettings.media)
+    ? payloadSettings.media as Record<string, unknown>
+    : {}
+  return {
+    defaultCategory: typeof media.defaultCategory === "string" ? media.defaultCategory : "files",
+    defaultFolder: typeof media.defaultFolder === "string" ? media.defaultFolder : "media",
+    defaultVisibility: typeof media.defaultVisibility === "string" ? media.defaultVisibility : "private",
+    maxUploadMb: Number(media.maxUploadMb ?? 10) || 10,
+    publicAssetsEnabled: Boolean(media.publicAssetsEnabled)
   }
 }
 

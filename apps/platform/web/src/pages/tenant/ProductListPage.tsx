@@ -45,7 +45,7 @@ type ProductForm = {
   unitId: string
 }
 
-export function ProductListPage({ onBack }: { onBack?: () => void }) {
+export function ProductListPage(_props: { onBack?: () => void }) {
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<"list" | "form">("list")
   const [editing, setEditing] = useState<ProductRecord | null>(null)
@@ -105,12 +105,6 @@ export function ProductListPage({ onBack }: { onBack?: () => void }) {
       description="Manage products and services."
       actions={
         <>
-          {onBack ? (
-            <Button type="button" variant="outline" onClick={onBack}>
-              <ArrowLeft className="size-4" />
-              Back
-            </Button>
-          ) : null}
           <Button type="button" variant="outline" disabled={productsQuery.isFetching} onClick={() => void productsQuery.refetch()}>
             <RefreshCw className={cn("size-4", productsQuery.isFetching && "animate-spin")} />
             Refresh

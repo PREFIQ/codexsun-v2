@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { forwardRef, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { Check, ChevronDown, Plus, Search, X } from "lucide-react"
 import { Button } from "../components/button"
@@ -30,10 +30,13 @@ export function WorkspaceLookup({
   allowTextValue = true,
   className,
   createDescription,
+  createDialogClassName,
   createLabel,
   createMode = "none",
   createTitle,
   disabled = false,
+  dropdownMode = "portal",
+  dropdownPlacement = "bottom",
   emptyLabel = "No matches found.",
   loading = false,
   invalid = false,
@@ -44,15 +47,19 @@ export function WorkspaceLookup({
   placeholder = "",
   renderCreateForm,
   required = false,
+  trailingAction,
   value,
 }: {
   allowTextValue?: boolean | undefined
   className?: string | undefined
   createDescription?: string | undefined
+  createDialogClassName?: string | undefined
   createLabel?: string | undefined
   createMode?: WorkspaceLookupCreateMode | undefined
   createTitle?: string | undefined
   disabled?: boolean
+  dropdownMode?: "inline" | "portal" | undefined
+  dropdownPlacement?: "bottom" | "top" | undefined
   emptyLabel?: string
   loading?: boolean
   invalid?: boolean
@@ -62,6 +69,7 @@ export function WorkspaceLookup({
   options: WorkspaceLookupOption[]
   placeholder?: string
   required?: boolean
+  trailingAction?: ReactNode | undefined
   renderCreateForm?: ((context: {
     initialName: string
     onCancel: () => void
@@ -271,7 +279,7 @@ export function WorkspaceLookup({
           {value ? (
             <button
               aria-label="Clear selection"
-              className="absolute right-8 top-1/2 flex size-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="absolute right-8 top-1/2 flex size-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               type="button"
               onMouseDown={(event) => event.preventDefault()}
               onClick={clearSelection}
@@ -279,74 +287,52 @@ export function WorkspaceLookup({
               <X className="size-3.5" />
             </button>
           ) : null}
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          {trailingAction ?? <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />}
         </div>
-        {isOpen && listStyle && typeof document !== "undefined"
+        {isOpen && dropdownMode === "inline" ? (
+          <LookupList
+            ref={listRef}
+            activeIndex={activeIndex}
+            canCreate={canCreate}
+            createLabel={createLabel}
+            dropdownPlacement={dropdownPlacement}
+            emptyLabel={emptyLabel}
+            filteredOptions={filteredOptions}
+            isCreating={isCreating}
+            loading={loading}
+            query={query}
+            value={value}
+            onCreate={handleCreate}
+            onSelect={selectOption}
+          />
+        ) : null}
+        {isOpen && dropdownMode === "portal" && listStyle && typeof document !== "undefined"
           ? createPortal(
-              <div
+              <LookupList
                 ref={listRef}
-                role="listbox"
+                activeIndex={activeIndex}
+                canCreate={canCreate}
+                createLabel={createLabel}
+                dropdownPlacement="bottom"
+                emptyLabel={emptyLabel}
+                filteredOptions={filteredOptions}
+                isCreating={isCreating}
+                loading={loading}
+                query={query}
                 style={listStyle}
-                className="fixed z-[1200] overflow-y-auto overscroll-contain rounded-md border border-border bg-card p-1 shadow-2xl ring-1 ring-black/5"
-                onMouseDown={(event) => event.preventDefault()}
-              >
-                {loading ? <LookupLoadingRows /> : null}
-                {!loading && !optionCount ? <div className="px-3 py-2 text-sm text-muted-foreground">{emptyLabel}</div> : null}
-                {filteredOptions.map((option, index) => {
-                  const isSelected = option.value === value
-                  return (
-                    <button
-                      key={`${option.value}-${index}`}
-                      aria-selected={isSelected}
-                      data-active={activeIndex === index}
-                      role="option"
-                      type="button"
-                      className={cn(
-                        "grid w-full cursor-pointer grid-cols-[1fr_auto] items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-foreground transition-colors",
-                        activeIndex === index ? "bg-accent/80" : "bg-card hover:bg-accent/60",
-                      )}
-                      onMouseDown={(event) => {
-                        event.preventDefault()
-                        selectOption(option)
-                      }}
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{option.label}</span>
-                        {option.description || option.meta ? (
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {[option.description, option.meta].filter(Boolean).join(" | ")}
-                          </span>
-                        ) : null}
-                      </span>
-                      {isSelected ? <Check className="size-4 shrink-0 text-primary" strokeWidth={3} /> : <span className="size-4 shrink-0" />}
-                    </button>
-                  )
-                })}
-                {canCreate || isCreating ? (
-                  <button
-                    data-active={activeIndex === filteredOptions.length}
-                    type="button"
-                    disabled={isCreating}
-                    className={cn(
-                      "flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-primary transition-colors",
-                      activeIndex === filteredOptions.length ? "bg-accent/80" : "hover:bg-accent/60",
-                    )}
-                    onMouseDown={(event) => {
-                      event.preventDefault()
-                      handleCreate()
-                    }}
-                  >
-                    <Plus className="size-4" />
-                    {isCreating ? "Creating..." : `${createLabel ?? "Create"} "${query.trim()}"`}
-                  </button>
-                ) : null}
-              </div>,
+                value={value}
+                onCreate={handleCreate}
+                onSelect={selectOption}
+              />,
               document.body,
             )
           : null}
       </div>
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="rounded-md">
+        <DialogContent
+          className={cn("rounded-md", createDialogClassName)}
+          onInteractOutside={(event) => event.preventDefault()}
+        >
           {renderCreateForm ? (
             renderCreateForm({
               initialName: createQuery,
@@ -389,6 +375,113 @@ export function WorkspaceLookup({
     </>
   )
 }
+
+const LookupList = forwardRef<
+  HTMLDivElement,
+  {
+    activeIndex: number
+    canCreate: boolean
+    createLabel?: string | undefined
+    dropdownPlacement: "bottom" | "top"
+    emptyLabel: string
+    filteredOptions: WorkspaceLookupOption[]
+    isCreating: boolean
+    loading: boolean
+    query: string
+    style?: CSSProperties | undefined
+    value: string
+    onCreate: () => void
+    onSelect: (option: WorkspaceLookupOption) => void
+  }
+>(
+  (
+    {
+      activeIndex,
+      canCreate,
+      createLabel,
+      dropdownPlacement,
+      emptyLabel,
+      filteredOptions,
+      isCreating,
+      loading,
+      onCreate,
+      onSelect,
+      query,
+      style,
+      value,
+    },
+    ref,
+  ) => (
+    <div
+      ref={ref}
+      role="listbox"
+      style={style}
+      className={cn(
+        "z-[10000] max-h-64 overflow-y-auto overscroll-contain rounded-md border border-border bg-card p-1 shadow-2xl ring-1 ring-black/5 pointer-events-auto [scrollbar-color:hsl(var(--muted-foreground)/0.42)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent",
+        style
+          ? "fixed"
+          : dropdownPlacement === "top"
+            ? "absolute bottom-[calc(100%+0.25rem)] left-0 right-0"
+            : "absolute left-0 right-0 top-[calc(100%+0.25rem)]",
+      )}
+      onMouseDown={(event) => event.preventDefault()}
+    >
+      {loading ? <LookupLoadingRows /> : null}
+      {!loading && filteredOptions.length === 0 && !canCreate && !isCreating ? (
+        <div className="px-3 py-2 text-sm text-muted-foreground">{emptyLabel}</div>
+      ) : null}
+      {filteredOptions.map((option, index) => {
+        const isSelected = option.value === value
+        return (
+          <button
+            key={`${option.value}-${index}`}
+            aria-selected={isSelected}
+            data-active={activeIndex === index}
+            role="option"
+            type="button"
+            className={cn(
+              "grid w-full cursor-pointer grid-cols-[1fr_auto] items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-foreground transition-colors",
+              activeIndex === index ? "bg-accent/80" : "bg-card hover:bg-accent/60",
+            )}
+            onMouseDown={(event) => {
+              event.preventDefault()
+              onSelect(option)
+            }}
+          >
+            <span className="min-w-0">
+              <span className="block truncate font-medium">{option.label}</span>
+              {option.description || option.meta ? (
+                <span className="block truncate text-xs text-muted-foreground">
+                  {[option.description, option.meta].filter(Boolean).join(" | ")}
+                </span>
+              ) : null}
+            </span>
+            {isSelected ? <Check className="size-4 shrink-0 text-primary" strokeWidth={3} /> : <span className="size-4 shrink-0" />}
+          </button>
+        )
+      })}
+      {canCreate || isCreating ? (
+        <button
+          data-active={activeIndex === filteredOptions.length}
+          type="button"
+          disabled={isCreating}
+          className={cn(
+            "flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-primary transition-colors",
+            activeIndex === filteredOptions.length ? "bg-accent/80" : "hover:bg-accent/60",
+          )}
+          onMouseDown={(event) => {
+            event.preventDefault()
+            onCreate()
+          }}
+        >
+          <Plus className="size-4" />
+          {isCreating ? "Creating..." : `${createLabel ?? "Create"} "${query.trim()}"`}
+        </button>
+      ) : null}
+    </div>
+  ),
+)
+LookupList.displayName = "LookupList"
 
 function DefaultCreateForm({
   description,

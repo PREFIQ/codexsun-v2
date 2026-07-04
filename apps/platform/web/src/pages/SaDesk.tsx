@@ -5,6 +5,7 @@ import {
   ClipboardListIcon,
   ComponentIcon,
   DatabaseIcon,
+  ImageIcon,
   KeyRoundIcon,
   WalletCardsIcon
 } from "lucide-react";
@@ -14,6 +15,7 @@ import { ConsoleHome } from "./sa/ConsoleHome";
 import { DatabaseManager } from "./sa/DatabaseManager";
 import { DesignSystemPage } from "./DesignSystemPage";
 import { MigrationStatus } from "./sa/MigrationStatus";
+import { MediaSettings } from "./sa/MediaSettings";
 import { PlatformRegistry } from "./sa/PlatformRegistry";
 import { ProjectManagerDashboard } from "./sa/ProjectManagerDashboard";
 import { ProjectManagerDiscussions, ProjectManagerMaturity } from "./sa/ProjectManagerMaturity";
@@ -22,7 +24,7 @@ import { ProjectManagerReleaseNotes } from "./sa/ProjectManagerReleaseNotes";
 import { TenantList } from "./sa/TenantList";
 import { SuperAdminModulePage, superAdminModuleConfigs, type SuperAdminModuleKey } from "./sa/SuperAdminModulePage";
 
-type SaPage = "home" | "tenants" | "domains" | "modules" | "audit" | "migrations" | "health" | "users" | "roles" | "permissions" | "sessions" | "settings" | "features" | "workbench" | "plans" | "subscriptions" | "industries" | "platform-registry" | "project-manager-dashboard" | "project-manager-work" | "project-manager-discussions" | "project-manager-release-notes" | "project-manager-insights" | "design-system" | "queue" | "database" | "devdocs" | "support" | "zetro" | "gst";
+type SaPage = "home" | "tenants" | "domains" | "modules" | "audit" | "migrations" | "health" | "users" | "roles" | "permissions" | "sessions" | "settings" | "features" | "media-settings" | "workbench" | "plans" | "subscriptions" | "industries" | "platform-registry" | "project-manager-dashboard" | "project-manager-work" | "project-manager-discussions" | "project-manager-release-notes" | "project-manager-insights" | "design-system" | "queue" | "database" | "devdocs" | "support" | "zetro" | "gst";
 
 const pageToMenuKey: Record<SaPage, string> = {
   audit: "audit",
@@ -35,6 +37,7 @@ const pageToMenuKey: Record<SaPage, string> = {
   home: "home",
   industries: "industries",
   migrations: "migrations",
+  "media-settings": "media-settings",
   modules: "modules",
   permissions: "permissions",
   "platform-registry": "platform-registry",
@@ -128,6 +131,14 @@ export function SaDesk() {
         { key: "health", page: "health", label: "Health" },
         { key: "settings", page: "settings", label: "Settings" },
         { key: "features", page: "features", label: "Features" }
+      ]
+    },
+    {
+      key: "media",
+      label: "Media",
+      icon: ImageIcon,
+      items: [
+        { key: "media-settings", page: "media-settings", label: "Media Settings" }
       ]
     },
     {
@@ -249,6 +260,7 @@ export function SaDesk() {
         {page === "project-manager-insights" && <ProjectManagerInsights />}
         {page === "design-system" && <DesignSystemPage />}
         {page === "database" && <DatabaseManager onBack={() => selectPage("home")} />}
+        {page === "media-settings" && <MediaSettings onBack={() => selectPage("home")} />}
         {page === "migrations" && <MigrationStatus onBack={() => selectPage("home")} />}
         {activeModuleKey ? (
           <SuperAdminModulePage

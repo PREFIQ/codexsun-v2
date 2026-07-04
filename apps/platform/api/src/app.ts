@@ -32,6 +32,8 @@ import { registerAdminRoutes } from "./admin/routes.js";
 import { registerSettingsRoutes } from "./settings/routes.js";
 import { registerActivityRoutes } from "./activity/routes.js";
 import { registerFileRoutes } from "./files/routes.js";
+import { registerMediaRoutes } from "./media/routes.js";
+import { registerEntryRoutes } from "./entries/routes.js";
 import { registerNotificationRoutes } from "./notifications/routes.js";
 import { registerTemplateRoutes } from "./templates/routes.js";
 import { registerAgentRoutes } from "./agents/routes.js";
@@ -258,6 +260,8 @@ export async function createApp() {
   await registerSettingsRoutes(app);
   await registerActivityRoutes(app);
   await registerFileRoutes(app);
+  await registerMediaRoutes(app);
+  await registerEntryRoutes(app);
   await registerNotificationRoutes(app);
   await registerTemplateRoutes(app);
   await registerAgentRoutes(app);

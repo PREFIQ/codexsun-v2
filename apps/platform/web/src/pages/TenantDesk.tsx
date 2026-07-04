@@ -8,7 +8,8 @@ import {
   BlocksIcon,
   FileTextIcon,
   LayoutDashboardIcon,
-  MailIcon,
+  ImageIcon,
+  PackageIcon,
   ReceiptTextIcon,
   Settings2Icon,
   ShieldCheckIcon,
@@ -23,6 +24,8 @@ import { AuthGate } from "../components/AuthGate";
 import { ContactListPage } from "./tenant/ContactListPage";
 import { ProductListPage } from "./tenant/ProductListPage";
 import { WorkOrderListPage } from "./tenant/WorkOrderListPage";
+import { MediaAssetsPage } from "./tenant/MediaAssetsPage";
+import { DocumentSettingsPage, EntryWorkspacePage, SalesSettingsPage } from "./tenant/EntryWorkspacePage";
 import { CommonModuleIndexPage, commonModuleGroups } from "./tenant/CommonModuleIndexPage";
 import { CommonModulePage } from "./tenant/CommonModulePage";
 import { apiGet } from "../api";
@@ -32,13 +35,19 @@ type TenantPage =
   | { view: "dashboard" }
   | { view: "billing-overview" }
   | { view: "application"; page: "company" | "default-company" | "accounting-year" | "settings" | "users" | "roles" | "permissions" | "landing" }
-  | { view: "entry"; page: "sales" | "purchase" | "receipt" | "payment" }
+  | { view: "entry"; page: "quotation" | "sales" | "purchase" | "receipt" | "payment" }
   | { view: "contacts" }
   | { view: "products" }
   | { view: "work-orders" }
+  | { view: "media-assets" }
+  | { view: "sales-settings" }
+  | { view: "document-settings" }
+  | { view: "settings-accounting-year" }
   | { view: "common-index" }
   | { view: "common-module"; definitionKey: string; definitionLabel: string }
   | { view: "generic-module"; definitionKey: string; definitionLabel: string; routePath: string };
+
+type EntryPage = Extract<TenantPage, { view: "entry" }>["page"];
 
 const commonModuleLookup = new Map(
   commonModuleGroups.flatMap((group) =>
@@ -115,15 +124,22 @@ const tenantModuleGroups: TenantMenuGroup[] = [
     })),
   },
   {
-    key: "business",
-    label: "Business",
+    key: "entries",
+    label: "Entries",
     icon: ReceiptTextIcon,
     modules: [
-      { key: "sales", label: "Sales", routePath: "/tenant/billing-entries/sales" },
-      { key: "quotations", label: "Quotations", routePath: "/tenant/billing-entries/quotations" },
-      { key: "purchases", label: "Purchases", routePath: "/tenant/billing-entries/purchases" },
-      { key: "receipts", label: "Receipts", routePath: "/tenant/billing-entries/receipts" },
-      { key: "payments", label: "Payments", routePath: "/tenant/billing-entries/payments" },
+      { key: "quotation", label: "Quotation", routePath: "/tenant/entries/quotation" },
+      { key: "sales", label: "Sales", routePath: "/tenant/entries/sales" },
+      { key: "purchase", label: "Purchase", routePath: "/tenant/entries/purchase" },
+      { key: "receipt", label: "Receipt", routePath: "/tenant/entries/receipt" },
+      { key: "payment", label: "Payment", routePath: "/tenant/entries/payment" },
+    ],
+  },
+  {
+    key: "stock",
+    label: "Stock",
+    icon: PackageIcon,
+    modules: [
       { key: "purchase-receipts", label: "Purchase Receipts", routePath: "/tenant/stock/purchase-receipts" },
       { key: "delivery-notes", label: "Delivery Notes", routePath: "/tenant/stock/delivery-notes" },
       { key: "stock-ledger", label: "Stock Ledger", routePath: "/tenant/stock/stock-ledger" },
@@ -136,11 +152,26 @@ const tenantModuleGroups: TenantMenuGroup[] = [
     modules: [
       { key: "mail", label: "Mail", routePath: "/tenant/mail/mail" },
       { key: "tasks", label: "Tasks", routePath: "/tenant/task-manager/tasks" },
-      { key: "media-assets", label: "Media Assets", routePath: "/tenant/media/media-assets" },
       { key: "site-sliders", label: "Site Sliders", routePath: "/tenant/sites/site-sliders" },
       { key: "blog", label: "Blog", routePath: "/tenant/sites/blog" },
-      { key: "company-settings", label: "Company Settings", routePath: "/tenant/settings/company-settings" },
+    ],
+  },
+  {
+    key: "settings",
+    label: "Settings",
+    icon: Settings2Icon,
+    modules: [
+      { key: "sales-settings", label: "Sales Settings", routePath: "/tenant/settings/sales-settings" },
       { key: "document-settings", label: "Document Settings", routePath: "/tenant/settings/document-settings" },
+      { key: "accounting-year", label: "Accounting Year", routePath: "/tenant/settings/accounting-year" },
+    ],
+  },
+  {
+    key: "media",
+    label: "Media",
+    icon: ImageIcon,
+    modules: [
+      { key: "media-assets", label: "Media Assets", routePath: "/tenant/media/media-assets" },
     ],
   },
 ];
@@ -177,6 +208,7 @@ function pageFromUrl(): TenantPage {
   if (requestedPage === "roles") return { view: "application", page: "roles" };
   if (requestedPage === "permissions") return { view: "application", page: "permissions" };
   if (requestedPage === "landing") return { view: "application", page: "landing" };
+  if (requestedPage === "quotation") return { view: "entry", page: "quotation" };
   if (requestedPage === "sales") return { view: "entry", page: "sales" };
   if (requestedPage === "purchase") return { view: "entry", page: "purchase" };
   if (requestedPage === "receipt") return { view: "entry", page: "receipt" };
@@ -228,6 +260,15 @@ function explicitPageFromSegments(segments: string[]): TenantPage | null {
     const definitionKey = childKey ?? moduleKey;
     if (definitionKey) return { view: "common-module", definitionKey, definitionLabel: commonModuleLookup.get(definitionKey)?.label ?? labelFromKey(definitionKey) };
   }
+  if (group === "entries" || group === "billing-entries") {
+    const entryPage = entryPageFromRouteKey(moduleKey);
+    if (entryPage) return { view: "entry", page: entryPage };
+    if (!moduleKey) return { view: "billing-overview" };
+  }
+  if (group === "settings" && moduleKey === "sales-settings") return { view: "sales-settings" };
+  if (group === "settings" && moduleKey === "document-settings") return { view: "document-settings" };
+  if (group === "settings" && moduleKey === "accounting-year") return { view: "settings-accounting-year" };
+  if (group === "media" && moduleKey === "media-assets") return { view: "media-assets" };
   if (moduleKey) return { view: "generic-module", definitionKey: moduleKey, definitionLabel: labelFromKey(moduleKey), routePath: `/${segments.join("/")}` };
   return null;
 }
@@ -238,7 +279,7 @@ function labelFromKey(key: string) {
 
 function pathForPage(page: TenantPage) {
   if (page.view === "dashboard") return "/tenant";
-  if (page.view === "billing-overview") return "/tenant/billing-entries";
+  if (page.view === "billing-overview") return "/tenant/entries";
   if (page.view === "application") {
     if (page.page === "users") return "/tenant/foundation/users";
     if (page.page === "roles") return "/tenant/foundation/rbac-roles";
@@ -248,10 +289,14 @@ function pathForPage(page: TenantPage) {
     if (page.page === "company") return "/tenant/master/companies";
     return `/tenant/foundation/${page.page}`;
   }
-  if (page.view === "entry") return `/tenant/billing-entries/${entryRouteKey(page.page)}`;
+  if (page.view === "entry") return `/tenant/entries/${entryRouteKey(page.page)}`;
   if (page.view === "contacts") return "/tenant/master/contacts";
   if (page.view === "products") return "/tenant/master/products";
   if (page.view === "work-orders") return "/tenant/master/work-orders";
+  if (page.view === "media-assets") return "/tenant/media/media-assets";
+  if (page.view === "sales-settings") return "/tenant/settings/sales-settings";
+  if (page.view === "document-settings") return "/tenant/settings/document-settings";
+  if (page.view === "settings-accounting-year") return "/tenant/settings/accounting-year";
   if (page.view === "common-index") return "/tenant/common/locations";
   if (page.view === "common-module") return routeForCommonDefinition(page.definitionKey);
   return page.routePath;
@@ -262,7 +307,7 @@ function normalizeTenantPath(pathname: string) {
   if (parts[0] === "app") {
     const requestedPage = parts[1] ?? "";
     if (!requestedPage) return "/tenant";
-    if (requestedPage === "billing") return "/tenant/billing-entries";
+    if (requestedPage === "billing") return "/tenant/entries";
     if (requestedPage === "company") return "/tenant/master/companies";
     if (requestedPage === "default-company") return "/tenant/foundation/default-companies";
     if (requestedPage === "accounting-year") return "/tenant/foundation/accounting-years";
@@ -291,8 +336,16 @@ function pageFromRegistryModule(module: TenantMenuModule, routePath: string): Te
   if (routePath === "/tenant/master/contacts") return { view: "contacts" };
   if (routePath === "/tenant/master/products") return { view: "products" };
   if (routePath === "/tenant/master/work-orders") return { view: "work-orders" };
+  if (routePath === "/tenant/media/media-assets") return { view: "media-assets" };
+  if (routePath === "/tenant/settings/sales-settings") return { view: "sales-settings" };
+  if (routePath === "/tenant/settings/document-settings") return { view: "document-settings" };
+  if (routePath === "/tenant/settings/accounting-year") return { view: "settings-accounting-year" };
   if (routePath === "/tenant/common/locations") return { view: "common-index" };
   if (routePath.startsWith("/tenant/common/")) return { view: "common-module", definitionKey: module.key, definitionLabel: module.label };
+  if (routePath.startsWith("/tenant/entries/") || routePath.startsWith("/tenant/billing-entries/")) {
+    const entryPage = entryPageFromRouteKey(module.key);
+    if (entryPage) return { view: "entry", page: entryPage };
+  }
   if (routePath.startsWith("/tenant/master/") || routePath.startsWith("/tenant/foundation/")) {
     return { view: "common-module", definitionKey: module.key, definitionLabel: module.label };
   }
@@ -305,11 +358,17 @@ function routeForCommonDefinition(definitionKey: string) {
     : `/tenant/common/${definitionKey}`;
 }
 
-function entryRouteKey(page: "sales" | "purchase" | "receipt" | "payment") {
-  if (page === "purchase") return "purchases";
-  if (page === "receipt") return "receipts";
-  if (page === "payment") return "payments";
-  return "sales";
+function entryRouteKey(page: EntryPage) {
+  return page;
+}
+
+function entryPageFromRouteKey(key: string | undefined): EntryPage | null {
+  if (key === "quotation" || key === "quotations") return "quotation";
+  if (key === "sales") return "sales";
+  if (key === "purchase" || key === "purchases") return "purchase";
+  if (key === "receipt" || key === "receipts") return "receipt";
+  if (key === "payment" || key === "payments") return "payment";
+  return null;
 }
 
 function isModuleActive(page: TenantPage, module: TenantMenuModule): boolean {
@@ -434,14 +493,17 @@ export function TenantDesk() {
             title="Billing Desk"
             description="Sales, purchase, receipt, payment, report, master, common, and billing settings."
             stats={[
-              { label: "Entries", value: "4", page: { view: "entry", page: "sales" } },
+              { label: "Entries", value: "5", page: { view: "entry", page: "quotation" } },
               { label: "Masters", value: "2", page: { view: "contacts" } },
               { label: "Common Modules", value: "30", page: { view: "common-index" } },
+              { label: "Quotation", value: "Ready", page: { view: "entry", page: "quotation" } },
               { label: "Sales", value: "Ready", page: { view: "entry", page: "sales" } },
               { label: "Purchase", value: "Ready", page: { view: "entry", page: "purchase" } },
-              { label: "Payments", value: "Ready", page: { view: "entry", page: "payment" } },
+              { label: "Receipt", value: "Ready", page: { view: "entry", page: "receipt" } },
+              { label: "Payment", value: "Ready", page: { view: "entry", page: "payment" } },
             ]}
             links={[
+              { label: "Quotation", page: { view: "entry", page: "quotation" } },
               { label: "Sales", page: { view: "entry", page: "sales" } },
               { label: "Purchase", page: { view: "entry", page: "purchase" } },
               { label: "Receipt", page: { view: "entry", page: "receipt" } },
@@ -459,6 +521,14 @@ export function TenantDesk() {
         return <ProductListPage onBack={() => selectPage({ view: "dashboard" })} />;
       case "work-orders":
         return <WorkOrderListPage onBack={() => selectPage({ view: "dashboard" })} />;
+      case "media-assets":
+        return <MediaAssetsPage />;
+      case "sales-settings":
+        return <SalesSettingsPage />;
+      case "document-settings":
+        return <DocumentSettingsPage />;
+      case "settings-accounting-year":
+        return <ApplicationAccountingYearPage onBack={() => selectPage({ view: "dashboard" })} />;
       case "application":
         if (page.page === "company") return <ApplicationCompanyPage onBack={() => selectPage({ view: "dashboard" })} />;
         if (page.page === "default-company") return <ApplicationDefaultCompanyPage onBack={() => selectPage({ view: "dashboard" })} />;
@@ -470,7 +540,7 @@ export function TenantDesk() {
         if (page.page === "landing") return <ApplicationLandingPage onBack={() => selectPage({ view: "dashboard" })} />;
         return null;
       case "entry":
-        return <ApplicationPlaceholder page={page.page} />;
+        return <EntryWorkspacePage kind={page.page} />;
       case "common-index":
         return (
           <CommonModuleIndexPage
@@ -618,6 +688,10 @@ function headerTitleForPage(page: TenantPage) {
   if (page.view === "contacts") return "Contact";
   if (page.view === "products") return "Product";
   if (page.view === "work-orders") return "Work Orders";
+  if (page.view === "media-assets") return "Media / Media Assets";
+  if (page.view === "sales-settings") return "Settings / Sales Settings";
+  if (page.view === "document-settings") return "Settings / Document Settings";
+  if (page.view === "settings-accounting-year") return "Settings / Accounting Year";
   if (page.view === "common-index") return "Common";
   if (page.view === "common-module") return page.definitionLabel;
   if (page.view === "generic-module") return page.definitionLabel;
@@ -642,29 +716,9 @@ const placeholderMeta = {
   roles: { title: "Roles", description: "Manage application roles and permissions.", icon: ShieldCheckIcon },
   permissions: { title: "Permissions", description: "Review permission boundaries used by application roles.", icon: LockKeyholeIcon },
   landing: { title: "Landing Desk", description: "Application desk landing and quick access area.", icon: UserRoundCogIcon },
+  quotation: { title: "Quotation", description: "Quotation entries will open here.", icon: FileTextIcon },
   sales: { title: "Sales", description: "Sales billing entries will open here.", icon: FileTextIcon },
   purchase: { title: "Purchase", description: "Purchase entries will open here.", icon: FileTextIcon },
   receipt: { title: "Receipt", description: "Receipt entries will open here.", icon: ReceiptTextIcon },
   payment: { title: "Payment", description: "Payment entries will open here.", icon: ReceiptTextIcon },
 } as const;
-
-function ApplicationPlaceholder({ page }: { page: keyof typeof placeholderMeta }) {
-  const meta = placeholderMeta[page];
-  const Icon = meta.icon;
-
-  return (
-    <section className="mx-auto w-[calc(100%-2rem)] max-w-[92rem] space-y-4 py-4 lg:w-[calc(100%-3rem)] lg:py-5">
-      <div className="rounded-md border border-border/70 bg-card/95 p-6 shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className="grid size-10 place-items-center rounded-md border border-border/70 bg-background">
-            <Icon className="size-5 text-muted-foreground" />
-          </div>
-          <div>
-            <h2 className="mb-1 text-lg font-semibold">{meta.title}</h2>
-            <p className="text-sm text-muted-foreground">{meta.description}</p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}

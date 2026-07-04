@@ -311,12 +311,13 @@ Use `assist/agents/vibe-coding.md`, `assist/agents/codeit-workflows.md`, `assist
 8. `assist/product/domain-map.md`
 9. `assist/architecture/architecture-principles.md`
 10. `assist/architecture/tenant-isolation.md`
-11. `assist/product/enterprise-scope.md` for enterprise-impacting work.
-12. Relevant module, industry, agent, or operation notes for the task.
-13. `assist/governance/rules.md`
-14. `assist/governance/engineering-standards.md`
-15. `assist/governance/testing-strategy.md`
-16. `assist/governance/quality-gates.md`
+11. `assist/architecture/tenant-readiness-track.md`
+12. `assist/product/enterprise-scope.md` for enterprise-impacting work.
+13. Relevant module, industry, agent, or operation notes for the task.
+14. `assist/governance/rules.md`
+15. `assist/governance/engineering-standards.md`
+16. `assist/governance/testing-strategy.md`
+17. `assist/governance/quality-gates.md`
 
 ## Working Principle
 

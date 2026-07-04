@@ -36,7 +36,7 @@ export function WorkspaceSelect({
       >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent className="rounded-md border-border/80">
+      <SelectContent className="z-[160] rounded-md border-border/80">
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value} className="rounded-sm">
             {option.label}

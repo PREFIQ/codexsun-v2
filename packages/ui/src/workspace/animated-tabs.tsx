@@ -14,16 +14,20 @@ export type WorkspaceAnimatedTab = {
 export function WorkspaceAnimatedTabs({
   className,
   contentClassName,
+  keepMounted = false,
   listClassName,
   onValueChange,
   tabs,
+  triggerClassName,
   value,
 }: {
   className?: string
   contentClassName?: string
+  keepMounted?: boolean
   listClassName?: string
   onValueChange: (value: string) => void
   tabs: WorkspaceAnimatedTab[]
+  triggerClassName?: string
   value: string
 }) {
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -56,7 +60,10 @@ export function WorkspaceAnimatedTabs({
               tabRefs.current[index] = element
             }}
             value={tab.value}
-            className="relative z-10 rounded-none border-0 bg-transparent px-5 py-3 text-sm font-medium text-muted-foreground shadow-none data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+            className={cn(
+              "relative z-10 rounded-none border-0 bg-transparent px-5 py-3 text-sm font-medium text-muted-foreground shadow-none data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none",
+              triggerClassName,
+            )}
           >
             {tab.label}
           </TabsTrigger>
@@ -69,7 +76,12 @@ export function WorkspaceAnimatedTabs({
       </TabsList>
 
       {tabs.map((tab) => (
-        <TabsContent key={tab.value} value={tab.value} className={cn("mt-4", contentClassName)}>
+        <TabsContent
+          key={tab.value}
+          value={tab.value}
+          {...(keepMounted ? { forceMount: true } : {})}
+          className={cn("mt-4", keepMounted && "data-[state=inactive]:hidden", contentClassName)}
+        >
           {tab.content}
         </TabsContent>
       ))}
