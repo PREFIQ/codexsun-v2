@@ -144,7 +144,7 @@ export function WorkspaceLookup({
         left: rect.left,
         maxHeight,
         top,
-        width: rect.width,
+        width: Math.max(rect.width, 260),
       })
     }
 
@@ -448,10 +448,10 @@ const LookupList = forwardRef<
               onSelect(option)
             }}
           >
-            <span className="min-w-0">
-              <span className="block truncate font-medium">{option.label}</span>
+            <span className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]">
+              <span className="block whitespace-normal break-words font-medium [overflow-wrap:anywhere]">{option.label}</span>
               {option.description || option.meta ? (
-                <span className="block truncate text-xs text-muted-foreground">
+                <span className="block whitespace-normal break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
                   {[option.description, option.meta].filter(Boolean).join(" | ")}
                 </span>
               ) : null}

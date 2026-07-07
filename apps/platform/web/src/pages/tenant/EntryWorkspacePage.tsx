@@ -33,7 +33,7 @@ import { ApiError } from "@codexsun/platform/api-client";
 import { apiGet, apiPost, apiPut } from "../../api";
 import { CommonRecordAutocomplete } from "../../components/CommonRecordAutocomplete";
 
-export type EntryKind = "quotation" | "sales" | "purchase" | "receipt" | "payment";
+export type EntryKind = "quotation" | "sales" | "exportSales" | "purchase" | "receipt" | "payment";
 
 type EntryLine = {
   lineId?: string;
@@ -113,6 +113,7 @@ type EntryRecord = {
   transportName?: string | null;
   vehicleNo?: string | null;
   ewayPart?: string | null;
+  source?: EntrySource | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -120,6 +121,26 @@ type EntryRecord = {
   allocations: EntryAllocation[];
   comments: Array<{ authorEmail: string; body: string; createdAt: string }>;
   activities: Array<{ activityType: string; actorEmail: string; message: string; createdAt: string }>;
+};
+
+type EntrySource = {
+  accountPostingEnabled?: boolean;
+  accountPostingMode?: string;
+  exportCurrency?: string;
+  exportDestinationCountry?: string;
+  exportExchangeRate?: string;
+  exportLutNo?: string;
+  exportPort?: string;
+  exportType?: string;
+  generatedSalesAt?: string;
+  generatedSalesDocumentNo?: string;
+  generatedSalesEntryId?: string;
+  sourceDocumentNo?: string;
+  sourceEntryId?: string;
+  sourceType?: string;
+  sourceQuotationEntryIds?: string[];
+  sourceQuotationNos?: string[];
+  [key: string]: unknown;
 };
 
 type EntryForm = {
@@ -157,6 +178,14 @@ type EntryForm = {
   transportName: string;
   vehicleNo: string;
   ewayPart: string;
+  exportCurrency: string;
+  exportDestinationCountry: string;
+  exportExchangeRate: string;
+  exportLutNo: string;
+  exportPort: string;
+  exportType: string;
+  accountPostingEnabled: boolean;
+  source?: EntrySource | null;
   lines: EntryLine[];
   allocations: EntryAllocation[];
 };
@@ -372,6 +401,7 @@ const entryMeta: Record<EntryKind, {
 }> = {
   quotation: { allocationDocumentType: "sales", description: "Create and review customer quotation entries.", label: "Quotation", newLabel: "New Quotation", partyLabel: "Customer" },
   sales: { allocationDocumentType: "sales", description: "Create and review sales invoices.", label: "Sales", newLabel: "New Sales", partyLabel: "Customer" },
+  exportSales: { allocationDocumentType: "sales", description: "Create and review export sales invoices.", label: "Export Sales", newLabel: "New Export Sales", partyLabel: "Customer" },
   purchase: { allocationDocumentType: "purchase", description: "Create and review purchase bills.", label: "Purchase", newLabel: "New Purchase", partyLabel: "Supplier" },
   receipt: { allocationDocumentType: "sales", description: "Record customer receipts and allocations.", label: "Receipt", newLabel: "New Receipt", partyLabel: "Party", usesAllocations: true },
   payment: { allocationDocumentType: "purchase", description: "Record supplier payments and allocations.", label: "Payment", newLabel: "New Payment", partyLabel: "Party", usesAllocations: true },
@@ -389,13 +419,18 @@ const paymentStatusOptions = [
 ];
 const modeOptions = [
   { label: "Cash", value: "cash" },
-  { label: "Bank", value: "bank" },
-  { label: "UPI", value: "upi" },
+  { label: "RTGS Transfer", value: "rtgs-transfer" },
+  { label: "NEFT Transfer", value: "neft-transfer" },
+  { label: "UPI Transfer", value: "upi-transfer" },
   { label: "Cheque", value: "cheque" },
 ];
 const supplyOptions = [
   { label: "CGST + SGST", value: "cgst-sgst" },
   { label: "IGST", value: "igst" },
+];
+const exportTypeOptions = [
+  { label: "Export under LUT / Bond", value: "lut-bond" },
+  { label: "Export with IGST payment", value: "igst-payment" },
 ];
 
 export function EntryWorkspacePage({ kind }: { kind: EntryKind }) {
@@ -407,10 +442,26 @@ export function EntryWorkspacePage({ kind }: { kind: EntryKind }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(100);
+  const [selectedQuotationIds, setSelectedQuotationIds] = useState<string[]>([]);
   const entriesQuery = useQuery({
     queryKey: ["tenant", "entries", kind],
     queryFn: () => apiGet<EntryRecord[]>(`/core/entries/${kind}`, "tenant"),
   });
+  const allocationSourceKind = kind === "receipt" ? "sales" : kind === "payment" ? "purchase" : null;
+  const allocationSourceQuery = useQuery({
+    queryKey: ["tenant", "entries", allocationSourceKind, "allocation-source"],
+    queryFn: () => apiGet<EntryRecord[]>(`/core/entries/${allocationSourceKind}`, "tenant"),
+    enabled: Boolean(allocationSourceKind),
+  });
+
+  useEffect(() => {
+    setView({ mode: "list" });
+    setSearchValue("");
+    setStatusFilter("all");
+    setCurrentPage(1);
+    setSelectedQuotationIds([]);
+  }, [kind]);
+
   const saveMutation = useMutation({
     mutationFn: (input: EntryForm) => apiPost<{ ok: boolean; entry: EntryRecord }>(`/core/entries/${kind}/upsert`, payloadFromForm(kind, input), "tenant"),
     onSuccess: async (result, input) => {
@@ -451,6 +502,16 @@ export function EntryWorkspacePage({ kind }: { kind: EntryKind }) {
     },
     onError: (error) => toast.error("Entry tool failed", { description: apiErrorText(error, "Could not run tool") }),
   });
+  const generateSalesMutation = useMutation({
+    mutationFn: (quotations: EntryRecord[]) => generateSalesInvoiceFromQuotations(quotations),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["tenant", "entries", kind] });
+      await queryClient.invalidateQueries({ queryKey: ["tenant", "entries", "sales"] });
+      setSelectedQuotationIds([]);
+      toast.success("Sales invoice generated", { description: result.sales.documentNo });
+    },
+    onError: (error) => toast.error("Invoice generation failed", { description: apiErrorText(error, "Could not generate sales invoice") }),
+  });
 
   const entries = entriesQuery.data ?? [];
   const filtered = useMemo(() => {
@@ -465,9 +526,14 @@ export function EntryWorkspacePage({ kind }: { kind: EntryKind }) {
   }, [entries, searchValue, statusFilter]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
   const pageItems = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const selectedQuotations = kind === "quotation" ? entries.filter((entry) => selectedQuotationIds.includes(entry.entryId)) : [];
+  const selectedPageQuotations = pageItems.filter((entry) => selectedQuotationIds.includes(entry.entryId));
+  const allPageQuotationsSelected = kind === "quotation" && pageItems.length > 0 && selectedPageQuotations.length === pageItems.length;
+  const activeView: ViewState = view.mode === "show" && view.entry.entryType !== kind ? { mode: "list" } : view;
+  const boundedEntries = entries.filter((entry) => entry.entryType === kind);
 
-  if (view.mode === "show") {
-    const entry = entries.find((item) => item.entryId === view.entry.entryId) ?? view.entry;
+  if (activeView.mode === "show") {
+    const entry = boundedEntries.find((item) => item.entryId === activeView.entry.entryId) ?? activeView.entry;
     return (
       <EntryShowPage
         entry={entry}
@@ -488,29 +554,38 @@ export function EntryWorkspacePage({ kind }: { kind: EntryKind }) {
           if (previous) setView({ mode: "show", entry: previous });
         }}
         onRestore={() => restoreMutation.mutate(entry)}
-        onTool={(tool, value) => toolMutation.mutate(value === undefined ? { entry, tool } : { entry, tool, value })}
+        onTool={(tool, value) => {
+          if (kind === "quotation" && tool === "generate-sales-invoice") {
+            generateSalesMutation.mutate([entry]);
+            return;
+          }
+          toolMutation.mutate(value === undefined ? { entry, tool } : { entry, tool, value });
+        }}
       />
     );
   }
 
-  if (view.mode === "upsert") {
-    if (kind === "sales") {
+  if (activeView.mode === "upsert") {
+    if (isBillingPrintKind(kind)) {
       return (
         <SalesUpsertPage
-          entry={view.entry}
+          entry={activeView.entry}
           existingEntries={entries}
+          kind={kind}
           loading={saveMutation.isPending}
-          onBack={() => setView(view.entry ? { mode: "show", entry: view.entry } : { mode: "list" })}
+          onBack={() => setView(activeView.entry ? { mode: "show", entry: activeView.entry } : { mode: "list" })}
           onSave={(form) => saveMutation.mutate(form)}
         />
       );
     }
     return (
       <EntryUpsertPage
-        entry={view.entry}
+        entry={activeView.entry}
+        existingEntries={entries}
         kind={kind}
         loading={saveMutation.isPending}
-        onBack={() => setView(view.entry ? { mode: "show", entry: view.entry } : { mode: "list" })}
+        sourceEntries={allocationSourceQuery.data ?? []}
+        onBack={() => setView(activeView.entry ? { mode: "show", entry: activeView.entry } : { mode: "list" })}
         onSave={(form) => saveMutation.mutate(form)}
       />
     );
@@ -543,14 +618,47 @@ export function EntryWorkspacePage({ kind }: { kind: EntryKind }) {
         onSearchValueChange={(value: string) => { setSearchValue(value); setCurrentPage(1); }}
         searchValue={searchValue}
       />
+      {kind === "quotation" ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/70 bg-card/95 px-4 py-3 shadow-sm">
+          <div className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">{selectedQuotationIds.length}</span> quotation{selectedQuotationIds.length === 1 ? "" : "s"} selected
+          </div>
+          <Button
+            type="button"
+            className="h-9 rounded-md"
+            disabled={!selectedQuotations.length || generateSalesMutation.isPending}
+            onClick={() => generateSalesMutation.mutate(selectedQuotations)}
+          >
+            <Send className={cn("size-4", generateSalesMutation.isPending && "animate-pulse")} />
+            Generate Sales Invoice
+          </Button>
+        </div>
+      ) : null}
       <div className="overflow-hidden rounded-md border border-border/70 bg-card/95 shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] border-collapse text-sm">
             <thead className="bg-muted/50">
               <tr>
+                {kind === "quotation" ? (
+                  <TableHead>
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-primary"
+                      checked={allPageQuotationsSelected}
+                      onChange={(event) => {
+                        const pageIds = pageItems.map((entry) => entry.entryId);
+                        setSelectedQuotationIds((current) => event.target.checked
+                          ? Array.from(new Set([...current, ...pageIds]))
+                          : current.filter((id) => !pageIds.includes(id)));
+                      }}
+                    />
+                  </TableHead>
+                ) : null}
                 <TableHead>Document</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>{meta.partyLabel}</TableHead>
+                {kind === "quotation" ? <TableHead>Sales Invoice</TableHead> : null}
+                {kind === "purchase" ? <TableHead>Supplier Bill</TableHead> : null}
                 <TableHead>Status</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead className="text-right">Taxable</TableHead>
@@ -563,6 +671,16 @@ export function EntryWorkspacePage({ kind }: { kind: EntryKind }) {
             <tbody>
               {pageItems.map((entry) => (
                 <tr key={entry.entryId} className="border-b border-border/70 last:border-b-0">
+                  {kind === "quotation" ? (
+                    <td className="px-4 py-2">
+                      <input
+                        type="checkbox"
+                        className="size-4 accent-primary"
+                        checked={selectedQuotationIds.includes(entry.entryId)}
+                        onChange={(event) => setSelectedQuotationIds((current) => event.target.checked ? [...current, entry.entryId] : current.filter((id) => id !== entry.entryId))}
+                      />
+                    </td>
+                  ) : null}
                   <td className="px-4 py-2">
                     <button type="button" className="font-semibold text-primary hover:underline" onClick={() => setView({ mode: "show", entry })}>
                       {entry.documentNo}
@@ -571,6 +689,21 @@ export function EntryWorkspacePage({ kind }: { kind: EntryKind }) {
                   </td>
                   <td className="px-4 py-2 text-muted-foreground">{formatDate(entry.documentDate)}</td>
                   <td className="px-4 py-2">{entry.partyName}</td>
+                  {kind === "quotation" ? (
+                    <td className="px-4 py-2">
+                      {entry.source?.generatedSalesDocumentNo ? (
+                        <WorkspaceStatusBadge label={String(entry.source.generatedSalesDocumentNo)} tone="success" />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Not generated</span>
+                      )}
+                    </td>
+                  ) : null}
+                  {kind === "purchase" ? (
+                    <td className="px-4 py-2">
+                      <div className="font-medium">{entry.supplierBillNo || "-"}</div>
+                      {entry.supplierBillDate ? <div className="text-xs text-muted-foreground">{formatDate(entry.supplierBillDate)}</div> : null}
+                    </td>
+                  ) : null}
                   <td className="px-4 py-2"><WorkspaceStatusBadge label={entry.status} tone={entry.status === "posted" ? "success" : entry.status === "cancelled" ? "danger" : "warning"} /></td>
                   <td className="px-4 py-2"><WorkspaceStatusBadge label={entry.paymentStatus} tone={entry.paymentStatus === "paid" ? "success" : entry.paymentStatus === "partial" ? "warning" : "neutral"} /></td>
                   <td className="px-4 py-2 text-right tabular-nums">{money(entry.taxableTotal || entry.amount)}</td>
@@ -647,8 +780,8 @@ function EntryShowPage({
   }
   return (
     <WorkspacePage
-      title={kind === "sales" ? entry.partyName : `${meta.label} ${entry.documentNo}`}
-      description={kind === "sales" ? entry.documentNo : `${meta.partyLabel}: ${entry.partyName}`}
+      title={kind === "sales" || kind === "exportSales" ? entry.partyName : `${meta.label} ${entry.documentNo}`}
+      description={kind === "sales" || kind === "exportSales" ? entry.documentNo : `${meta.partyLabel}: ${entry.partyName}`}
       actions={
         <div className="flex flex-wrap items-center gap-2 print:hidden">
           <Button type="button" variant="outline" className="h-9 rounded-md" onClick={onNew}><Plus className="size-4" />New</Button>
@@ -662,7 +795,7 @@ function EntryShowPage({
           <Button type="button" variant="outline" className="h-9 rounded-md" onClick={onNext}><ChevronRight className="size-4" />Next</Button>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {kind === "sales" ? (
+          {isBillingPrintKind(kind) ? (
             <div className="flex min-h-9 flex-wrap items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-sm shadow-sm">
               {([
                 ["original", "Original"],
@@ -675,6 +808,16 @@ function EntryShowPage({
                 </label>
               ))}
             </div>
+          ) : null}
+          {kind === "quotation" ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-md"
+              onClick={() => onTool("generate-sales-invoice")}
+            >
+              <Send className="size-4" />Generate Invoice
+            </Button>
           ) : null}
           <Button type="button" className="h-9 rounded-md" onClick={() => window.print()}><Printer className="size-4" />Print</Button>
           <Button type="button" variant="outline" className="h-9 rounded-md" onClick={onEdit}><Pencil className="size-4" />Edit</Button>
@@ -695,12 +838,18 @@ function EntryShowPage({
 
 function PrintPreview({ entry, kind, printCopies = ["original"] }: { entry: EntryRecord; kind: EntryKind; printCopies?: Array<"original" | "duplicate" | "office"> }) {
   const meta = entryMeta[kind];
-  const isMoneyEntry = meta.usesAllocations;
   const [settings] = useState<SalesSettingsState>(() => readSalesSettings());
-  if (kind === "sales") {
+  if (isBillingPrintKind(kind)) {
     return (
       <div className="sales-print-root mx-auto grid w-fit max-w-full gap-4 rounded-md border border-border/70 bg-card p-3 shadow-sm print:block print:w-[210mm] print:max-w-none print:border-0 print:bg-white print:p-0 print:shadow-none">
-        {printCopies.map((copy) => <SalesTaxInvoiceDocument key={copy} copy={copy} entry={entry} settings={settings} />)}
+        {printCopies.map((copy) => <SalesTaxInvoiceDocument key={copy} copy={copy} entry={entry} kind={kind} settings={settings} />)}
+      </div>
+    );
+  }
+  if (meta.usesAllocations) {
+    return (
+      <div className="mx-auto w-fit max-w-full rounded-md border border-border/70 bg-card p-6 shadow-sm print:block print:w-[210mm] print:max-w-none print:border-0 print:bg-white print:p-0 print:shadow-none">
+        <MoneyVoucherDocument entry={entry} kind={kind} />
       </div>
     );
   }
@@ -734,11 +883,7 @@ function PrintPreview({ entry, kind, printCopies = ["original"] }: { entry: Entr
           </PrintBlock>
         </div>
 
-        {isMoneyEntry ? (
-          <PrintAllocationTable allocations={entry.allocations} />
-        ) : (
-          <PrintLineTable lines={entry.lines} />
-        )}
+        <PrintLineTable lines={entry.lines} />
 
         <div className="mt-6 grid gap-6 md:grid-cols-[1fr_18rem]">
           <div className="text-sm text-muted-foreground">
@@ -752,10 +897,84 @@ function PrintPreview({ entry, kind, printCopies = ["original"] }: { entry: Entr
   );
 }
 
-function SalesTaxInvoiceDocument({ copy, entry, settings }: { copy: "original" | "duplicate" | "office"; entry: EntryRecord; settings: SalesSettingsState }) {
+function MoneyVoucherDocument({ entry, kind }: { entry: EntryRecord; kind: EntryKind }) {
+  const isReceipt = kind === "receipt";
+  const title = isReceipt ? "RECEIPT VOUCHER" : "PAYMENT VOUCHER";
+  const partyLabel = isReceipt ? "Customer" : "Supplier";
+  const voucherLabel = isReceipt ? "Receipt" : "Payment";
+  const amount = numberValue(entry.amount || entry.netAmount || entry.grandTotal);
+  const netAmount = numberValue(entry.netAmount || entry.grandTotal || amount);
+  return (
+    <section className="mx-auto w-[210mm] max-w-full bg-white p-[7mm] text-[9px] leading-tight text-black shadow-sm ring-1 ring-border/70 print:m-0 print:w-[210mm] print:max-w-none print:p-[7mm] print:shadow-none print:ring-0">
+      <div className="border border-neutral-300">
+        <div className="relative border-b border-neutral-300 px-2 py-1.5 text-center">
+          <div className="text-[12px] font-bold">{title}</div>
+          <div className="absolute right-2 top-2 text-[8px]">Original Copy</div>
+        </div>
+        <div className="relative min-h-[34mm] border-b border-neutral-300 px-4 py-3 text-center font-['Times_New_Roman',serif]">
+          <div className="absolute left-4 top-6 flex size-16 items-center justify-center rounded-full border border-neutral-400 text-xl italic">CKF</div>
+          <h2 className="text-[27px] font-bold leading-none">COTTON KNIT FASHIONS</h2>
+          <p className="mt-3 text-[11px] leading-tight">8/1, TSR Layout, 4th street, Kongu Main Road<br />Tiruppur, Tiruppur -Dist, Tamil Nadu, India - 641607</p>
+          <p className="text-[10px] leading-tight">Email: sam@hariyaexports.com Phone: 9944935395</p>
+          <p className="text-[11px] font-bold leading-tight">GSTIN/UIN: 33ANKPS9182N1Z3</p>
+        </div>
+        <div className="grid grid-cols-2 border-b border-neutral-300">
+          <div className="grid grid-cols-[24mm_1fr] gap-y-0.5 px-2 py-2 font-bold">
+            <div>{voucherLabel} No:</div><div>{entry.documentNo}</div>
+            <div>{voucherLabel} Date:</div><div>{formatDate(entry.documentDate)}</div>
+            <div>{partyLabel}:</div><div>{entry.partyName || "-"}</div>
+          </div>
+          <div className="grid grid-cols-[24mm_1fr] gap-y-0.5 border-l border-neutral-300 px-2 py-2 font-bold">
+            <div>Mode:</div><div>{modePrintLabel(entry.paymentMode)}</div>
+            <div>Ledger:</div><div>{entry.ledgerName || "-"}</div>
+            <div>Work Order:</div><div>{entry.referenceNo || "-"}</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-[1fr_48mm] border-b border-neutral-300">
+          <div className="min-h-[18mm] border-r border-neutral-300 px-2 py-2">
+            <div className="text-[8px]">Amount (in words)</div>
+            <div className="font-bold">{amountWords(netAmount)}</div>
+            {entry.notes ? <div className="mt-2 text-[8px]">{entry.notes}</div> : null}
+          </div>
+          <div>
+            <VoucherAmountRow label="Amount" value={amount} strong />
+            <VoucherAmountRow label="Round Off" value={entry.roundOff} />
+            {numberValue(entry.tdsAmount) ? <VoucherAmountRow label="TDS" value={-numberValue(entry.tdsAmount)} /> : null}
+            {numberValue(entry.discountTotal) ? <VoucherAmountRow label="Discount" value={-numberValue(entry.discountTotal)} /> : null}
+            <VoucherAmountRow label="Net Amount" value={netAmount} strong />
+          </div>
+        </div>
+        <div className="grid min-h-[24mm] grid-cols-2 border-b border-neutral-300">
+          <div className="px-2 py-2">Receiver Sign</div>
+          <div className="flex flex-col justify-between border-l border-neutral-300 px-2 py-2 font-bold">
+            <div>For COTTON KNIT FASHIONS</div>
+            <div className="text-right">Authorised Signatory</div>
+          </div>
+        </div>
+        <div className="px-2 py-1 text-[8px] font-bold">Subject to Tiruppur Jurisdiction</div>
+      </div>
+    </section>
+  );
+}
+
+function VoucherAmountRow({ label, strong, value }: { label: string; strong?: boolean; value: unknown }) {
+  return (
+    <div className={cn("grid grid-cols-[1fr_24mm] border-b border-neutral-300 px-2 py-1 last:border-b-0", strong && "font-bold")}>
+      <span>{label}</span>
+      <span className="text-right tabular-nums">₹{money(value)}</span>
+    </div>
+  );
+}
+
+function modePrintLabel(value: unknown) {
+  return modeOptions.find((option) => option.value === value)?.label ?? String(value ?? "-");
+}
+
+function SalesTaxInvoiceDocument({ copy, entry, kind, settings }: { copy: "original" | "duplicate" | "office"; entry: EntryRecord; kind: EntryKind; settings: SalesSettingsState }) {
   const isCgstSgst = entry.placeOfSupply !== "igst";
   const copyLabel = copy === "duplicate" ? "Duplicate" : copy === "office" ? "Office Copy" : "Original";
   const columns = salesPrintItemColumns(settings, isCgstSgst);
+  const printMeta = billingPrintMeta(kind);
   const linePlan = getSalesPrintLinePlan(entry.lines);
   if (linePlan.requiresTwoPageTemplate) {
     const pages = getSalesPrintPagedLinePlan(entry.lines);
@@ -769,6 +988,7 @@ function SalesTaxInvoiceDocument({ copy, entry, settings }: { copy: "original" |
             entry={entry}
             isCgstSgst={isCgstSgst}
             isLastPage={pageIndex === pages.length - 1}
+            printMeta={printMeta}
             rows={page.rows}
           />
         ))}
@@ -777,7 +997,7 @@ function SalesTaxInvoiceDocument({ copy, entry, settings }: { copy: "original" |
   }
   return (
     <article className="sales-print-copy">
-      <SalesTaxInvoicePage columns={columns} copyLabel={copyLabel} entry={entry} isCgstSgst={isCgstSgst} isLastPage rows={linePlan.rows} />
+      <SalesTaxInvoicePage columns={columns} copyLabel={copyLabel} entry={entry} isCgstSgst={isCgstSgst} isLastPage printMeta={printMeta} rows={linePlan.rows} />
     </article>
   );
 }
@@ -788,6 +1008,7 @@ function SalesTaxInvoicePage({
   entry,
   isCgstSgst,
   isLastPage,
+  printMeta,
   rows,
 }: {
   columns: SalesPrintItemColumn[];
@@ -795,13 +1016,14 @@ function SalesTaxInvoicePage({
   entry: EntryRecord;
   isCgstSgst: boolean;
   isLastPage: boolean;
+  printMeta: BillingPrintMeta;
   rows: SalesPrintLineRow[];
 }) {
   return (
     <div className="sales-print-extended-page sales-invoice-print-sheet mx-auto h-[297mm] w-[210mm] max-w-full overflow-hidden bg-white p-[7mm] text-[9px] leading-tight text-black shadow-sm ring-1 ring-border/70 print:m-0 print:h-[297mm] print:w-[210mm] print:max-w-none print:p-[7mm] print:shadow-none print:ring-0">
       <div className="border border-neutral-300">
         <div className="relative border-b border-neutral-300 px-2 py-2 text-center">
-          <div className="text-[12px] font-bold">TAX INVOICE</div>
+          <div className="text-[12px] font-bold">{printMeta.title}</div>
           <div className="absolute right-2 top-2 text-[8px]">{copyLabel}</div>
         </div>
         <div className="relative min-h-[35mm] border-b border-neutral-300 px-4 py-3 text-center font-['Times_New_Roman',serif]">
@@ -813,9 +1035,11 @@ function SalesTaxInvoicePage({
         </div>
         <div className="grid grid-cols-2 border-b border-neutral-300">
           <div className="grid grid-cols-[24mm_1fr] px-2 py-1.5">
-            <div>Invoice No:</div><div className="font-bold">{entry.documentNo}</div>
+            <div>{printMeta.documentLabel}</div><div className="font-bold">{entry.documentNo}</div>
             <div>Date:</div><div className="font-bold">{formatDate(entry.documentDate)}</div>
             <div>Work Order:</div><div>{entry.referenceNo || "-"}</div>
+            {printMeta.showSupplierBill ? <><div>Supplier Bill:</div><div>{entry.supplierBillNo || "-"}</div></> : null}
+            {printMeta.showSupplierBill ? <><div>Bill Date:</div><div>{entry.supplierBillDate ? formatDate(entry.supplierBillDate) : "-"}</div></> : null}
           </div>
           <div className="border-l border-neutral-300 px-2 py-1.5">
             {entry.irn ? (
@@ -830,11 +1054,12 @@ function SalesTaxInvoicePage({
             {entry.ewayBillNo || entry.ewayBillDate ? (
               <InlineInvoiceDetail leftLabel="E-Way Bill No.:" leftValue={entry.ewayBillNo} rightLabel="Date:" rightValue={entry.ewayBillDate ? formatDate(entry.ewayBillDate) : ""} />
             ) : null}
+            {printMeta.showExportDetails ? <ExportInvoiceDetails entry={entry} /> : null}
           </div>
         </div>
         <div className="grid grid-cols-2 border-b border-neutral-300">
-          <SalesPartyBlock title="Buyer (Bill to)" entry={entry} address={entry.billingAddress ?? null} />
-          <SalesPartyBlock title="Buyer (Ship to)" entry={entry} address={entry.shippingAddress || entry.billingAddress || null} />
+          <SalesPartyBlock title={printMeta.billToLabel} entry={entry} address={entry.billingAddress ?? null} />
+          <SalesPartyBlock title={printMeta.shipToLabel} entry={entry} address={entry.shippingAddress || entry.billingAddress || null} />
         </div>
         <table className="w-full table-fixed border-collapse">
           <thead>
@@ -854,8 +1079,8 @@ function SalesTaxInvoicePage({
           <>
             <div className="grid grid-cols-[1fr_63mm] border-t border-neutral-300">
               <div className="min-h-[28mm] px-2 py-2">
-                <p>We hereby certify that our registration under the GST Act 2017 is in force on the date on which sale of goods specified in this invoice is made by us and the sale is effected in the regular course of business.</p>
-                <p className="mt-2 font-bold">* Goods once sold will not be taken back unless agreed in writing.</p>
+                <p>{printMeta.certification}</p>
+                <p className="mt-2 font-bold">* {entry.terms || printMeta.term}</p>
                 {entry.signedQr ? <p className="mt-2 break-all text-[8px]">Signed QR: {entry.signedQr}</p> : null}
               </div>
               <div className="border-l border-neutral-300">
@@ -888,6 +1113,27 @@ function SalesTaxInvoicePage({
 
 type SalesPrintItemColumnKey = "cgst" | "gstPercent" | "hsn" | "igst" | "poDc" | "product" | "quantity" | "rate" | "serial" | "sgst" | "taxable" | "total";
 type SalesPrintItemColumn = { key: SalesPrintItemColumnKey; label: string; widthClass: string };
+type BillingPrintMeta = {
+  billToLabel: string;
+  certification: string;
+  documentLabel: string;
+  shipToLabel: string;
+  showExportDetails?: boolean;
+  showSupplierBill: boolean;
+  term: string;
+  title: string;
+};
+type BillingUpsertMeta = {
+  defaultLedger: string;
+  descriptionNoun: string;
+  documentLabel: string;
+  emptyItemsNoun: string;
+  itemsTitle: string;
+  ledgerLabel: string;
+  newTitle: string;
+  partyLabel: string;
+  taxTypeLabel: string;
+};
 type SalesPrintLineRow =
   | { index: number; kind: "item"; line: EntryLine; lineCount: number }
   | { index: number; kind: "blank" };
@@ -895,6 +1141,109 @@ type SalesPrintLineRow =
 const salesPrintMinimumItemLineBudget = 12;
 const salesPrintExtendedItemOnlyLineBudget = 24;
 const salesPrintFinalTotalsLineBudget = 11;
+
+function isBillingPrintKind(kind: EntryKind) {
+  return kind === "quotation" || kind === "sales" || kind === "exportSales" || kind === "purchase";
+}
+
+function billingPrintMeta(kind: EntryKind): BillingPrintMeta {
+  if (kind === "quotation") {
+    return {
+      billToLabel: "Buyer (Bill to)",
+      certification: "This quotation is issued subject to final confirmation of goods, rate, quantity, taxes, and delivery terms.",
+      documentLabel: "Quotation No:",
+      shipToLabel: "Buyer (Ship to)",
+      showSupplierBill: false,
+      term: "Quotation is valid subject to confirmation and availability.",
+      title: "QUOTATION",
+    };
+  }
+  if (kind === "purchase") {
+    return {
+      billToLabel: "Supplier (Bill from)",
+      certification: "We acknowledge this purchase bill subject to goods, rate, quantity, tax, and quality verification.",
+      documentLabel: "Purchase No:",
+      shipToLabel: "Supplier (Ship from)",
+      showSupplierBill: true,
+      term: "Supplier bill accepted subject to goods, rate, quantity, and quality verification.",
+      title: "PURCHASE INVOICE",
+    };
+  }
+  if (kind === "exportSales") {
+    return {
+      billToLabel: "Buyer (Bill to)",
+      certification: "We hereby certify that the goods specified in this export invoice are supplied for export subject to applicable GST, customs, and shipment documentation.",
+      documentLabel: "Export Invoice No:",
+      shipToLabel: "Buyer (Ship to)",
+      showExportDetails: true,
+      showSupplierBill: false,
+      term: "Export goods once dispatched will not be taken back unless agreed in writing.",
+      title: "EXPORT TAX INVOICE",
+    };
+  }
+  return {
+    billToLabel: "Buyer (Bill to)",
+    certification: "We hereby certify that our registration under the GST Act 2017 is in force on the date on which sale of goods specified in this invoice is made by us and the sale is effected in the regular course of business.",
+    documentLabel: "Invoice No:",
+    shipToLabel: "Buyer (Ship to)",
+    showSupplierBill: false,
+    term: "Goods once sold will not be taken back unless agreed in writing.",
+    title: "TAX INVOICE",
+  };
+}
+
+function billingUpsertMeta(kind: Extract<EntryKind, "purchase" | "quotation" | "sales" | "exportSales">): BillingUpsertMeta {
+  if (kind === "quotation") {
+    return {
+      defaultLedger: "Sales Account",
+      descriptionNoun: "quotation voucher",
+      documentLabel: "Quotation no",
+      emptyItemsNoun: "quotation",
+      itemsTitle: "Quotation Items",
+      ledgerLabel: "Sales Ledger",
+      newTitle: "New Quotation",
+      partyLabel: "Customer",
+      taxTypeLabel: "Quotation tax type",
+    };
+  }
+  if (kind === "purchase") {
+    return {
+      defaultLedger: "Purchase Account",
+      descriptionNoun: "purchase voucher",
+      documentLabel: "Purchase no",
+      emptyItemsNoun: "purchase",
+      itemsTitle: "Purchase Items",
+      ledgerLabel: "Purchase Ledger",
+      newTitle: "New Purchase",
+      partyLabel: "Supplier",
+      taxTypeLabel: "Purchase tax type",
+    };
+  }
+  if (kind === "exportSales") {
+    return {
+      defaultLedger: "Export Sales Account",
+      descriptionNoun: "export sales voucher",
+      documentLabel: "Export invoice no",
+      emptyItemsNoun: "export sales",
+      itemsTitle: "Export Sales Items",
+      ledgerLabel: "Export Sales Ledger",
+      newTitle: "New Export Sales",
+      partyLabel: "Customer",
+      taxTypeLabel: "Export tax type",
+    };
+  }
+  return {
+    defaultLedger: "Sales Account",
+    descriptionNoun: "sales voucher",
+    documentLabel: "Invoice no",
+    emptyItemsNoun: "sales",
+    itemsTitle: "Sales Items",
+    ledgerLabel: "Sales Ledger",
+    newTitle: "New Sales",
+    partyLabel: "Customer",
+    taxTypeLabel: "Sales tax type",
+  };
+}
 
 function salesPrintItemColumns(settings: SalesSettingsState, isCgstSgst: boolean): SalesPrintItemColumn[] {
   const showPo = settings.layout["sales-use-po"];
@@ -978,8 +1327,20 @@ function getSalesPrintPagedLinePlan(lines: readonly EntryLine[]) {
   return pages;
 }
 
-function getSalesItemPrintLineCount(_line: EntryLine) {
-  return 1;
+function getSalesItemPrintLineCount(line: EntryLine) {
+  const productText = [line.productName, line.description].filter(Boolean).join(" - ");
+  const poDcText = [line.poNo, line.dcNo].filter(Boolean).join(" / ");
+  return Math.max(
+    estimatePrintWrappedLines(productText, 34),
+    estimatePrintWrappedLines(poDcText, 12),
+    estimatePrintWrappedLines(line.hsnCode, 10),
+  );
+}
+
+function estimatePrintWrappedLines(value: unknown, charactersPerLine: number) {
+  const text = String(value ?? "").trim();
+  if (!text) return 1;
+  return Math.max(1, Math.ceil(text.length / charactersPerLine));
 }
 
 function SalesPrintItemRow({ columns, index, isCgstSgst, line }: { columns: SalesPrintItemColumn[]; index: number; isCgstSgst: boolean; line: EntryLine }) {
@@ -1056,6 +1417,29 @@ function InlineInvoiceDetail({
       <span>{leftValue || "-"}</span>
       <span>{rightLabel}</span>
       <span>{rightValue || "-"}</span>
+    </div>
+  );
+}
+
+function ExportInvoiceDetails({ entry }: { entry: EntryRecord }) {
+  const source = entry.source ?? {};
+  const rows = [
+    ["Export Type", exportTypeLabel(source.exportType)],
+    ["Currency", source.exportCurrency],
+    ["Exchange Rate", source.exportExchangeRate],
+    ["Country", source.exportDestinationCountry],
+    ["Port", source.exportPort],
+    ["LUT / Bond", source.exportLutNo],
+  ].filter(([, value]) => String(value ?? "").trim());
+  if (!rows.length) return null;
+  return (
+    <div className="mt-1 grid grid-cols-[22mm_1fr] gap-x-1 font-bold leading-tight">
+      {rows.map(([label, value]) => (
+        <div key={label} className="contents">
+          <span>{label}:</span>
+          <span className="break-words">{String(value)}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1154,11 +1538,11 @@ function SideNote({ body, meta, title }: { body: string; meta: string; title: st
 }
 
 function InvoiceTh({ children, className }: { children: ReactNode; className?: string }) {
-  return <th className={cn("box-border overflow-hidden border-b border-r border-neutral-300 px-1 py-2 text-center font-bold last:border-r-0", className)}>{children}</th>;
+  return <th className={cn("box-border border-b border-r border-neutral-300 px-1 py-2 text-center font-bold last:border-r-0", className)}>{children}</th>;
 }
 
 function InvoiceTd({ align = "left", children, className, colSpan }: { align?: "center" | "left" | "right"; children?: ReactNode; className?: string; colSpan?: number }) {
-  return <td colSpan={colSpan} className={cn("box-border overflow-hidden break-words border-b border-r border-neutral-300 px-1 py-1 last:border-r-0", align === "center" && "text-center", align === "right" && "text-right tabular-nums", className)}>{children}</td>;
+  return <td colSpan={colSpan} className={cn("box-border whitespace-normal break-words border-b border-r border-neutral-300 px-1 py-1 [overflow-wrap:anywhere] last:border-r-0", align === "center" && "text-center", align === "right" && "text-right tabular-nums", className)}>{children}</td>;
 }
 
 function InvoiceTotal({ label, strong, value }: { label: string; strong?: boolean; value: string }) {
@@ -1168,23 +1552,26 @@ function InvoiceTotal({ label, strong, value }: { label: string; strong?: boolea
 function SalesUpsertPage({
   entry,
   existingEntries,
+  kind,
   loading,
   onBack,
   onSave,
 }: {
   entry: EntryRecord | null;
   existingEntries: EntryRecord[];
+  kind: Extract<EntryKind, "purchase" | "quotation" | "sales" | "exportSales">;
   loading: boolean;
   onBack: () => void;
   onSave: (form: EntryForm) => void;
 }) {
+  const billingMeta = billingUpsertMeta(kind);
   const [settings] = useState<SalesSettingsState>(() => readSalesSettings());
   const [form, setForm] = useState<EntryForm>(() => {
-    const next = formFromEntry("sales", entry);
+    const next = formFromEntry(kind, entry);
     return {
       ...next,
-      documentNo: next.documentNo || nextDocumentNoForKind("sales", existingEntries),
-      ledgerName: next.ledgerName || "Sales Account",
+      documentNo: next.documentNo || nextDocumentNoForKind(kind, existingEntries),
+      ledgerName: next.ledgerName || billingMeta.defaultLedger,
       placeOfSupply: next.placeOfSupply || "cgst-sgst",
       lines: entry?.lines?.length ? entry.lines : [],
     };
@@ -1198,8 +1585,13 @@ function SalesUpsertPage({
   const showDc = settings.layout["sales-use-dc"];
   const showColour = settings.layout["sales-use-colour"];
   const showSize = settings.layout["sales-use-size"];
+  const showItemPo = kind !== "purchase" && showPo;
+  const showItemDc = kind !== "purchase" && showDc;
+  const showItemColour = kind === "purchase" || showColour;
+  const showItemSize = kind === "purchase" || showSize;
   const isCgstSgst = form.placeOfSupply !== "igst";
   const totals = calculateSalesTotals(form.lines, form.roundOff);
+  const supportsCompliance = kind === "sales" || kind === "exportSales";
 
   function update(patch: Partial<EntryForm>) {
     setForm((current) => ({ ...current, ...patch }));
@@ -1237,9 +1629,9 @@ function SalesUpsertPage({
   }
 
   function submit(printAfterSave = false) {
-    const nextErrors = validateEntryForm("sales", form);
+    const nextErrors = validateEntryForm(kind, form);
     if (isDuplicateDocumentNo(form.documentNo, existingEntries, form.entryId)) {
-      nextErrors.documentNo = "Invoice no already exists for this tenant.";
+      nextErrors.documentNo = `${billingMeta.documentLabel} already exists for this tenant.`;
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
@@ -1248,20 +1640,20 @@ function SalesUpsertPage({
   }
 
   async function generateCompliance(type: "einvoice" | "eway") {
-    const nextErrors = validateEntryForm("sales", form);
+    const nextErrors = validateEntryForm(kind, form);
     if (type === "eway" && !form.irn.trim()) nextErrors.irn = "IRN is required before generating E-way bill.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
     setGenerating(type);
     const toastId = toast.loading(type === "einvoice" ? "Sending e-invoice request..." : "Sending E-way bill request...");
     try {
-      const saved = await apiPost<{ ok: boolean; entry: EntryRecord }>(`/core/entries/sales/upsert`, payloadFromForm("sales", { ...form, status: "posted" }), "tenant");
+      const saved = await apiPost<{ ok: boolean; entry: EntryRecord }>(`/core/entries/${kind}/upsert`, payloadFromForm(kind, { ...form, status: "posted" }), "tenant");
       const savedEntry = saved.entry;
       setForm((current) => ({ ...current, entryId: savedEntry.entryId, status: savedEntry.status }));
       const action = type === "einvoice" ? "generate-irn" : "generate-eway";
       const result = await apiPost<{ ok: boolean; entry: EntryRecord; document?: Partial<EntryRecord> }>(
-        `/core/entries/sales/${encodeURIComponent(savedEntry.entryId)}/compliance/${action}`,
-        { payload: type === "einvoice" ? buildSalesEinvoicePayload({ ...form, entryId: savedEntry.entryId }) : buildSalesEwayPayload({ ...form, entryId: savedEntry.entryId, irn: savedEntry.irn ?? form.irn }) },
+        `/core/entries/${kind}/${encodeURIComponent(savedEntry.entryId)}/compliance/${action}`,
+        { payload: type === "einvoice" ? buildSalesEinvoicePayload({ ...form, entryId: savedEntry.entryId }, kind) : buildSalesEwayPayload({ ...form, entryId: savedEntry.entryId, irn: savedEntry.irn ?? form.irn }) },
         "tenant",
       );
       const nextEntry = result.entry;
@@ -1288,8 +1680,8 @@ function SalesUpsertPage({
 
   return (
     <WorkspacePage
-      title={entry ? `Edit ${entry.documentNo}` : "New Sales"}
-      description="Create or update a tenant-isolated sales voucher."
+      title={entry ? `Edit ${entry.documentNo}` : billingMeta.newTitle}
+      description={`Create or update a tenant-isolated ${billingMeta.descriptionNoun}.`}
       actions={<Button type="button" variant="outline" className="h-9 rounded-md" onClick={onBack}><X className="size-4" />Cancel</Button>}
     >
       <div className="overflow-hidden rounded-md border border-border/70 bg-card shadow-sm">
@@ -1303,8 +1695,9 @@ function SalesUpsertPage({
             {[
               ["details", "Details"],
               ["address", "Address"],
-              ...(settings.layout["sales-use-eway"] ? [["eway", "E-way"] as const] : []),
-              ...(settings.gstApiMode !== "eway_only" && settings.layout["sales-use-einvoice"] ? [["einvoice", "E-invoice"] as const] : []),
+              ...(kind === "exportSales" ? [["export", "Export"] as const] : []),
+              ...(supportsCompliance && settings.layout["sales-use-eway"] ? [["eway", "E-way"] as const] : []),
+              ...(supportsCompliance && settings.gstApiMode !== "eway_only" && settings.layout["sales-use-einvoice"] ? [["einvoice", "E-invoice"] as const] : []),
               ["terms", "Terms"],
             ].map(([value, label]) => (
               <TabsTrigger key={value} value={value} className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none">
@@ -1316,7 +1709,7 @@ function SalesUpsertPage({
             <div className="space-y-8 px-6 pb-8 pt-4">
               <div className="grid gap-5 lg:grid-cols-2">
                 <div className="space-y-5">
-                  <PlainField label="Customer name *" error={errors.partyName}>
+                  <PlainField label={`${billingMeta.partyLabel} name *`} error={errors.partyName}>
                     <ContactPicker
                       createEnabled
                       invalid={Boolean(errors.partyName)}
@@ -1338,27 +1731,50 @@ function SalesUpsertPage({
                   <PlainField label="Work Order no">
                     <WorkOrderAutocomplete value={form.referenceNo} onChange={(referenceNo) => update({ referenceNo })} />
                   </PlainField>
-                  <PlainField label="Sales Ledger">
-                    <SalesLedgerAutocomplete value={salesLedgerLabel(form.ledgerName)} onChange={(ledgerName) => update({ ledgerName })} />
-                  </PlainField>
+                  {kind === "purchase" ? (
+                    <div className="grid gap-5 lg:grid-cols-2">
+                      <PlainField label="Supplier bill no">
+                        <Input className="h-11 rounded-md" value={form.supplierBillNo} onChange={(event) => update({ supplierBillNo: event.target.value })} />
+                      </PlainField>
+                      <PlainField label="Supplier bill date">
+                        <WorkspaceDatePicker ariaLabel="Supplier bill date" placeholder="dd-mm-yyyy" value={form.supplierBillDate} onValueChange={(supplierBillDate) => update({ supplierBillDate })} />
+                      </PlainField>
+                    </div>
+                  ) : (
+                    <PlainField label={billingMeta.ledgerLabel}>
+                      <SalesLedgerAutocomplete value={salesLedgerLabel(form.ledgerName)} onChange={(ledgerName) => update({ ledgerName: ledgerName || billingMeta.defaultLedger })} />
+                    </PlainField>
+                  )}
                 </div>
                 <div className="space-y-5">
-                  <PlainField label="Invoice no" error={errors.documentNo}>
+                  <PlainField label={billingMeta.documentLabel} error={errors.documentNo}>
                     <Input className={inputClass(errors.documentNo)} value={form.documentNo} onChange={(event) => update({ documentNo: event.target.value })} />
                   </PlainField>
                   <PlainField label="Date" error={errors.documentDate}>
                     <WorkspaceDatePicker ariaLabel="Date" placeholder="Select date" value={form.documentDate} onValueChange={(documentDate) => update({ documentDate })} />
                   </PlainField>
-                  <PlainField label="Sales tax type">
+                  {kind === "purchase" ? (
+                    <PlainField label={billingMeta.ledgerLabel}>
+                      <SalesLedgerAutocomplete value={salesLedgerLabel(form.ledgerName)} onChange={(ledgerName) => update({ ledgerName: ledgerName || billingMeta.defaultLedger })} />
+                    </PlainField>
+                  ) : null}
+                  <PlainField label={billingMeta.taxTypeLabel}>
                     <WorkspaceSelect options={supplyOptions} value={form.placeOfSupply} onValueChange={(placeOfSupply) => update({ placeOfSupply })} />
                   </PlainField>
                 </div>
               </div>
               <section className="space-y-5">
-                <h2 className="text-lg font-semibold underline underline-offset-4">Sales Items</h2>
-                <div className={cn("grid items-end gap-1 sm:grid-cols-2 lg:grid-cols-4", (showPo || showDc) ? "xl:grid-cols-[minmax(5rem,.42fr)_minmax(5rem,.42fr)_minmax(18rem,2fr)_minmax(11rem,1fr)_minmax(5rem,.45fr)_minmax(6rem,.55fr)_auto]" : "xl:grid-cols-[minmax(22rem,2.3fr)_minmax(14rem,1fr)_minmax(5rem,.45fr)_minmax(6rem,.55fr)_auto]")}>
-                  {showPo ? <CompactInput label="PO" value={itemDraft.poNo ?? ""} onChange={(poNo) => updateDraft({ poNo })} /> : null}
-                  {showDc ? <CompactInput label="DC" value={itemDraft.dcNo ?? ""} onChange={(dcNo) => updateDraft({ dcNo })} /> : null}
+                <h2 className="text-lg font-semibold underline underline-offset-4">{billingMeta.itemsTitle}</h2>
+                <div className={cn(
+                  "grid items-end gap-1 sm:grid-cols-2 lg:grid-cols-4",
+                  kind === "purchase"
+                    ? "xl:grid-cols-[minmax(20rem,2.2fr)_minmax(12rem,1fr)_minmax(7rem,.55fr)_minmax(7rem,.55fr)_minmax(6rem,.55fr)_minmax(7rem,.6fr)_auto]"
+                    : (showItemPo || showItemDc)
+                      ? "xl:grid-cols-[minmax(5rem,.36fr)_minmax(5rem,.36fr)_minmax(18rem,2fr)_minmax(10rem,.85fr)_minmax(7rem,.55fr)_minmax(7rem,.55fr)_minmax(6rem,.5fr)_minmax(7rem,.55fr)_auto]"
+                      : "xl:grid-cols-[minmax(20rem,2.2fr)_minmax(12rem,1fr)_minmax(7rem,.55fr)_minmax(7rem,.55fr)_minmax(6rem,.55fr)_minmax(7rem,.6fr)_auto]",
+                )}>
+                  {showItemPo ? <CompactInput label="PO" value={itemDraft.poNo ?? ""} onChange={(poNo) => updateDraft({ poNo })} /> : null}
+                  {showItemDc ? <CompactInput label="DC" value={itemDraft.dcNo ?? ""} onChange={(dcNo) => updateDraft({ dcNo })} /> : null}
                   <CompactField label="Product name">
                     <ProductPicker
                       value={itemDraft.productName}
@@ -1366,14 +1782,14 @@ function SalesUpsertPage({
                     />
                   </CompactField>
                   <CompactInput label="Description" value={itemDraft.description ?? ""} onChange={(description) => updateDraft({ description })} />
-                  {showColour ? (
+                  {showItemColour ? (
                     <CompactField label="Colour">
-                      <SalesAttributeLookup definitionKey="colours" label="Colour" placeholder="Search colour" value={itemDraft.colour ?? ""} onChange={(colour) => updateDraft({ colour })} />
+                      <SalesAttributeLookup definitionKey="colours" label="Colour" value={itemDraft.colour ?? ""} onChange={(colour) => updateDraft({ colour })} />
                     </CompactField>
                   ) : null}
-                  {showSize ? (
+                  {showItemSize ? (
                     <CompactField label="Size">
-                      <SalesAttributeLookup definitionKey="sizes" label="Size" placeholder="Search size" value={itemDraft.size ?? ""} onChange={(size) => updateDraft({ size })} />
+                      <SalesAttributeLookup definitionKey="sizes" label="Size" value={itemDraft.size ?? ""} onChange={(size) => updateDraft({ size })} />
                     </CompactField>
                   ) : null}
                   <CompactInput label="Quantity" numeric value={String(itemDraft.quantity)} onChange={(quantity) => updateDraft({ quantity: numberValue(quantity) })} />
@@ -1386,12 +1802,13 @@ function SalesUpsertPage({
                   </div>
                 </div>
                 <SalesItemsPreviewTable
+                  emptyNoun={billingMeta.emptyItemsNoun}
                   isCgstSgst={isCgstSgst}
                   items={form.lines}
-                  showColour={showColour}
-                  showDc={showDc}
-                  showPo={showPo}
-                  showSize={showSize}
+                  showColour={showItemColour}
+                  showDc={showItemDc}
+                  showPo={showItemPo}
+                  showSize={showItemSize}
                   onDelete={deleteItem}
                   onEdit={editItem}
                 />
@@ -1419,6 +1836,28 @@ function SalesUpsertPage({
               />
               <PlainField label="GSTIN"><Input className="h-11 rounded-md" value={form.partyGstin} onChange={(event) => update({ partyGstin: event.target.value.toUpperCase() })} /></PlainField>
               <PlainField label="Due date"><WorkspaceDatePicker ariaLabel="Due date" placeholder="Select due date" value={form.dueDate} onValueChange={(dueDate) => update({ dueDate })} /></PlainField>
+            </div>
+          </TabsContent>
+          <TabsContent value="export" className="m-0">
+            <div className="grid gap-5 px-6 py-5 lg:grid-cols-3">
+              <PlainField label="Export type">
+                <WorkspaceSelect options={exportTypeOptions} value={form.exportType} onValueChange={(exportType) => update({ exportType })} />
+              </PlainField>
+              <PlainField label="Currency">
+                <Input className="h-11 rounded-md" value={form.exportCurrency} onChange={(event) => update({ exportCurrency: event.target.value.toUpperCase() })} />
+              </PlainField>
+              <PlainField label="Exchange rate">
+                <Input className="h-11 rounded-md" inputMode="decimal" value={form.exportExchangeRate} onChange={(event) => update({ exportExchangeRate: decimalTextValue(event.target.value) })} />
+              </PlainField>
+              <PlainField label="Destination country">
+                <Input className="h-11 rounded-md" value={form.exportDestinationCountry} onChange={(event) => update({ exportDestinationCountry: event.target.value })} />
+              </PlainField>
+              <PlainField label="Port">
+                <Input className="h-11 rounded-md" value={form.exportPort} onChange={(event) => update({ exportPort: event.target.value })} />
+              </PlainField>
+              <PlainField label="LUT / Bond no">
+                <Input className="h-11 rounded-md" value={form.exportLutNo} onChange={(event) => update({ exportLutNo: event.target.value })} />
+              </PlainField>
             </div>
           </TabsContent>
           <TabsContent value="eway" className="m-0">
@@ -1462,21 +1901,36 @@ function SalesUpsertPage({
 
 function EntryUpsertPage({
   entry,
+  existingEntries,
   kind,
   loading,
+  sourceEntries,
   onBack,
   onSave,
 }: {
   entry: EntryRecord | null;
+  existingEntries: EntryRecord[];
   kind: EntryKind;
   loading: boolean;
+  sourceEntries: EntryRecord[];
   onBack: () => void;
   onSave: (form: EntryForm) => void;
 }) {
   const meta = entryMeta[kind];
-  const [form, setForm] = useState<EntryForm>(() => formFromEntry(kind, entry));
+  const [form, setForm] = useState<EntryForm>(() => {
+    const next = formFromEntry(kind, entry);
+    return { ...next, documentNo: next.documentNo || nextDocumentNoForKind(kind, existingEntries) };
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState("details");
   const hasErrors = Object.keys(errors).length > 0;
+  const needsBankLedger = form.paymentMode !== "cash";
+  const ledgerLabel = kind === "receipt"
+    ? needsBankLedger ? "Deposit in bank ledger" : "Cash ledger"
+    : kind === "payment"
+      ? needsBankLedger ? "Paid from bank ledger" : "Cash ledger"
+      : "Ledger";
+  const ledgerPlaceholder = needsBankLedger ? "Search bank ledger" : "Search cash ledger";
 
   function update(patch: Partial<EntryForm>) {
     setForm((current) => ({ ...current, ...patch }));
@@ -1486,9 +1940,112 @@ function EntryUpsertPage({
     event.preventDefault();
     const nextErrors = validateEntryForm(kind, form);
     setErrors(nextErrors);
+    if (nextErrors.ledgerName) setActiveTab("details");
     if (Object.keys(nextErrors).length) return;
     onSave(form);
   }
+
+  function saveAndPrint() {
+    const nextForm = { ...form, status: "posted" };
+    const nextErrors = validateEntryForm(kind, nextForm);
+    setErrors(nextErrors);
+    if (nextErrors.ledgerName) setActiveTab("details");
+    if (Object.keys(nextErrors).length) return;
+    onSave(nextForm);
+    window.setTimeout(() => window.print(), 300);
+  }
+
+  const detailsContent = (
+    <div className="p-5">
+      {hasErrors ? (
+        <WorkspaceFormBanner title="Required fields">Fill the highlighted fields before saving.</WorkspaceFormBanner>
+      ) : null}
+      <WorkspaceFormGrid columns={meta.usesAllocations ? 2 : 3}>
+        <WorkspaceFormField label={meta.usesAllocations ? `${kind === "payment" ? "Supplier" : "Customer"} name` : meta.partyLabel} required>
+          <ContactPicker
+            invalid={Boolean(errors.partyName)}
+            value={form.partyName}
+            onChange={(partyName, contact) => update({
+              partyName,
+              partyId: contact?.contactId ?? form.partyId,
+              partyGstin: contact?.gstin ?? form.partyGstin,
+            })}
+          />
+          {errors.partyName ? <Helper>{errors.partyName}</Helper> : null}
+        </WorkspaceFormField>
+        <Field label={meta.usesAllocations ? `${meta.label} no` : "Document No"} error={errors.documentNo}>
+          <Input className={inputClass(errors.documentNo)} value={form.documentNo} onChange={(event) => update({ documentNo: event.target.value })} />
+        </Field>
+        <Field label="Amount" required={meta.usesAllocations} error={errors.amount}>
+          <Input className={inputClass(errors.amount)} type="number" value={form.amount} onChange={(event) => update({ amount: event.target.value })} />
+        </Field>
+        <Field label="Date" required error={errors.documentDate}>
+          <WorkspaceDatePicker ariaLabel="Date" placeholder="Select date" required value={form.documentDate} onValueChange={(documentDate) => update({ documentDate })} />
+        </Field>
+        <WorkspaceFormField label="Work Order no">
+          <Input className="h-11 rounded-md" value={form.referenceNo} onChange={(event) => update({ referenceNo: event.target.value })} />
+        </WorkspaceFormField>
+        <WorkspaceFormField label="Mode">
+          <WorkspaceSelect options={modeOptions} value={form.paymentMode} onValueChange={(paymentMode) => update({ paymentMode, ledgerName: paymentMode === "cash" ? "Cash" : "" })} />
+        </WorkspaceFormField>
+        {meta.usesAllocations ? (
+          <>
+            <WorkspaceFormField label={ledgerLabel} required className="md:col-start-2">
+              <Input className={inputClass(errors.ledgerName)} placeholder={ledgerPlaceholder} value={form.ledgerName} onChange={(event) => update({ ledgerName: event.target.value })} />
+              {errors.ledgerName ? <Helper>{errors.ledgerName}</Helper> : null}
+            </WorkspaceFormField>
+            <WorkspaceFormField label="Notes" className="md:col-start-2">
+              <Textarea className="min-h-24 rounded-md" value={form.notes} onChange={(event) => update({ notes: event.target.value })} />
+            </WorkspaceFormField>
+          </>
+        ) : null}
+      </WorkspaceFormGrid>
+    </div>
+  );
+
+  const notesAndTotalsContent = (
+    <div className="p-5">
+      <WorkspaceFormGrid columns={2}>
+        <WorkspaceFormField label="Terms">
+          <Textarea className="min-h-24 rounded-md" value={form.terms} onChange={(event) => update({ terms: event.target.value })} />
+        </WorkspaceFormField>
+        <WorkspaceFormField label="Round Off">
+          <Input className="h-11 rounded-md" inputMode="decimal" value={form.roundOff} onChange={(event) => update({ roundOff: decimalTextValue(event.target.value) })} />
+        </WorkspaceFormField>
+        {meta.usesAllocations ? (
+          <>
+            <WorkspaceFormField label="TDS">
+              <Input className="h-11 rounded-md" type="number" value={form.tdsAmount} onChange={(event) => update({ tdsAmount: event.target.value })} />
+            </WorkspaceFormField>
+            <WorkspaceFormField label="Discount">
+              <Input className="h-11 rounded-md" type="number" value={form.discountTotal} onChange={(event) => update({ discountTotal: event.target.value })} />
+            </WorkspaceFormField>
+          </>
+        ) : null}
+      </WorkspaceFormGrid>
+    </div>
+  );
+
+  const tabs: WorkspaceAnimatedTab[] = meta.usesAllocations
+    ? [
+        { value: "details", label: "Details", content: detailsContent },
+        {
+          value: "allocations",
+          label: "Allocations",
+          content: (
+            <div className="p-5">
+              <AllocationEditor
+                allocations={form.allocations}
+                documentType={meta.allocationDocumentType}
+                sourceEntries={sourceEntries}
+                onChange={(allocations) => update({ allocations })}
+              />
+            </div>
+          ),
+        },
+        { value: "notes", label: "Notes & Totals", content: notesAndTotalsContent },
+      ]
+    : [];
 
   return (
     <WorkspaceUpsertPage
@@ -1497,6 +2054,32 @@ function EntryUpsertPage({
       onBack={onBack}
     >
       <form noValidate className="space-y-4" onSubmit={submit}>
+        {meta.usesAllocations ? (
+          <div className="overflow-hidden rounded-md border border-border/70 bg-card/95 shadow-sm">
+            <WorkspaceAnimatedTabs
+              contentClassName="m-0"
+              listClassName="rounded-none border-x-0 border-t-0 border-b border-border/70 bg-card px-6 py-0.5 shadow-none"
+              tabs={tabs}
+              triggerClassName="px-4 py-3"
+              value={activeTab}
+              onValueChange={setActiveTab}
+            />
+            <div className="flex flex-wrap items-center gap-3 border-t border-border/70 bg-muted/20 px-6 py-4">
+              <Button type="submit" disabled={loading} className="rounded-md">
+                <Save className={cn("size-4", loading && "animate-spin")} />
+                {entry ? "Update" : "Save"}
+              </Button>
+              <Button type="button" variant="secondary" className="rounded-md" disabled={loading} onClick={saveAndPrint}>
+                <Printer className="size-4" />
+                Save & Print
+              </Button>
+              <Button type="button" variant="outline" className="rounded-md" onClick={onBack}>
+                <X className="size-4" />
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
         <WorkspaceFormPanel>
           {hasErrors ? (
             <WorkspaceFormBanner title="Required fields">Fill the highlighted fields before saving.</WorkspaceFormBanner>
@@ -1572,51 +2155,22 @@ function EntryUpsertPage({
             </WorkspaceFormField>
           </WorkspaceFormGrid>
         </WorkspaceFormPanel>
+        )}
 
-        <WorkspaceFormPanel title={meta.usesAllocations ? "Allocations" : "Items"}>
-          {meta.usesAllocations ? (
-            <AllocationEditor
-              allocations={form.allocations}
-              documentType={meta.allocationDocumentType}
-              onChange={(allocations) => update({ allocations })}
-            />
-          ) : (
+        {!meta.usesAllocations ? <WorkspaceFormPanel title="Items">
             <LineEditor lines={form.lines} onChange={(lines) => update({ lines })} />
-          )}
-        </WorkspaceFormPanel>
+        </WorkspaceFormPanel> : null}
 
-        <WorkspaceFormPanel title="Notes and totals">
-          <WorkspaceFormGrid columns={2}>
-            <WorkspaceFormField label="Notes">
-              <Textarea className="min-h-24 rounded-md" value={form.notes} onChange={(event) => update({ notes: event.target.value })} />
-            </WorkspaceFormField>
-            <WorkspaceFormField label="Terms">
-              <Textarea className="min-h-24 rounded-md" value={form.terms} onChange={(event) => update({ terms: event.target.value })} />
-            </WorkspaceFormField>
-            <WorkspaceFormField label="Round Off">
-              <Input className="h-11 rounded-md" type="number" value={form.roundOff} onChange={(event) => update({ roundOff: event.target.value })} />
-            </WorkspaceFormField>
-            {meta.usesAllocations ? (
-              <>
-                <WorkspaceFormField label="TDS">
-                  <Input className="h-11 rounded-md" type="number" value={form.tdsAmount} onChange={(event) => update({ tdsAmount: event.target.value })} />
-                </WorkspaceFormField>
-                <WorkspaceFormField label="Discount">
-                  <Input className="h-11 rounded-md" type="number" value={form.discountTotal} onChange={(event) => update({ discountTotal: event.target.value })} />
-                </WorkspaceFormField>
-              </>
-            ) : null}
-          </WorkspaceFormGrid>
-        </WorkspaceFormPanel>
+        {!meta.usesAllocations ? notesAndTotalsContent : null}
 
-        <WorkspaceFormPanel>
+        {!meta.usesAllocations ? <WorkspaceFormPanel>
           <WorkspaceFormFooter primaryLabel={loading ? "Saving..." : entry ? "Update" : "Save"} primaryLoading={loading} onCancel={onBack}>
-            <Button type="button" variant="outline" className="rounded-md" onClick={() => window.print()}>
+            <Button type="button" variant="outline" className="rounded-md" disabled={loading} onClick={saveAndPrint}>
               <Printer className="size-4" />
-              Print Preview
+              Save & Print
             </Button>
           </WorkspaceFormFooter>
-        </WorkspaceFormPanel>
+        </WorkspaceFormPanel> : null}
       </form>
     </WorkspaceUpsertPage>
   );
@@ -1648,19 +2202,38 @@ function LineEditor({ lines, onChange }: { lines: EntryLine[]; onChange: (lines:
   );
 }
 
-function AllocationEditor({ allocations, documentType, onChange }: { allocations: EntryAllocation[]; documentType: string; onChange: (allocations: EntryAllocation[]) => void }) {
+function AllocationEditor({ allocations, documentType, onChange, sourceEntries }: { allocations: EntryAllocation[]; documentType: string; onChange: (allocations: EntryAllocation[]) => void; sourceEntries?: EntryRecord[] }) {
   const updateAllocation = (index: number, patch: Partial<EntryAllocation>) => onChange(allocations.map((allocation, allocationIndex) => allocationIndex === index ? { ...allocation, ...patch } : allocation));
+  const documentOptions = useMemo(() => openAllocationDocumentOptions(sourceEntries ?? [], allocations), [allocations, sourceEntries]);
   return (
     <>
-      <WorkspaceLineTableHeader label="Document allocations" />
+      <WorkspaceLineTableHeader label="Bill wise allocation" />
       <WorkspaceLineTable
         data={allocations}
         rowKey={(allocation, index) => allocation.allocationId ?? String(index)}
-        minWidth="820px"
+        minWidth="980px"
         onAdd={() => onChange([...allocations, emptyAllocation(documentType)])}
         onDelete={(_, index) => onChange(allocations.filter((__, allocationIndex) => allocationIndex !== index))}
         columns={[
-          { header: "Document No", width: "180px", render: (allocation, index) => <Input className="h-9 rounded-md" value={allocation.documentNo} onChange={(event) => updateAllocation(index, { documentNo: event.target.value })} /> },
+          {
+            header: documentType === "purchase" ? "Purchase Bill" : "Sales Invoice",
+            width: "240px",
+            render: (allocation, index) => (
+              <OpenAllocationDocumentPicker
+                allocation={allocation}
+                options={documentOptions}
+                onChange={(documentNo, option) => updateAllocation(index, option ? {
+                  allocatedAmount: option.balance,
+                  documentDate: option.date,
+                  documentId: option.id,
+                  documentNo: option.documentNo,
+                  documentTotal: option.total,
+                  documentType,
+                  previousBalance: option.balance,
+                } : { documentId: null, documentNo })}
+              />
+            ),
+          },
           { header: "Date", width: "180px", render: (allocation, index) => <WorkspaceDatePicker ariaLabel="Allocation date" placeholder="Select date" value={normalizeDateValue(allocation.documentDate, "")} onValueChange={(documentDate) => updateAllocation(index, { documentDate })} /> },
           { header: "Total", width: "130px", render: (allocation, index) => <Input className="h-9 rounded-md" type="number" value={allocation.documentTotal} onChange={(event) => updateAllocation(index, { documentTotal: numberValue(event.target.value), previousBalance: numberValue(event.target.value) })} /> },
           { header: "Previous", width: "130px", render: (allocation, index) => <Input className="h-9 rounded-md" type="number" value={allocation.previousBalance} onChange={(event) => updateAllocation(index, { previousBalance: numberValue(event.target.value) })} /> },
@@ -1669,6 +2242,35 @@ function AllocationEditor({ allocations, documentType, onChange }: { allocations
         ]}
       />
     </>
+  );
+}
+
+type OpenAllocationDocumentOption = WorkspaceLookupOption & {
+  balance: number;
+  date: string;
+  documentNo: string;
+  id: string;
+  total: number;
+};
+
+function OpenAllocationDocumentPicker({
+  allocation,
+  onChange,
+  options,
+}: {
+  allocation: EntryAllocation;
+  onChange: (documentNo: string, option: OpenAllocationDocumentOption | null) => void;
+  options: OpenAllocationDocumentOption[];
+}) {
+  return (
+    <WorkspaceLookup
+      allowTextValue
+      options={options}
+      placeholder="Search open bill"
+      value={allocation.documentNo}
+      onTextChange={(documentNo) => onChange(documentNo, null)}
+      onValueChange={(documentNo, option) => onChange(documentNo, (option as OpenAllocationDocumentOption | undefined) ?? null)}
+    />
   );
 }
 
@@ -1683,6 +2285,7 @@ function ProductPicker({
   value: string;
 }) {
   const queryClient = useQueryClient();
+  const [editProduct, setEditProduct] = useState<ProductLookupRecord | null>(null);
   const productsQuery = useQuery({
     queryKey: ["tenant", "entry-product-lookup"],
     queryFn: () => apiGet<ProductLookupRecord[]>("/core/products", "tenant"),
@@ -1695,33 +2298,71 @@ function ProductPicker({
         .map((product) => productOptionFromRecord(product, lookupsQuery.data)),
     [lookupsQuery.data, productsQuery.data],
   );
+  const selectedProduct = useMemo(
+    () => options.find((option) => option.label.toLowerCase() === value.trim().toLowerCase())?.product ?? null,
+    [options, value],
+  );
 
   return (
-    <WorkspaceLookup
-      allowTextValue
-      createLabel="Create product"
-      createDialogClassName="w-[min(56rem,calc(100vw-3rem))] max-w-none overflow-hidden p-0 duration-0 data-[state=open]:animate-none data-[state=closed]:animate-none"
-      createMode="popup"
-      loading={(productsQuery.isLoading || lookupsQuery.isLoading) && options.length === 0}
-      options={options}
-      value={value}
-      renderCreateForm={({ initialName, onCancel, onCreated }) => (
-        <SalesProductCreateForm
-          initialName={initialName}
-          onCancel={onCancel}
-          onCreated={(product, lookupMaps) => {
-            void queryClient.invalidateQueries({ queryKey: ["tenant", "entry-product-lookup"] });
-            void queryClient.invalidateQueries({ queryKey: ["tenant", "products"] });
-            onCreated(productOptionFromRecord(product, lookupMaps));
-          }}
-        />
-      )}
-      onTextChange={(nextValue) => onChange(nextValue, null)}
-      onValueChange={(nextValue, option) => {
-        const productOption = option as ProductLookupOption | undefined;
-        onChange(option?.label ?? nextValue, productOption?.line ?? null);
-      }}
-    />
+    <>
+      <WorkspaceLookup
+        allowTextValue
+        createLabel="Create product"
+        createDialogClassName="w-[min(56rem,calc(100vw-3rem))] max-w-none overflow-hidden p-0 duration-0 data-[state=open]:animate-none data-[state=closed]:animate-none"
+        createMode="popup"
+        loading={(productsQuery.isLoading || lookupsQuery.isLoading) && options.length === 0}
+        options={options}
+        trailingAction={selectedProduct ? (
+          <button
+            aria-label={`Edit product ${selectedProduct.name}`}
+            className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-sky-50 hover:text-sky-600"
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={(event) => {
+              event.preventDefault();
+              setEditProduct(selectedProduct);
+            }}
+          >
+            <ArrowUpRight className="size-4" />
+          </button>
+        ) : undefined}
+        value={value}
+        renderCreateForm={({ initialName, onCancel, onCreated }) => (
+          <SalesProductCreateForm
+            initialName={initialName}
+            onCancel={onCancel}
+            onCreated={(product, lookupMaps) => {
+              void queryClient.invalidateQueries({ queryKey: ["tenant", "entry-product-lookup"] });
+              void queryClient.invalidateQueries({ queryKey: ["tenant", "products"] });
+              onCreated(productOptionFromRecord(product, lookupMaps));
+            }}
+          />
+        )}
+        onTextChange={(nextValue) => onChange(nextValue, null)}
+        onValueChange={(nextValue, option) => {
+          const productOption = option as ProductLookupOption | undefined;
+          onChange(option?.label ?? nextValue, productOption?.line ?? null);
+        }}
+      />
+      <Dialog open={Boolean(editProduct)} onOpenChange={(open) => { if (!open) setEditProduct(null); }}>
+        <DialogContent className="w-[min(56rem,calc(100vw-3rem))] max-w-none overflow-hidden p-0 duration-0 data-[state=open]:animate-none data-[state=closed]:animate-none">
+          {editProduct ? (
+            <SalesProductCreateForm
+              product={editProduct}
+              initialName={editProduct.name}
+              onCancel={() => setEditProduct(null)}
+              onCreated={async (product, lookupMaps) => {
+                await queryClient.invalidateQueries({ queryKey: ["tenant", "entry-product-lookup"] });
+                await queryClient.invalidateQueries({ queryKey: ["tenant", "products"] });
+                const option = productOptionFromRecord(product, lookupMaps);
+                onChange(option.label, option.line);
+                setEditProduct(null);
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -1729,20 +2370,23 @@ function SalesProductCreateForm({
   initialName,
   onCancel,
   onCreated,
+  product,
 }: {
   initialName: string;
   onCancel: () => void;
   onCreated: (product: ProductLookupRecord, lookupMaps: ProductLookupMaps) => void;
+  product?: ProductLookupRecord | null;
 }) {
   const queryClient = useQueryClient();
+  const isEdit = Boolean(product?.itemId);
   const lookupsQuery = useProductLookupMaps();
-  const [form, setForm] = useState<SalesProductForm>(() => emptySalesProductForm(initialName));
+  const [form, setForm] = useState<SalesProductForm>(() => salesProductFormFromRecord(product, initialName));
   const [error, setError] = useState<string | null>(null);
   const saveMutation = useMutation({
     mutationFn: async () => {
       const name = form.name.trim();
       if (!name) throw new Error("Product name is required");
-      return apiPost<ProductLookupRecord>("/core/products", {
+      const payload = {
         code: form.code.trim() || codeFromName(name),
         name,
         productTypeId: optional(form.productTypeId),
@@ -1751,11 +2395,15 @@ function SalesProductCreateForm({
         taxId: optional(form.taxId),
         openingPrice: 0,
         openingStock: 0,
-      }, "tenant");
+        isActive: form.isActive,
+      };
+      return isEdit && product
+        ? apiPut<ProductLookupRecord>(`/core/products/${encodeURIComponent(product.itemId)}`, payload, "tenant")
+        : apiPost<ProductLookupRecord>("/core/products", payload, "tenant");
     },
     onError: (saveError) => setError(apiErrorText(saveError, "Could not save product")),
     onSuccess: async (product) => {
-      toast.success("Product created", { description: product.name });
+      toast.success(isEdit ? "Product updated" : "Product created", { description: product.name });
       const lookupMaps = await queryClient.fetchQuery({
         queryKey: ["tenant", "product-lookup-maps"],
         queryFn: fetchProductLookupMaps,
@@ -1775,7 +2423,7 @@ function SalesProductCreateForm({
   return (
     <div className="grid h-[29rem] grid-rows-[auto_1fr_auto] overflow-hidden rounded-md bg-card">
       <div className="border-b border-border/70 px-6 py-4">
-        <h2 className="text-base font-semibold">Create product</h2>
+        <h2 className="text-base font-semibold">{isEdit ? "Update product" : "Create product"}</h2>
       </div>
       <div className="min-h-0 overflow-y-auto px-6 py-5">
         {error ? <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div> : null}
@@ -1803,7 +2451,7 @@ function SalesProductCreateForm({
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border/70 bg-muted/20 px-6 py-4">
         <Button type="button" variant="outline" className="rounded-md" disabled={saveMutation.isPending} onClick={onCancel}>Cancel</Button>
         <Button type="button" disabled={saveMutation.isPending || !form.name.trim()} className="rounded-md" onClick={() => saveMutation.mutate()}>
-          <Save className={cn("size-4", saveMutation.isPending && "animate-spin")} />Save
+          <Save className={cn("size-4", saveMutation.isPending && "animate-spin")} />{isEdit ? "Update" : "Save"}
         </Button>
       </div>
     </div>
@@ -1863,13 +2511,13 @@ function SalesAttributeLookup({
   definitionKey,
   label,
   onChange,
-  placeholder,
+  placeholder = "",
   value,
 }: {
   definitionKey: SalesAttributeDefinitionKey;
   label: string;
   onChange: (value: string) => void;
-  placeholder: string;
+  placeholder?: string;
   value: string;
 }) {
   const queryClient = useQueryClient();
@@ -2462,6 +3110,7 @@ function SalesContactDialog({
 }
 
 function SalesItemsPreviewTable({
+  emptyNoun = "sales",
   isCgstSgst,
   items,
   onDelete,
@@ -2471,6 +3120,7 @@ function SalesItemsPreviewTable({
   showPo,
   showSize,
 }: {
+  emptyNoun?: string;
   isCgstSgst: boolean;
   items: EntryLine[];
   onDelete: (index: number) => void;
@@ -2483,31 +3133,31 @@ function SalesItemsPreviewTable({
   const emptyColSpan = 9 + (showPo ? 1 : 0) + (showDc ? 1 : 0) + (showColour ? 1 : 0) + (showSize ? 1 : 0) + (isCgstSgst ? 2 : 1);
   return (
     <div className="w-full overflow-x-auto rounded-md border border-border/70">
-      <table className="w-full min-w-[980px] table-fixed border-collapse text-xs">
+      <table className="w-full min-w-[980px] table-auto border-collapse text-xs">
         <thead className="bg-muted/45 text-muted-foreground">
           <tr>
-            <ItemHead className="w-[2.5%]">#</ItemHead>
-            {showPo ? <ItemHead className="w-[5%]">PO</ItemHead> : null}
-            {showDc ? <ItemHead className="w-[5%]">DC</ItemHead> : null}
-            <ItemHead className="w-[24%]">Particulars</ItemHead>
-            <ItemHead className="w-[5%]">HSN Code</ItemHead>
-            {showColour ? <ItemHead className="w-[6%]">Colour</ItemHead> : null}
-            {showSize ? <ItemHead className="w-[5%]">Size</ItemHead> : null}
-            <ItemHead className="w-[5%]">Qty</ItemHead>
-            <ItemHead className="w-[7%]">Rate</ItemHead>
-            <ItemHead className="w-[5%]">Unit</ItemHead>
-            <ItemHead className="w-[7%]">Taxable</ItemHead>
-            <ItemHead className="w-[4%]">GST %</ItemHead>
-            {isCgstSgst ? <ItemHead className="w-[7%]">CGST</ItemHead> : <ItemHead className="w-[8%]">IGST</ItemHead>}
-            {isCgstSgst ? <ItemHead className="w-[7%]">SGST</ItemHead> : null}
-            <ItemHead className="w-[8%]">Total</ItemHead>
-            <ItemHead className="w-[4.5%]">Action</ItemHead>
+            <ItemHead className="min-w-10">#</ItemHead>
+            {showPo ? <ItemHead className="min-w-24">PO</ItemHead> : null}
+            {showDc ? <ItemHead className="min-w-24">DC</ItemHead> : null}
+            <ItemHead className="min-w-64">Particulars</ItemHead>
+            <ItemHead className="min-w-20">HSN Code</ItemHead>
+            {showColour ? <ItemHead className="min-w-28">Colour</ItemHead> : null}
+            {showSize ? <ItemHead className="min-w-24">Size</ItemHead> : null}
+            <ItemHead className="min-w-16">Qty</ItemHead>
+            <ItemHead className="min-w-20">Rate</ItemHead>
+            <ItemHead className="min-w-16">Unit</ItemHead>
+            <ItemHead className="min-w-24">Taxable</ItemHead>
+            <ItemHead className="min-w-16">GST %</ItemHead>
+            {isCgstSgst ? <ItemHead className="min-w-24">CGST</ItemHead> : <ItemHead className="min-w-24">IGST</ItemHead>}
+            {isCgstSgst ? <ItemHead className="min-w-24">SGST</ItemHead> : null}
+            <ItemHead className="min-w-24">Total</ItemHead>
+            <ItemHead className="min-w-16">Action</ItemHead>
           </tr>
         </thead>
         <tbody>
           {items.length === 0 ? (
             <tr>
-              <td colSpan={emptyColSpan} className="px-4 py-8 text-center text-sm text-muted-foreground">No sales items added.</td>
+              <td colSpan={emptyColSpan} className="px-4 py-8 text-center text-sm text-muted-foreground">No {emptyNoun} items added.</td>
             </tr>
           ) : items.map((item, index) => {
             const tax = salesTaxBreakup(item, isCgstSgst);
@@ -2556,7 +3206,7 @@ function SalesTotalsFooter({ onRoundOffChange, roundOff, totals }: { onRoundOffC
         <div className="grid grid-cols-[1fr_auto_6rem] items-center gap-4">
           <span className="text-muted-foreground">Round off</span>
           <span>:</span>
-          <Input className="h-9 rounded-md text-right" type="number" value={roundOff} onChange={(event) => onRoundOffChange(event.target.value)} />
+          <Input className="h-9 rounded-md text-right" inputMode="decimal" value={roundOff} onChange={(event) => onRoundOffChange(decimalTextValue(event.target.value))} />
         </div>
         <SalesTotalRow label="Grand total" strong value={`₹${money(totals.grand)}`} />
       </div>
@@ -2763,11 +3413,11 @@ function CompactField({ children, label }: { children: ReactNode; label: string 
 }
 
 function ItemHead({ children, className }: { children: ReactNode; className?: string }) {
-  return <th className={cn("border-b border-r border-border/70 px-1.5 py-2 text-center font-medium last:border-r-0", className)}>{children}</th>;
+  return <th className={cn("whitespace-normal break-words border-b border-r border-border/70 px-1.5 py-2 text-center font-medium [overflow-wrap:anywhere] last:border-r-0", className)}>{children}</th>;
 }
 
 function ItemCell({ align = "left", children }: { align?: "center" | "left" | "right"; children: ReactNode }) {
-  return <td className={cn("border-r border-border/70 px-1.5 py-1.5 align-middle last:border-r-0", align === "center" && "text-center", align === "right" && "text-right tabular-nums")}>{children}</td>;
+  return <td className={cn("whitespace-normal break-words border-r border-border/70 px-1.5 py-1.5 align-middle [overflow-wrap:anywhere] last:border-r-0", align === "center" && "text-center", align === "right" && "text-right tabular-nums")}>{children}</td>;
 }
 
 function salesTaxBreakup(line: EntryLine, isCgstSgst: boolean) {
@@ -2923,6 +3573,19 @@ function emptySalesProductForm(initialName: string): SalesProductForm {
     productTypeId: "",
     taxId: "",
     unitId: "",
+  };
+}
+
+function salesProductFormFromRecord(product: ProductLookupRecord | null | undefined, initialName: string): SalesProductForm {
+  if (!product) return emptySalesProductForm(initialName);
+  return {
+    code: product.code ?? "",
+    hsnCodeId: product.hsnCodeId ?? "",
+    isActive: product.status !== "archived",
+    name: product.name ?? initialName,
+    productTypeId: product.productTypeId ?? "",
+    taxId: product.taxId ?? "",
+    unitId: product.unitId ?? "",
   };
 }
 
@@ -3193,20 +3856,31 @@ export function SalesSettingsPage() {
 
 export function DocumentSettingsPage() {
   const [records, setRecords] = useState<DocumentNumberSetting[]>(() => readDocumentSettings());
-  const salesEntriesQuery = useQuery({
-    queryKey: ["tenant", "entries", "sales", "document-settings"],
-    queryFn: () => apiGet<EntryRecord[]>("/core/entries/sales", "tenant"),
+  const documentEntriesQuery = useQuery({
+    queryKey: ["tenant", "entries", "document-settings", "all"],
+    queryFn: async () => {
+      const pairs = await Promise.all(
+        (["quotation", "sales", "exportSales", "purchase", "receipt", "payment"] as EntryKind[]).map(async (kind) => [
+          kind,
+          await apiGet<EntryRecord[]>(`/core/entries/${kind}`, "tenant"),
+        ] as const),
+      );
+      return Object.fromEntries(pairs) as Record<EntryKind, EntryRecord[]>;
+    },
   });
 
   useEffect(() => {
-    if (!salesEntriesQuery.data) return;
+    if (!documentEntriesQuery.data) return;
     setRecords((current) => {
-      const next = syncDocumentSettingWithEntries(current, "sales", salesEntriesQuery.data);
+      const next = (["quotation", "sales", "exportSales", "purchase", "receipt", "payment"] as EntryKind[]).reduce(
+        (settings, kind) => syncDocumentSettingWithEntries(settings, documentKindForEntry(kind), documentEntriesQuery.data[kind] ?? []),
+        current,
+      );
       if (next === current) return current;
       saveDocumentSettings(next);
       return next;
     });
-  }, [records, salesEntriesQuery.data]);
+  }, [documentEntriesQuery.data]);
 
   function publish() {
     saveDocumentSettings(records);
@@ -3371,7 +4045,7 @@ function saveDocumentSettings(settings: DocumentNumberSetting[]) {
 }
 
 function documentKindForEntry(kind: EntryKind): DocumentNumberKind {
-  return kind === "quotation" ? "quotation" : kind === "sales" ? "sales" : kind === "purchase" ? "purchase" : kind === "receipt" ? "receipt" : "payment";
+  return kind === "quotation" ? "quotation" : kind === "sales" ? "sales" : kind === "exportSales" ? "exportSales" : kind === "purchase" ? "purchase" : kind === "receipt" ? "receipt" : "payment";
 }
 
 function nextDocumentNoForKind(kind: EntryKind, entries: EntryRecord[]) {
@@ -3581,6 +4255,7 @@ function Helper({ children }: { children: ReactNode }) {
 function formFromEntry(kind: EntryKind, entry: EntryRecord | null): EntryForm {
   const today = localDateString();
   const usesAllocations = Boolean(entryMeta[kind].usesAllocations);
+  const source = entry?.source ?? null;
   return {
     ...(entry?.entryId ? { entryId: entry.entryId } : {}),
     documentNo: entry?.documentNo ?? "",
@@ -3592,7 +4267,7 @@ function formFromEntry(kind: EntryKind, entry: EntryRecord | null): EntryForm {
     supplierBillDate: normalizeDateValue(entry?.supplierBillDate, ""),
     billingAddress: entry?.billingAddress ?? "",
     shippingAddress: entry?.shippingAddress ?? "",
-    placeOfSupply: entry?.placeOfSupply ?? "cgst-sgst",
+    placeOfSupply: entry?.placeOfSupply ?? (kind === "exportSales" ? "igst" : "cgst-sgst"),
     referenceNo: entry?.referenceNo ?? "",
     referenceDate: normalizeDateValue(entry?.referenceDate, ""),
     dueDate: normalizeDateValue(entry?.dueDate, ""),
@@ -3616,6 +4291,14 @@ function formFromEntry(kind: EntryKind, entry: EntryRecord | null): EntryForm {
     transportName: entry?.transportName ?? "",
     vehicleNo: entry?.vehicleNo ?? "",
     ewayPart: entry?.ewayPart ?? "part-b",
+    exportCurrency: String(source?.exportCurrency ?? "USD"),
+    exportDestinationCountry: String(source?.exportDestinationCountry ?? ""),
+    exportExchangeRate: String(source?.exportExchangeRate ?? "1"),
+    exportLutNo: String(source?.exportLutNo ?? ""),
+    exportPort: String(source?.exportPort ?? ""),
+    exportType: String(source?.exportType ?? "lut-bond"),
+    accountPostingEnabled: source?.accountPostingEnabled !== false,
+    source,
     lines: entry?.lines?.length ? entry.lines : usesAllocations ? [] : [emptyLine()],
     allocations: entry?.allocations?.length ? entry.allocations : usesAllocations ? [emptyAllocation(entryMeta[kind].allocationDocumentType)] : [],
   };
@@ -3636,11 +4319,84 @@ function payloadFromForm(kind: EntryKind, form: EntryForm) {
     discountTotal: numberValue(form.discountTotal),
     roundOff: numberValue(form.roundOff),
     paidAmount: numberValue(form.paidAmount),
+    source: {
+      ...(form.source ?? {}),
+      ...(kind === "exportSales" ? {
+        exportCurrency: form.exportCurrency,
+        exportDestinationCountry: form.exportDestinationCountry,
+        exportExchangeRate: form.exportExchangeRate,
+        exportLutNo: form.exportLutNo,
+        exportPort: form.exportPort,
+        exportType: form.exportType,
+      } : {}),
+      ...(meta.usesAllocations ? { accountPostingEnabled: form.accountPostingEnabled, accountPostingMode: form.accountPostingEnabled ? "accounts" : "voucher-only" } : {}),
+    },
     lines: meta.usesAllocations ? [] : form.lines,
     allocations: meta.usesAllocations
       ? form.allocations.map((allocation) => ({ ...allocation, documentDate: normalizeDateValue(allocation.documentDate, "") }))
       : [],
   };
+}
+
+async function generateSalesInvoiceFromQuotations(quotations: EntryRecord[]) {
+  const activeQuotations = quotations.filter((entry) => entry.isActive);
+  if (!activeQuotations.length) throw new Error("Select at least one active quotation.");
+  const first = activeQuotations[0];
+  if (!first) throw new Error("Select at least one quotation.");
+  const partyKey = `${first.partyId || ""}|${first.partyName.trim().toLowerCase()}`;
+  const hasMixedParties = activeQuotations.some((entry) => `${entry.partyId || ""}|${entry.partyName.trim().toLowerCase()}` !== partyKey);
+  if (hasMixedParties) throw new Error("Selected quotations must belong to the same customer.");
+
+  const salesForm: EntryForm = {
+    ...formFromEntry("sales", null),
+    documentNo: nextDocumentNoForKind("sales", await apiGet<EntryRecord[]>("/core/entries/sales", "tenant")),
+    documentDate: localDateString(),
+    partyId: first.partyId ?? "",
+    partyName: first.partyName,
+    partyGstin: first.partyGstin ?? "",
+    billingAddress: first.billingAddress ?? "",
+    shippingAddress: first.shippingAddress ?? first.billingAddress ?? "",
+    placeOfSupply: first.placeOfSupply ?? "cgst-sgst",
+    referenceNo: activeQuotations.map((entry) => entry.documentNo).join(", "),
+    ledgerName: "Sales Account",
+    paymentStatus: "unpaid",
+    status: "draft",
+    terms: defaultTerms("sales"),
+    lines: activeQuotations.flatMap((entry) => entry.lines.map((line) => {
+      const { lineId: _lineId, ...lineWithoutId } = line;
+      return {
+        ...lineWithoutId,
+        description: [line.description, `From ${entry.documentNo}`].filter(Boolean).join(" - "),
+      };
+    })),
+    source: {
+      sourceType: "quotation",
+      sourceQuotationEntryIds: activeQuotations.map((entry) => entry.entryId),
+      sourceQuotationNos: activeQuotations.map((entry) => entry.documentNo),
+    },
+  };
+
+  const salesResult = await apiPost<{ ok: boolean; entry: EntryRecord }>("/core/entries/sales/upsert", payloadFromForm("sales", salesForm), "tenant");
+  const sales = salesResult.entry;
+  advanceDocumentSetting("sales", sales.documentNo);
+  await Promise.all(activeQuotations.map((quotation) => {
+    const quoteForm = formFromEntry("quotation", quotation);
+    return apiPost<{ ok: boolean; entry: EntryRecord }>(
+      "/core/entries/quotation/upsert",
+      payloadFromForm("quotation", {
+        ...quoteForm,
+        status: quotation.status === "draft" ? "posted" : quotation.status,
+        source: {
+          ...(quotation.source ?? {}),
+          generatedSalesAt: new Date().toISOString(),
+          generatedSalesDocumentNo: sales.documentNo,
+          generatedSalesEntryId: sales.entryId,
+        },
+      }),
+      "tenant",
+    );
+  }));
+  return { sales };
 }
 
 function validateEntryForm(kind: EntryKind, form: EntryForm) {
@@ -3649,6 +4405,7 @@ function validateEntryForm(kind: EntryKind, form: EntryForm) {
   if (!form.partyName.trim()) errors.partyName = `${entryMeta[kind].partyLabel} is required`;
   if (entryMeta[kind].usesAllocations) {
     if (numberValue(form.amount) <= 0) errors.amount = "Amount must be greater than zero";
+    if (form.accountPostingEnabled && !form.ledgerName.trim()) errors.ledgerName = "Ledger is required when posting to accounts";
   } else if (!form.lines.some((line) => line.productName.trim())) {
     errors.lines = "At least one item line is required";
   }
@@ -3663,10 +4420,42 @@ function emptyAllocation(documentType: string): EntryAllocation {
   return { documentType, documentNo: "", documentDate: "", documentTotal: 0, previousBalance: 0, allocatedAmount: 0 };
 }
 
+function openAllocationDocumentOptions(entries: EntryRecord[], allocations: EntryAllocation[]): OpenAllocationDocumentOption[] {
+  const allocatedByDocument = new Map<string, number>();
+  for (const allocation of allocations) {
+    const allocated = numberValue(allocation.allocatedAmount);
+    for (const key of [allocation.documentId, allocation.documentNo].filter(Boolean)) {
+      allocatedByDocument.set(String(key), (allocatedByDocument.get(String(key)) ?? 0) + allocated);
+    }
+  }
+  return entries
+    .filter((entry) => entry.status === "posted" && entry.isActive && numberValue(entry.balanceAmount || entry.grandTotal) > 0)
+    .map((entry) => {
+      const allocated = (allocatedByDocument.get(entry.entryId) ?? 0) + (allocatedByDocument.get(entry.documentNo) ?? 0);
+      const balance = Math.max(0, numberValue(entry.balanceAmount || entry.grandTotal) - allocated);
+      return {
+        balance,
+        date: normalizeDateValue(entry.documentDate, ""),
+        description: `${entry.partyName} - Balance ${money(balance)}`,
+        documentNo: entry.documentNo,
+        id: entry.entryId,
+        label: entry.documentNo,
+        total: numberValue(entry.grandTotal || entry.netAmount || entry.amount),
+        value: entry.entryId,
+      };
+    })
+    .filter((entry) => entry.balance > 0);
+}
+
 function defaultTerms(kind: EntryKind) {
   if (kind === "purchase") return "Supplier bill accepted subject to goods, rate, quantity, and quality verification.";
+  if (kind === "exportSales") return "Export goods once dispatched will not be taken back unless agreed in writing.";
   if (kind === "quotation" || kind === "sales") return "Goods once sold will not be taken back unless agreed in writing.";
   return "";
+}
+
+function exportTypeLabel(value: unknown) {
+  return exportTypeOptions.find((option) => option.value === value)?.label ?? String(value ?? "");
 }
 
 function lineTotal(line: EntryLine) {
@@ -3676,6 +4465,19 @@ function lineTotal(line: EntryLine) {
 
 function inputClass(error?: string) {
   return cn("h-11 rounded-md", error && "border-destructive focus-visible:ring-destructive/30");
+}
+
+function decimalTextValue(value: string) {
+  const normalized = value.replace(/[^\d.-]/g, "");
+  const negative = normalized.startsWith("-");
+  const unsigned = normalized.replace(/-/g, "");
+  const [whole = "", ...decimalParts] = unsigned.split(".");
+  const decimal = decimalParts.join("");
+  return `${negative ? "-" : ""}${whole}${decimalParts.length ? `.${decimal}` : ""}`;
+}
+
+function isBankTransferMode(mode: string) {
+  return mode !== "cash";
 }
 
 function numberValue(value: unknown) {
@@ -3719,14 +4521,15 @@ function money(value: unknown) {
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(numberValue(value));
 }
 
-function buildSalesEinvoicePayload(form: EntryForm) {
-  const isCgstSgst = form.placeOfSupply !== "igst";
+function buildSalesEinvoicePayload(form: EntryForm, kind: EntryKind) {
+  const isExport = kind === "exportSales";
+  const isCgstSgst = !isExport && form.placeOfSupply !== "igst";
   const totals = calculateSalesTotals(form.lines, form.roundOff);
   return {
     Version: "1.1",
-    TranDtls: { TaxSch: "GST", SupTyp: "B2B", RegRev: "N", IgstOnIntra: "N" },
+    TranDtls: { TaxSch: "GST", SupTyp: isExport ? form.exportType === "igst-payment" ? "EXPWP" : "EXPWOP" : "B2B", RegRev: "N", IgstOnIntra: "N" },
     DocDtls: { Typ: "INV", No: form.documentNo, Dt: formatGstPortalDate(form.documentDate) },
-    BuyerDtls: { Gstin: form.partyGstin, LglNm: form.partyName, Pos: isCgstSgst ? "33" : "96", Addr1: firstAddressLine(form.billingAddress), Loc: "Tiruppur", Pin: 641607, Stcd: isCgstSgst ? "33" : "96" },
+    BuyerDtls: { Gstin: isExport ? "URP" : form.partyGstin, LglNm: form.partyName, Pos: isExport ? "96" : isCgstSgst ? "33" : "96", Addr1: firstAddressLine(form.billingAddress), Loc: "Tiruppur", Pin: 641607, Stcd: isExport ? "96" : isCgstSgst ? "33" : "96" },
     ItemList: form.lines.map((line, index) => {
       const tax = salesTaxBreakup(line, isCgstSgst);
       return {
@@ -3748,6 +4551,7 @@ function buildSalesEinvoicePayload(form: EntryForm) {
       };
     }),
     ValDtls: { AssVal: roundMoney(totals.taxable), CgstVal: isCgstSgst ? roundMoney(totals.gst / 2) : 0, SgstVal: isCgstSgst ? roundMoney(totals.gst / 2) : 0, IgstVal: isCgstSgst ? 0 : roundMoney(totals.gst), TotInvVal: roundMoney(totals.grand) },
+    ...(isExport ? { ExpDtls: { ShipBNo: form.referenceNo || undefined, Port: form.exportPort || undefined, RefClm: form.exportLutNo || undefined, ForCur: form.exportCurrency || undefined, CntCode: form.exportDestinationCountry || undefined } } : {}),
   };
 }
 

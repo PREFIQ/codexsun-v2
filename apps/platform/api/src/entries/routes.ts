@@ -3,7 +3,7 @@ import { ok } from "@codexsun/framework/http";
 import type { FastifyInstance } from "fastify";
 import { requireActiveTenant, requireFeatureEnabled, requirePermission, requireSession } from "../auth/guards.js";
 
-type EntryKind = "quotation" | "sales" | "purchase" | "receipt" | "payment";
+type EntryKind = "quotation" | "sales" | "exportSales" | "purchase" | "receipt" | "payment";
 type EntryLineInput = {
   lineId?: string;
   productId?: string | null;
@@ -139,10 +139,11 @@ type EntryDocumentRow = {
   deleted_at: string | Date | null;
 };
 
-const entryKinds = new Set<EntryKind>(["quotation", "sales", "purchase", "receipt", "payment"]);
+const entryKinds = new Set<EntryKind>(["quotation", "sales", "exportSales", "purchase", "receipt", "payment"]);
 const documentPrefixes: Record<EntryKind, string> = {
   quotation: "QT",
   sales: "SAL",
+  exportSales: "EXP",
   purchase: "PUR",
   receipt: "REC",
   payment: "PAY",
@@ -226,7 +227,7 @@ export async function registerEntryRoutes(app: FastifyInstance) {
     requirePermission(session, "core.common.manage");
     const { kind: rawKind, id, action } = request.params as { kind: string; id: string; action: string };
     const kind = parseEntryKind(rawKind);
-    if (kind !== "sales" && kind !== "quotation") throw AppError.validation("Compliance generation is available for sales-style entries only");
+    if (kind !== "sales" && kind !== "exportSales" && kind !== "quotation") throw AppError.validation("Compliance generation is available for sales-style entries only");
     const entry = await getEntry(app, request.tenantId!, kind, id);
     const result = await runWhiteBooksCompliance(app, request.tenantId!, entry, action, request.body as Record<string, unknown> | undefined, session.email);
     return ok({ ok: true, entry: await getEntry(app, request.tenantId!, kind, entry.entryId), document: result.document, provider: result.provider }, responseMeta(request));
@@ -381,6 +382,19 @@ async function upsertEntry(app: FastifyInstance, tenantId: string, kind: EntryKi
   await replaceLines(app, tenantId, entryId, lines);
   await replaceAllocations(app, tenantId, entryId, allocations);
   await addActivity(app, tenantId, entryId, existing ? "updated" : "created", actorEmail, `${entryLabel(kind)} ${existing ? "updated" : "created"}`, { documentNo });
+  if ((kind === "receipt" || kind === "payment") && (input.status || "draft") === "posted") {
+    const source = input.source && typeof input.source === "object" ? input.source : {};
+    const postingEnabled = source.accountPostingEnabled !== false;
+    await addActivity(
+      app,
+      tenantId,
+      entryId,
+      postingEnabled ? "account-posted" : "account-posting-skipped",
+      actorEmail,
+      postingEnabled ? `${entryLabel(kind)} posted to accounts ledger ${clean(input.ledgerName) ?? "Cash"}` : `${entryLabel(kind)} saved without accounts ledger posting`,
+      { ledgerName: clean(input.ledgerName), paymentMode: clean(input.paymentMode), postingEnabled },
+    );
+  }
   return getEntry(app, tenantId, kind, entryId);
 }
 
@@ -855,7 +869,17 @@ function formatGstPortalDate(value: unknown) {
 }
 
 function parseEntryKind(value: string): EntryKind {
-  const normalized = value === "quotations" ? "quotation" : value === "purchases" ? "purchase" : value === "receipts" ? "receipt" : value === "payments" ? "payment" : value;
+  const normalized = value === "quotations"
+    ? "quotation"
+    : value === "export-sales" || value === "export_sales" || value === "exportsales" || value === "exportSales"
+      ? "exportSales"
+      : value === "purchases"
+        ? "purchase"
+        : value === "receipts"
+          ? "receipt"
+          : value === "payments"
+            ? "payment"
+            : value;
   if (!entryKinds.has(normalized as EntryKind)) throw AppError.notFound("Entry module not found");
   return normalized as EntryKind;
 }
@@ -958,6 +982,7 @@ function responseMeta(request: { correlationId?: string; id: string; tenantId?: 
 }
 
 function entryLabel(kind: EntryKind) {
+  if (kind === "exportSales") return "Export Sales";
   return kind[0]!.toUpperCase() + kind.slice(1);
 }
 
@@ -973,6 +998,7 @@ function defaultPartyType(kind: EntryKind) {
 
 function defaultTerms(kind: EntryKind) {
   if (kind === "purchase") return "Supplier bill accepted subject to goods, rate, quantity, and quality verification.";
+  if (kind === "exportSales") return "Export goods once dispatched will not be taken back unless agreed in writing.";
   if (kind === "quotation" || kind === "sales") return "Goods once sold will not be taken back unless agreed in writing.";
   return "";
 }

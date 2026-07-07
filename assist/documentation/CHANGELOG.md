@@ -2,11 +2,11 @@
 
 ## Version State
 
-Current version: 1.0.70
+Current version: 1.0.71
 
-Release tag: v-1.0.70
+Release tag: v-1.0.71
 
-Changelog label: v 1.0.70
+Changelog label: v 1.0.71
 
 Historical changelog entries are immutable. A version bump may update this Version State block and add a new entry, but it must not rewrite old entry labels.
 
@@ -19,6 +19,22 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 #### App Codebase Changes
 
 Records UI, API, service logic, tooling, and documentation changes.
+
+## v-1.0.71
+
+### [v 1.0.71] 2026-07-07 2:12 pm - Billing Lookup Readability Fixes
+
+#### Database Changes
+
+- Database update: No (auto-check).
+
+#### App Codebase Changes
+
+- Bumped workspace version to 1.0.71.
+- Moved Export Sales export-specific fields into a dedicated Export tab after Address so the Details tab stays aligned with Sales.
+- Removed placeholder text from Colour and Size item lookups across Sales, Purchase, Quotation, and Export Sales.
+- Reworked shared lookup dropdown option rendering so long Colour, Size, and other lookup names show full wrapped text instead of truncated ellipses.
+- Updated billing item tables and print rows to show full PO, DC, Colour, and Size text without clipping, including line planning for long printed PO/DC values.
 
 ## v-1.0.70
 
@@ -41,6 +57,16 @@ Records UI, API, service logic, tooling, and documentation changes.
 - Reworked the sales tax invoice print layout to match the CXSUN invoice pattern with A4 isolation, app-shell-free print output, configurable Original/Duplicate/Office copies, and one-page or paged invoice rendering.
 - Ported CXSUN sales print line planning: 12 item rows for single-page invoices, 24 item rows for continuation pages, and 11 rows on the final totals/signature page.
 - Tightened sales print item columns, added PO/DC print columns when sales layout settings enable them, removed item-row horizontal rules, and moved IRN/Ack/E-way details into the right-side invoice compliance panel.
+- Reused the CXSUN-style billing print/show format for Quotation and Purchase, with Quotation labels/terms and Purchase supplier bill number/date details in the document header.
+- Aligned Quotation and Purchase create/edit screens to the Sales tabbed billing frontend, including Details, Address, Terms, sales-style item entry, totals footer, and Purchase supplier bill fields.
+- Added Quotation list selection and single or multi-quotation sales invoice generation; generated Sales invoice references are recorded back on the source quotation and shown in the Quotation list.
+- Added Supplier Bill No and Supplier Bill Date visibility to the Purchase list so purchase entries surface supplier document details beside the CODEXSUN purchase number.
+- Fixed entry workspace module boundaries so Sales, Quotation, and Purchase show/edit state resets when switching modules and stale documents cannot render under the wrong module heading.
+- Added Export Sales as a separate billing entry module using the Sales-style create, show, print, e-invoice, and e-way format, with export-only fields for export type, currency, exchange rate, destination country, port, and LUT/Bond number.
+- Reworked Receipt and Payment create/edit screens with CXSUN-style Details/Allocations tabs, mode-aware cash/bank ledger fields, bill-wise sales/purchase allocation lookup, Save & Print, and a persisted post-to-accounts option with activity logging.
+- Wired Quotation, Sales, Purchase, Receipt, and Payment entry creation to document settings next-number previews and synchronized the Document Settings screen against all five entry modules.
+- Added Product lookup update popup support in Quotation, Sales, and Purchase item entry so selected products can be opened, edited, refreshed, and reselected from the entry form.
+- Replaced Receipt and Payment show/print previews with CKF-style voucher sheets including company header, mode/ledger/work-order details, amount in words, net amount, and signature blocks.
 - Lightened shared autocomplete field styling so lookup controls read consistently across Sales, address, transport, work order, ledger, and product inputs.
 - Verified Platform Web type checks after the Sales billing, compliance, address, and print updates.
 

@@ -35,7 +35,7 @@ type TenantPage =
   | { view: "dashboard" }
   | { view: "billing-overview" }
   | { view: "application"; page: "company" | "default-company" | "accounting-year" | "settings" | "users" | "roles" | "permissions" | "landing" }
-  | { view: "entry"; page: "quotation" | "sales" | "purchase" | "receipt" | "payment" }
+  | { view: "entry"; page: "quotation" | "sales" | "exportSales" | "purchase" | "receipt" | "payment" }
   | { view: "contacts" }
   | { view: "products" }
   | { view: "work-orders" }
@@ -130,6 +130,7 @@ const tenantModuleGroups: TenantMenuGroup[] = [
     modules: [
       { key: "quotation", label: "Quotation", routePath: "/tenant/entries/quotation" },
       { key: "sales", label: "Sales", routePath: "/tenant/entries/sales" },
+      { key: "export-sales", label: "Export Sales", routePath: "/tenant/entries/export-sales" },
       { key: "purchase", label: "Purchase", routePath: "/tenant/entries/purchase" },
       { key: "receipt", label: "Receipt", routePath: "/tenant/entries/receipt" },
       { key: "payment", label: "Payment", routePath: "/tenant/entries/payment" },
@@ -210,6 +211,7 @@ function pageFromUrl(): TenantPage {
   if (requestedPage === "landing") return { view: "application", page: "landing" };
   if (requestedPage === "quotation") return { view: "entry", page: "quotation" };
   if (requestedPage === "sales") return { view: "entry", page: "sales" };
+  if (requestedPage === "export-sales") return { view: "entry", page: "exportSales" };
   if (requestedPage === "purchase") return { view: "entry", page: "purchase" };
   if (requestedPage === "receipt") return { view: "entry", page: "receipt" };
   if (requestedPage === "payment") return { view: "entry", page: "payment" };
@@ -359,12 +361,14 @@ function routeForCommonDefinition(definitionKey: string) {
 }
 
 function entryRouteKey(page: EntryPage) {
+  if (page === "exportSales") return "export-sales";
   return page;
 }
 
 function entryPageFromRouteKey(key: string | undefined): EntryPage | null {
   if (key === "quotation" || key === "quotations") return "quotation";
   if (key === "sales") return "sales";
+  if (key === "export-sales" || key === "exportSales" || key === "exportsales") return "exportSales";
   if (key === "purchase" || key === "purchases") return "purchase";
   if (key === "receipt" || key === "receipts") return "receipt";
   if (key === "payment" || key === "payments") return "payment";
@@ -493,11 +497,12 @@ export function TenantDesk() {
             title="Billing Desk"
             description="Sales, purchase, receipt, payment, report, master, common, and billing settings."
             stats={[
-              { label: "Entries", value: "5", page: { view: "entry", page: "quotation" } },
+              { label: "Entries", value: "6", page: { view: "entry", page: "quotation" } },
               { label: "Masters", value: "2", page: { view: "contacts" } },
               { label: "Common Modules", value: "30", page: { view: "common-index" } },
               { label: "Quotation", value: "Ready", page: { view: "entry", page: "quotation" } },
               { label: "Sales", value: "Ready", page: { view: "entry", page: "sales" } },
+              { label: "Export Sales", value: "Ready", page: { view: "entry", page: "exportSales" } },
               { label: "Purchase", value: "Ready", page: { view: "entry", page: "purchase" } },
               { label: "Receipt", value: "Ready", page: { view: "entry", page: "receipt" } },
               { label: "Payment", value: "Ready", page: { view: "entry", page: "payment" } },
@@ -505,6 +510,7 @@ export function TenantDesk() {
             links={[
               { label: "Quotation", page: { view: "entry", page: "quotation" } },
               { label: "Sales", page: { view: "entry", page: "sales" } },
+              { label: "Export Sales", page: { view: "entry", page: "exportSales" } },
               { label: "Purchase", page: { view: "entry", page: "purchase" } },
               { label: "Receipt", page: { view: "entry", page: "receipt" } },
               { label: "Payment", page: { view: "entry", page: "payment" } },
@@ -718,6 +724,7 @@ const placeholderMeta = {
   landing: { title: "Landing Desk", description: "Application desk landing and quick access area.", icon: UserRoundCogIcon },
   quotation: { title: "Quotation", description: "Quotation entries will open here.", icon: FileTextIcon },
   sales: { title: "Sales", description: "Sales billing entries will open here.", icon: FileTextIcon },
+  exportSales: { title: "Export Sales", description: "Export sales entries will open here.", icon: FileTextIcon },
   purchase: { title: "Purchase", description: "Purchase entries will open here.", icon: FileTextIcon },
   receipt: { title: "Receipt", description: "Receipt entries will open here.", icon: ReceiptTextIcon },
   payment: { title: "Payment", description: "Payment entries will open here.", icon: ReceiptTextIcon },
