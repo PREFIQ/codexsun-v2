@@ -26,7 +26,15 @@ import {
   registerAllCoreRoutes
 } from "@codexsun/core";
 import type { CoreRouteContext, CommonModuleServiceMap } from "@codexsun/core";
-import { registerEntryRoutes, type BillingRouteContext } from "@codexsun/billing/api";
+import {
+  registerExportSalesRoutes,
+  registerPaymentRoutes,
+  registerPurchaseRoutes,
+  registerQuotationRoutes,
+  registerReceiptRoutes,
+  registerSalesRoutes,
+  type BillingRouteContext
+} from "@codexsun/billing/api";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerTenantRoutes } from "./tenant/routes.js";
 import { registerAdminRoutes } from "./admin/routes.js";
@@ -281,7 +289,12 @@ export async function createApp() {
     guardFeatureEnabled: (app, tenantId, featureKey) => requireFeatureEnabled(app, tenantId, featureKey),
     guardPermission: (session, permission) => requirePermission(session, permission)
   };
-  await registerEntryRoutes(app, billingCtx);
+  await registerQuotationRoutes(app, billingCtx);
+  await registerSalesRoutes(app, billingCtx);
+  await registerExportSalesRoutes(app, billingCtx);
+  await registerPurchaseRoutes(app, billingCtx);
+  await registerReceiptRoutes(app, billingCtx);
+  await registerPaymentRoutes(app, billingCtx);
 
   return app;
 }

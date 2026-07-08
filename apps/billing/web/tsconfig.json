@@ -19,5 +19,5 @@
     "outDir": "dist-types",
     "types": ["vite/client"]
   },
-  "include": ["src", "../../../apps/core/web/src"]
+  "include": ["pages", "shared", "../../../apps/core/web/src"]
 }

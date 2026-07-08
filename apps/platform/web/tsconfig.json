@@ -13,12 +13,12 @@
       "@codexsun/ui/lib/*": ["../../../packages/ui/src/lib/*"],
       "@codexsun/core-web": ["../../../apps/core/web/src/index.ts"],
       "@codexsun/core-web/*": ["../../../apps/core/web/src/*"],
-      "@codexsun/billing-web": ["../../../apps/billing/web/src/index.ts"],
-      "@codexsun/billing-web/*": ["../../../apps/billing/web/src/*"]
+      "@codexsun/billing-web": ["../../../apps/billing/web/pages/index.ts"],
+      "@codexsun/billing-web/*": ["../../../apps/billing/web/pages/*"]
     },
     "noEmit": true,
     "outDir": "dist-types",
     "types": ["vite/client"]
   },
-  "include": ["src", "../../../apps/core/web/src", "../../../apps/billing/web/src"]
+  "include": ["src", "../../../apps/core/web/src", "../../../apps/billing/web/pages", "../../../apps/billing/web/shared"]
 }

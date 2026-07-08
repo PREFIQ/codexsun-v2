@@ -29,6 +29,13 @@
     "changelog:append": "node tools/version/version.mjs append",
     "check:versions": "node tools/check-versions.mjs",
     "db:create-user": "node tools/create-db-user.mjs",
+    "db:migrate": "npm run db:migrate -w @codexsun/platform-api",
+    "db:migrate-fresh": "npm run db:migrate-fresh -w @codexsun/platform-api",
+    "db:migrate-rollback": "npm run db:migrate-rollback -w @codexsun/platform-api",
+    "db:tenant:migrate": "npm run db:tenant:migrate -w @codexsun/platform-api",
+    "db:tenant:migrate-fresh": "npm run db:tenant:migrate-fresh -w @codexsun/platform-api",
+    "db:tenant:migrate-rollback": "npm run db:tenant:migrate-rollback -w @codexsun/platform-api",
+    "db:tenant:drop": "npm run db:tenant:drop -w @codexsun/platform-api",
     "github:now": "node tools/github-helper.mjs",
     "env:jwt-secret": "node tools/env-jwt-secret.mjs"
   },

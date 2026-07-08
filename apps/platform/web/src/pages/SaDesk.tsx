@@ -22,13 +22,15 @@ import { ProjectManagerDiscussions, ProjectManagerMaturity } from "./sa/ProjectM
 import { ProjectManagerInsights } from "./sa/ProjectManagerReferenceReport";
 import { ProjectManagerReleaseNotes } from "./sa/ProjectManagerReleaseNotes";
 import { TenantList } from "./sa/TenantList";
+import { TenantDatabaseList } from "./sa/TenantDatabaseList";
 import { SuperAdminModulePage, superAdminModuleConfigs, type SuperAdminModuleKey } from "./sa/SuperAdminModulePage";
 
-type SaPage = "home" | "tenants" | "domains" | "modules" | "audit" | "migrations" | "health" | "users" | "roles" | "permissions" | "sessions" | "settings" | "features" | "media-settings" | "workbench" | "plans" | "subscriptions" | "industries" | "platform-registry" | "project-manager-dashboard" | "project-manager-work" | "project-manager-discussions" | "project-manager-release-notes" | "project-manager-insights" | "design-system" | "queue" | "database" | "devdocs" | "support" | "zetro" | "gst";
+type SaPage = "home" | "tenants" | "domains" | "modules" | "audit" | "migrations" | "health" | "users" | "roles" | "permissions" | "sessions" | "settings" | "features" | "media-settings" | "workbench" | "plans" | "subscriptions" | "industries" | "platform-registry" | "project-manager-dashboard" | "project-manager-work" | "project-manager-discussions" | "project-manager-release-notes" | "project-manager-insights" | "design-system" | "queue" | "database" | "tenant-databases" | "devdocs" | "support" | "zetro" | "gst";
 
 const pageToMenuKey: Record<SaPage, string> = {
   audit: "audit",
   database: "database",
+  "tenant-databases": "tenant-databases",
   devdocs: "devdocs",
   domains: "domains",
   features: "features",
@@ -168,6 +170,7 @@ export function SaDesk() {
       icon: DatabaseIcon,
       items: [
         { key: "database", page: "database", label: "Database Manager" },
+        { key: "tenant-databases", page: "tenant-databases", label: "Tenant Databases" },
         { key: "migrations", page: "migrations", label: "Migrations" }
       ]
     },
@@ -259,7 +262,8 @@ export function SaDesk() {
         {page === "project-manager-release-notes" && <ProjectManagerReleaseNotes />}
         {page === "project-manager-insights" && <ProjectManagerInsights />}
         {page === "design-system" && <DesignSystemPage />}
-        {page === "database" && <DatabaseManager onBack={() => selectPage("home")} />}
+        {page === "database" && <DatabaseManager onBack={() => selectPage("home")} onTenantDatabases={() => selectPage("tenant-databases")} />}
+        {page === "tenant-databases" && <TenantDatabaseList onBack={() => selectPage("home")} />}
         {page === "media-settings" && <MediaSettings onBack={() => selectPage("home")} />}
         {page === "migrations" && <MigrationStatus onBack={() => selectPage("home")} />}
         {activeModuleKey ? (

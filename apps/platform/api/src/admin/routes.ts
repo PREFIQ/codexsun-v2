@@ -2,6 +2,7 @@ import { AppError } from "@codexsun/framework/errors";
 import { ok } from "@codexsun/framework/http";
 import { createHash } from "node:crypto";
 import { requirePermission, requireSuperAdmin } from "../auth/guards.js";
+import { runPlatformDatabaseCommand, type DatabaseCommand, type DatabaseCommandResult, type DatabaseCommandScope } from "../db/database-manager.js";
 import { designSystemKind, designSystemStore } from "../design-system/store.js";
 import { env } from "../env.js";
 import { projectManagerMaturityStore } from "../project-manager/maturity-store.js";
@@ -118,6 +119,21 @@ function objectBody(value: unknown) {
 
 function compactObject<T extends Record<string, unknown>>(input: T) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
+}
+
+function parseDatabaseCommand(value: unknown): DatabaseCommand {
+  if (value === "drop" || value === "migrate" || value === "migrate:fresh" || value === "migrate:rollback") return value;
+  throw AppError.validation("command must be one of drop, migrate, migrate:fresh, migrate:rollback");
+}
+
+function parseDatabaseCommandScope(value: unknown): DatabaseCommandScope {
+  if (value === "tenant") return "tenant";
+  return "master";
+}
+
+function parseIdList(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item)).filter(Boolean);
 }
 
 function convertRow(row: Record<string, unknown>): Record<string, unknown> {
@@ -1958,28 +1974,33 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const session = await requireSuperAdmin(app, request);
     requirePermission(session, "platform.migration.status.view");
     const { masterMigrations } = await import("../db/migrations/master-index.js");
+    const { tenantMigrations } = await import("../db/migrations/tenant-index.js");
     const [appliedRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
       "SELECT id, applied_at FROM platform_migrations ORDER BY id ASC"
     );
     const appliedMap = new Map(appliedRows.map((row) => [String(row.id), row]));
     const [runRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
-      `SELECT migration_id, status, checksum, backup_run_id, actor_user_id, error_message, started_at, finished_at
+      `SELECT scope, tenant_id, database_name, migration_id, status, checksum, backup_run_id, actor_user_id, error_message, started_at, finished_at
        FROM database_migration_runs
-       WHERE scope = 'platform'
+       WHERE scope IN ('platform', 'master', 'tenant')
        ORDER BY id DESC`
     );
     const latestRunMap = new Map<string, Record<string, unknown>>();
     for (const row of runRows) {
-      const migrationId = String(row.migration_id);
-      if (!latestRunMap.has(migrationId)) latestRunMap.set(migrationId, row);
+      const scope = String(row.scope) === "platform" ? "master" : String(row.scope);
+      const databaseName = String(row.database_name ?? (scope === "master" ? env.DB_MASTER_NAME : ""));
+      const key = migrationStatusKey(scope, databaseName, String(row.migration_id));
+      if (!latestRunMap.has(key)) latestRunMap.set(key, row);
     }
     const known = masterMigrations.map((migration) => {
       const applied = appliedMap.get(migration.id);
-      const latestRun = latestRunMap.get(migration.id);
+      const latestRun = latestRunMap.get(migrationStatusKey("master", env.DB_MASTER_NAME, migration.id));
       return {
         id: migration.id,
         description: migration.description,
         checksum: migrationChecksum(migration),
+        databaseName: env.DB_MASTER_NAME,
+        scope: "master",
         status: applied ? "applied" : latestRun?.status ?? "pending",
         applied_at: applied?.applied_at ?? null,
         backupRunId: latestRun?.backup_run_id ?? null,
@@ -1994,10 +2015,13 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       .map((row) => ({
         ...convertRow(row),
         checksum: "",
+        databaseName: env.DB_MASTER_NAME,
         description: "Applied migration not present in current codebase",
+        scope: "master",
         status: "applied"
       }));
-    return ok([...known, ...unknownApplied], responseMeta(request));
+    const tenantRows = await tenantMigrationStatusRows(app, tenantMigrations, latestRunMap);
+    return ok([...known, ...unknownApplied, ...tenantRows], responseMeta(request));
   });
 
   // ── Health ─────────────────────────────────────────────────────
@@ -2224,58 +2248,54 @@ export async function registerAdminRoutes(app: FastifyInstance) {
   app.post("/admin/migrations/run", async (request) => {
     const session = await requireSuperAdmin(app, request);
     requirePermission(session, "platform.migration.status.view");
-    const { MigrationRunner } = await import("../db/migration-runner.js");
-    const { masterMigrations } = await import("../db/migrations/master-index.js");
-    const runner = new MigrationRunner(app.masterDbPool);
-    await runner.initialize();
-    const pending = runner.listPending(masterMigrations);
     const backupRunId = await latestVerifiedBackupId(app, "platform", env.DB_MASTER_NAME);
     if (env.NODE_ENV === "production" && !backupRunId) {
       throw AppError.validation("Verified platform backup from the last 24 hours is required before production migration.");
     }
-    const results: Array<{ id: string; status: string }> = [];
-    for (const migration of pending) {
-      const checksum = migrationChecksum(migration);
-      const [runInsert] = await app.masterDbPool.execute<{ insertId?: number }>(
-        `INSERT INTO database_migration_runs
-           (scope, database_name, migration_id, checksum, app_version, database_version_before, status, backup_run_id, actor_user_id)
-         VALUES ('platform', ?, ?, ?, ?, ?, 'running', ?, ?)`,
-        [env.DB_MASTER_NAME, migration.id, checksum, currentAppVersion(), runner.listApplied().at(-1) ?? null, backupRunId, session.email]
-      );
-      const runId = Number(runInsert.insertId ?? 0);
-      try {
-        await runner.run(migration);
-        await app.masterDbPool.execute(
-          `UPDATE database_migration_runs
-           SET status = 'succeeded', database_version_after = ?, finished_at = CURRENT_TIMESTAMP
-           WHERE id = ?`,
-          [migration.id, runId]
-        );
-        await app.masterDbPool.execute(
-          `INSERT INTO database_versions
-             (scope, database_name, app_version, database_version, last_migration_id, status)
-           VALUES ('platform', ?, ?, ?, ?, 'current')
-           ON DUPLICATE KEY UPDATE
-             app_version = VALUES(app_version),
-             database_version = VALUES(database_version),
-             last_migration_id = VALUES(last_migration_id),
-             status = 'current',
-             checked_at = CURRENT_TIMESTAMP`,
-          [env.DB_MASTER_NAME, currentAppVersion(), migration.id, migration.id]
-        );
-        results.push({ id: migration.id, status: "applied" });
-      } catch (error) {
-        await app.masterDbPool.execute(
-          `UPDATE database_migration_runs
-           SET status = 'failed', error_message = ?, finished_at = CURRENT_TIMESTAMP
-           WHERE id = ?`,
-          [error instanceof Error ? error.message : String(error), runId]
-        );
-        results.push({ id: migration.id, status: "error" });
-      }
+    const result = await runPlatformDatabaseCommand(app.masterDbPool, "migrate", {
+      actorEmail: session.email,
+      backupRunId,
+      databaseName: env.DB_MASTER_NAME
+    }) as DatabaseCommandResult;
+    await auditDatabaseOperation(app, request, session, "migration.run", { command: "migrate", result, backupRunId });
+    return ok({ applied: result.migrations.length, results: result.migrations, ...result }, responseMeta(request));
+  });
+
+  app.post("/admin/database-operations/commands", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const body = request.body as {
+      allTenants?: boolean;
+      command?: string;
+      confirm?: boolean;
+      databaseName?: string;
+      scope?: string;
+      tenantDatabaseIds?: unknown[];
+      tenantId?: string;
+    };
+    const command = parseDatabaseCommand(body.command);
+    const scope = parseDatabaseCommandScope(body.scope);
+    if (command === "drop" && scope !== "tenant") {
+      throw AppError.validation("drop command is only allowed for tenant databases.");
     }
-    await auditDatabaseOperation(app, request, session, "migration.run", { results, backupRunId });
-    return ok({ applied: results.length, results }, responseMeta(request));
+    const databaseName = scope === "master" ? env.DB_MASTER_NAME : body.databaseName;
+    const backupScope = scope === "master" ? "platform" : "tenant";
+    const backupRunId = await latestVerifiedBackupId(app, backupScope, databaseName ?? env.DB_MASTER_NAME, body.tenantId);
+    if (env.NODE_ENV === "production" && !backupRunId) {
+      throw AppError.validation(`Verified ${scope} backup from the last 24 hours is required before production database commands.`);
+    }
+    const result = await runPlatformDatabaseCommand(app.masterDbPool, command, {
+      allTenants: body.allTenants === true,
+      actorEmail: session.email,
+      backupRunId,
+      confirm: body.confirm === true,
+      databaseName,
+      scope,
+      tenantDatabaseIds: parseIdList(body.tenantDatabaseIds),
+      tenantId: body.tenantId
+    });
+    await auditDatabaseOperation(app, request, session, `database.${scope}.${command}`, { command, scope, result, backupRunId });
+    return ok(result, responseMeta(request));
   });
 
   app.get("/admin/database-operations/overview", async (request) => {
@@ -2505,12 +2525,171 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const session = await requireSuperAdmin(app, request);
     requirePermission(session, "platform.migration.status.view");
     const [dbRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
-      "SELECT id, tenant_id, database_name, status, created_at FROM tenant_databases ORDER BY created_at ASC"
+      `SELECT td.id, td.tenant_id, td.database_name, td.status, td.created_at,
+              t.tenant_code, t.tenant_name
+       FROM tenant_databases td
+       LEFT JOIN tenants t ON t.id = td.tenant_id
+       ORDER BY td.created_at ASC`
     );
-    const databases = dbRows.map(convertRow).map((r) => ({
-      ...r,
-      dbStatus: "unknown"
-    }));
+    const databases = await enrichTenantDatabaseRows(app, dbRows.map(convertRow));
     return ok(databases, responseMeta(request));
   });
+
+  app.post("/admin/databases/verify", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const body = request.body as { all?: boolean; ids?: unknown[] };
+    const ids = parseIdList(body.ids);
+    const values: unknown[] = [];
+    const where = body.all === true ? "" : `WHERE td.id IN (${ids.map(() => "?").join(", ")})`;
+    if (body.all !== true && !ids.length) {
+      throw AppError.validation("ids are required for bulk database verification.");
+    }
+    values.push(...ids);
+    const [rows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+      `SELECT td.id, td.tenant_id, td.database_name, td.status, td.created_at,
+              t.tenant_code, t.tenant_name
+       FROM tenant_databases td
+       LEFT JOIN tenants t ON t.id = td.tenant_id
+       ${where}
+       ORDER BY td.created_at ASC`,
+      values
+    );
+    const verified = await enrichTenantDatabaseRows(app, rows.map(convertRow));
+    await auditDatabaseOperation(app, request, session, "database.tenant.verify.bulk", { all: body.all === true, count: verified.length, ids });
+    return ok(verified, responseMeta(request));
+  });
+
+  app.post("/admin/databases/:id/verify", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const { id } = request.params as { id: string };
+    const [rows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+      `SELECT td.id, td.tenant_id, td.database_name, td.status, td.created_at,
+              t.tenant_code, t.tenant_name
+       FROM tenant_databases td
+       LEFT JOIN tenants t ON t.id = td.tenant_id
+       WHERE td.id = ?
+       LIMIT 1`,
+      [id]
+    );
+    if (!rows.length) throw AppError.notFound("Tenant database mapping not found.");
+    const [verified] = await enrichTenantDatabaseRows(app, rows.map(convertRow));
+    await auditDatabaseOperation(app, request, session, "database.tenant.verify", { id, database: verified?.["database_name"], dbStatus: verified?.["dbStatus"] });
+    return ok(verified, responseMeta(request));
+  });
+
+  app.delete("/admin/databases/:id", async (request) => {
+    const session = await requireSuperAdmin(app, request);
+    requirePermission(session, "platform.migration.status.view");
+    const { id } = request.params as { id: string };
+    const [rows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+      "SELECT id, tenant_id, database_name, status FROM tenant_databases WHERE id = ? LIMIT 1",
+      [id]
+    );
+    if (!rows.length) throw AppError.notFound("Tenant database mapping not found.");
+    await app.masterDbPool.execute("DELETE FROM tenant_databases WHERE id = ?", [id]);
+    await auditDatabaseOperation(app, request, session, "database.tenant.mapping.force_removed", convertRow(rows[0] ?? {}));
+    return ok({ removed: true, id }, responseMeta(request));
+  });
+}
+
+async function enrichTenantDatabaseRows(app: FastifyInstance, rows: Array<Record<string, unknown>>): Promise<Array<Record<string, unknown>>> {
+  const names = rows.map((row) => String(row.database_name ?? "")).filter(Boolean);
+  if (!names.length) return rows;
+  const placeholders = names.map(() => "?").join(", ");
+  const [schemaRows] = await app.masterDbPool.execute<Array<{ SCHEMA_NAME?: string; schema_name?: string }>>(
+    `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME IN (${placeholders})`,
+    names
+  );
+  const existing = new Set(schemaRows.map((row) => String(row.SCHEMA_NAME ?? row.schema_name ?? "")));
+  const [tableRows] = await app.masterDbPool.execute<Array<{ TABLE_SCHEMA?: string; table_schema?: string; total?: number | string }>>(
+    `SELECT TABLE_SCHEMA, COUNT(*) AS total
+     FROM INFORMATION_SCHEMA.TABLES
+     WHERE TABLE_SCHEMA IN (${placeholders})
+       AND TABLE_TYPE = 'BASE TABLE'
+     GROUP BY TABLE_SCHEMA`,
+    names
+  );
+  const tableCounts = new Map(
+    tableRows.map((row) => [String(row.TABLE_SCHEMA ?? row.table_schema ?? ""), toNumber(row.total)])
+  );
+
+  return rows.map((row) => {
+    const databaseName = String(row.database_name ?? "");
+    const exists = existing.has(databaseName);
+    const tableCount = tableCounts.get(databaseName) ?? 0;
+    return {
+      ...row,
+      database_exists: exists,
+      dbInfo: exists ? `${tableCount} table${tableCount === 1 ? "" : "s"}` : "schema missing",
+      dbStatus: exists ? "verified" : "missing",
+      table_count: tableCount
+    };
+  });
+}
+
+async function tenantMigrationStatusRows(
+  app: FastifyInstance,
+  tenantMigrations: Array<{ description: string; id: string }>,
+  latestRunMap: Map<string, Record<string, unknown>>
+) {
+  const [tenantRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+    `SELECT td.tenant_id, td.database_name, td.status, t.tenant_code, t.tenant_name
+     FROM tenant_databases td
+     LEFT JOIN tenants t ON t.id = td.tenant_id
+     ORDER BY td.created_at ASC`
+  );
+  const verifiedTenants = await enrichTenantDatabaseRows(app, tenantRows.map(convertRow));
+  const rows: Array<Record<string, unknown>> = [];
+  for (const tenant of verifiedTenants) {
+    const databaseName = String(tenant.database_name ?? "");
+    const tenantLabel = String(tenant.tenant_name ?? tenant.tenant_code ?? tenant.tenant_id ?? databaseName);
+    const appliedMap = await tenantAppliedMigrationMap(app, databaseName, Boolean(tenant.database_exists));
+    for (const migration of tenantMigrations) {
+      const applied = appliedMap.get(migration.id);
+      const latestRun = latestRunMap.get(migrationStatusKey("tenant", databaseName, migration.id));
+      rows.push({
+        id: migration.id,
+        description: migration.description,
+        checksum: migrationChecksum(migration),
+        databaseName,
+        scope: "tenant",
+        status: applied ? "applied" : latestRun?.status ?? (tenant.database_exists ? "pending" : "missing"),
+        applied_at: applied?.applied_at ?? null,
+        backupRunId: latestRun?.backup_run_id ?? null,
+        actorUserId: latestRun?.actor_user_id ?? null,
+        errorMessage: latestRun?.error_message ?? null,
+        startedAt: latestRun?.started_at ?? null,
+        finishedAt: latestRun?.finished_at ?? null,
+        tenantId: tenant.tenant_id ?? null,
+        tenantName: tenantLabel
+      });
+    }
+  }
+  return rows;
+}
+
+async function tenantAppliedMigrationMap(app: FastifyInstance, databaseName: string, databaseExists: boolean) {
+  if (!databaseExists || !isSafeDatabaseName(databaseName)) return new Map<string, Record<string, unknown>>();
+  const [tableRows] = await app.masterDbPool.execute<Array<{ total: number | string }>>(
+    `SELECT COUNT(*) AS total
+     FROM INFORMATION_SCHEMA.TABLES
+     WHERE TABLE_SCHEMA = ?
+       AND TABLE_NAME = 'tenant_migrations'`,
+    [databaseName]
+  );
+  if (toNumber(tableRows[0]?.total) === 0) return new Map<string, Record<string, unknown>>();
+  const [appliedRows] = await app.masterDbPool.execute<Array<Record<string, unknown>>>(
+    `SELECT id, applied_at FROM \`${databaseName}\`.tenant_migrations ORDER BY id ASC`
+  );
+  return new Map(appliedRows.map((row) => [String(row.id), row]));
+}
+
+function migrationStatusKey(scope: string, databaseName: string, migrationId: string) {
+  return `${scope}:${databaseName}:${migrationId}`;
+}
+
+function isSafeDatabaseName(databaseName: string) {
+  return /^[A-Za-z0-9_]+$/.test(databaseName);
 }

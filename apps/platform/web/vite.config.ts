@@ -113,8 +113,12 @@ export default defineConfig({
             return "core-tenant-pages";
           }
 
-          if (normalizedId.includes("/apps/billing/web/src/pages/tenant/")) {
-            return "billing-tenant-pages";
+          if (normalizedId.includes("/apps/billing/web/pages/modules/")) {
+            return "billing-modules";
+          }
+
+          if (normalizedId.includes("/apps/billing/web/shared/")) {
+            return "billing-shared";
           }
 
           if (normalizedId.includes("/apps/platform/web/src/pages/tenant/")) {
@@ -136,8 +140,8 @@ export default defineConfig({
     alias: [
       { find: /^@codexsun\/core-web\/(.*)$/, replacement: resolve(configDir, "../../../apps/core/web/src/$1") },
       { find: "@codexsun/core-web", replacement: resolve(configDir, "../../../apps/core/web/src/index.ts") },
-      { find: /^@codexsun\/billing-web\/(.*)$/, replacement: resolve(configDir, "../../../apps/billing/web/src/$1") },
-      { find: "@codexsun/billing-web", replacement: resolve(configDir, "../../../apps/billing/web/src/index.ts") },
+      { find: /^@codexsun\/billing-web\/(.*)$/, replacement: resolve(configDir, "../../../apps/billing/web/pages/$1") },
+      { find: "@codexsun/billing-web", replacement: resolve(configDir, "../../../apps/billing/web/pages/index.ts") },
     ]
   },
   server: {

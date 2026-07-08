@@ -2,13 +2,7 @@ import { env } from "../env.js";
 import { bootstrapDatabases, createServerConnection } from "./bootstrap.js";
 import { MigrationRunner } from "./migration-runner.js";
 import { masterMigrations } from "./migrations/master-index.js";
-
-const tenantMigrations = [
-  {
-    description: "Foundation tenant database tables",
-    id: "001_tenant_foundation"
-  }
-];
+import { tenantMigrations } from "./migrations/tenant-index.js";
 
 type MigrationSummary = {
   applied: number;

@@ -17,36 +17,36 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
     },
     "./api": {
-      "types": "./dist/api/index.d.ts",
-      "default": "./dist/api/index.js"
+      "types": "./src/modules/index.ts",
+      "default": "./src/modules/index.ts"
     },
     "./migrations": {
-      "types": "./dist/migrations/index.d.ts",
-      "default": "./dist/migrations/index.js"
+      "types": "./src/modules/index.ts",
+      "default": "./src/modules/index.ts"
     },
     "./modules": {
-      "types": "./dist/modules/index.d.ts",
-      "default": "./dist/modules/index.js"
+      "types": "./src/modules/index.ts",
+      "default": "./src/modules/index.ts"
     },
     "./queues": {
-      "types": "./dist/queues/index.d.ts",
-      "default": "./dist/queues/index.js"
+      "types": "./src/modules/index.ts",
+      "default": "./src/modules/index.ts"
     },
     "./seeders": {
-      "types": "./dist/seeders/index.d.ts",
-      "default": "./dist/seeders/index.js"
+      "types": "./src/modules/index.ts",
+      "default": "./src/modules/index.ts"
     },
     "./sync": {
-      "types": "./dist/sync/index.d.ts",
-      "default": "./dist/sync/index.js"
+      "types": "./src/modules/index.ts",
+      "default": "./src/modules/index.ts"
     },
     "./workers": {
-      "types": "./dist/workers/index.d.ts",
-      "default": "./dist/workers/index.js"
+      "types": "./src/modules/index.ts",
+      "default": "./src/modules/index.ts"
     }
   }
 }

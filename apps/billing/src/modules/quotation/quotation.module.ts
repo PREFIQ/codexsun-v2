@@ -1,6 +1,6 @@
-import type { BillingEntryModuleDefinition } from "../entries/entries.types.js";
+import type { QuotationEntryModuleDefinition } from "./quotation.types.js";
 
-export const quotationEntryModule: BillingEntryModuleDefinition = {
+export const quotationEntryModule: QuotationEntryModuleDefinition = {
   kind: "quotation",
   routeAliases: ["quotations"],
   documentKey: "quotation",
@@ -12,3 +12,4 @@ export const quotationEntryModule: BillingEntryModuleDefinition = {
   supportsCompliance: true,
   status: "active",
 };
+

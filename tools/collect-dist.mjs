@@ -8,7 +8,6 @@ const rootDist = join(root, "dist");
 
 const outputs = [
   ["apps/accounts/dist", "apps/accounts"],
-  ["apps/billing/dist", "apps/billing"],
   ["apps/core/dist", "apps/core"],
   ["apps/crm/dist", "apps/crm"],
   ["apps/ecommerce/dist", "apps/ecommerce"],

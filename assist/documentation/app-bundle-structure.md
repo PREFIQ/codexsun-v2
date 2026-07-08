@@ -21,23 +21,23 @@ apps/
     web/              # Core frontend: common/master screens, lookups, reusable tenant data UI
 
   billing/
-    src/              # Billing backend domain/app/contracts/routes/migrations/workers
+    src/              # Billing backend modules and thin package exports
     web/              # Billing frontend routes/screens/forms
 
   accounts/
-    src/              # Accounts backend domain/app/contracts/routes/migrations/workers
+    src/              # Accounts backend modules and thin package exports
     web/              # Accounts frontend routes/screens/forms
 
   ecommerce/
-    src/              # Ecommerce backend domain/app/contracts/routes/migrations/workers
+    src/              # Ecommerce backend modules and thin package exports
     web/              # Ecommerce storefront/admin frontend
 
   crm/
-    src/              # CRM backend domain/app/contracts/routes/migrations/workers
+    src/              # CRM backend modules and thin package exports
     web/              # CRM frontend routes/screens/forms
 
   sites/
-    src/              # Sites backend domain/app/contracts/routes/migrations/workers
+    src/              # Sites backend modules and thin package exports
     web/              # Sites/frontend builder screens and public-site app code
 ```
 
@@ -65,6 +65,31 @@ apps/platform/api
 apps/platform/web
 ```
 
+## Business App Source Root
+
+Business app `src/` roots should stay flat and thin:
+
+```text
+apps/{app}/src/
+  index.ts
+  modules/
+```
+
+Do not add top-level `api/`, `migrations/`, `queues/`, `seeders/`, `sync/`, `workers/`, `contracts/`, `domain/`, `application/`, `infrastructure/`, or `interface/` folders under a business app `src/`.
+
+Those concerns belong inside the owning module file:
+
+```text
+apps/{app}/src/modules/{module}/{module}.routes.ts
+apps/{app}/src/modules/{module}/{module}.migration.ts
+apps/{app}/src/modules/{module}/{module}.worker.ts
+apps/{app}/src/modules/{module}/{module}.seed.ts
+apps/{app}/src/modules/{module}/{module}.sync.ts
+apps/{app}/src/modules/{module}/{module}.types.ts
+```
+
+If a package needs public subpath compatibility such as `@codexsun/billing/api` or `@codexsun/billing/migrations`, expose those package exports from the module index instead of recreating top-level source folders.
+
 ## Frontend Ownership
 
 `apps/platform/web` is the shell and composer. It should own login, super-admin desk, admin desk, tenant desk layout, global navigation, app activation, and route composition.
@@ -84,13 +109,50 @@ Shared UI primitives stay in `packages/ui`. Do not move business rules or busine
 
 App web packages should export routes, menus, and screens that the platform shell can compose based on tenant activation and bundle configuration.
 
+Business app web roots must mirror the backend module rule with a thin `pages/index.ts` and page-owned module folders:
+
+```text
+apps/{app}/web/pages/
+  api.ts
+  index.ts
+  modules/
+    {module}/
+      index.ts
+      {module}.list.tsx
+      {module}.form.tsx
+      {module}.workspace.tsx    # only when the module owns a full workflow shell
+      {module}.services.ts
+      {module}.hooks.ts
+      {module}.types.ts
+      {module}.schema.ts       # Zod schemas and validation contracts
+      {module}.spec.ts         # Focused Playwright regression tests
+      {module}.settings.tsx    # only when the module owns settings
+      {module}.print.tsx       # only when the module owns print UI
+apps/{app}/web/shared/
+  index.ts
+  {shared-area}/
+    index.ts
+```
+
+Use `pages/modules/`, not `pages/tenant`, `features/`, or first-level module folders, for app-specific frontend workflows. Use `web/shared` only for cross-module app-web code such as shared entry workspace helpers. Keep reusable primitives, layout pieces, workspace controls, fields, tables, lookups, switches, dialogs, and visual building blocks in `packages/ui`; keep business-specific forms, lists, settings screens, print screens, and workflow composition in the owning app web package.
+
+Frontend module API calls belong in `{module}.services.ts`, React Query/custom hooks belong in `{module}.hooks.ts`, Zod validation contracts belong in `{module}.schema.ts`, module interfaces/types belong in `{module}.types.ts`, and focused Playwright coverage belongs in `{module}.spec.ts`. Billing web has one shared `web/playwright.config.ts`; do not add per-module Playwright config files.
+
+For Billing, the strict pairing is:
+
+```text
+apps/billing/src/modules/sales/
+apps/billing/web/pages/modules/sales/
+apps/billing/web/shared/
+```
+
 ## Backend Ownership
 
 Each business app backend owns its own business rules, tables, migrations, events, workers, and public contracts.
 
 Examples:
 
-- Billing owns quotations, sales, export sales, purchase, receipt, payment, cash book, bank book, billing document settings, and billing-specific compliance fields.
+- Billing owns quotations, sales, export sales, purchase, receipt, payment, billing document settings, and billing-specific compliance fields.
 - Ecommerce owns catalog sales flow, storefront/admin ecommerce behavior, cart, ecommerce orders, and ecommerce-specific settings.
 - Core owns contacts, companies, products, common modules, and shared tenant master records.
 - Platform owns tenant identity, auth, roles, permissions, activation, subscription, audit, settings, files, notifications, and app registry behavior.

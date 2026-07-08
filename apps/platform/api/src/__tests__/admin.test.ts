@@ -551,6 +551,8 @@ describe("Admin Endpoints", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.some((row: Record<string, unknown>) => row.scope === "master")).toBe(true);
+    expect(body.data.some((row: Record<string, unknown>) => row.scope === "tenant")).toBe(true);
   });
 
   it("GET /admin/database-operations/preflight returns migration safety checks", async () => {
@@ -563,6 +565,102 @@ describe("Admin Endpoints", () => {
     const body = JSON.parse(res.body);
     expect(typeof body.data.allowed).toBe("boolean");
     expect(Array.isArray(body.data.checks)).toBe(true);
+  });
+
+  it("POST /admin/database-operations/commands runs db:migrate command", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/admin/database-operations/commands",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: { command: "migrate" }
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.data.command).toBe("migrate");
+    expect(Array.isArray(body.data.migrations)).toBe(true);
+  });
+
+  it("POST /admin/database-operations/commands runs tenant db:migrate command", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/admin/database-operations/commands",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: { allTenants: true, command: "migrate", scope: "tenant" }
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.data.command).toBe("migrate");
+    expect(body.data.scope).toBe("tenant");
+    expect(Array.isArray(body.data.results)).toBe(true);
+  });
+
+  it("GET /admin/databases and POST verify expose tenant database status badges", async () => {
+    const listRes = await app.inject({
+      method: "GET",
+      url: "/admin/databases",
+      headers: { Authorization: `Bearer ${saToken}` }
+    });
+    expect(listRes.statusCode).toBe(200);
+    const listBody = JSON.parse(listRes.body);
+    expect(Array.isArray(listBody.data)).toBe(true);
+    expect(typeof listBody.data[0].dbStatus).toBe("string");
+    expect(typeof listBody.data[0].dbInfo).toBe("string");
+
+    const verifyRes = await app.inject({
+      method: "POST",
+      url: `/admin/databases/${listBody.data[0].id}/verify`,
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: {}
+    });
+    expect(verifyRes.statusCode).toBe(200);
+    const verifyBody = JSON.parse(verifyRes.body);
+    expect(verifyBody.data.id).toBe(listBody.data[0].id);
+    expect(typeof verifyBody.data.dbStatus).toBe("string");
+
+    const bulkVerifyRes = await app.inject({
+      method: "POST",
+      url: "/admin/databases/verify",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: { ids: [listBody.data[0].id] }
+    });
+    expect(bulkVerifyRes.statusCode).toBe(200);
+    const bulkVerifyBody = JSON.parse(bulkVerifyRes.body);
+    expect(Array.isArray(bulkVerifyBody.data)).toBe(true);
+    expect(bulkVerifyBody.data).toHaveLength(1);
+  });
+
+  it("DELETE /admin/databases/:id force removes a tenant database mapping", async () => {
+    const tenantCode = "remove-db-test-" + Date.now();
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/admin/tenants",
+      headers: { Authorization: `Bearer ${saToken}` },
+      body: {
+        corporateId: tenantCode.toUpperCase(),
+        mobile: "9000000000",
+        tenantCode,
+        tenantName: "Remove DB Test Tenant"
+      }
+    });
+    expect(createRes.statusCode).toBe(200);
+
+    const listRes = await app.inject({
+      method: "GET",
+      url: "/admin/databases",
+      headers: { Authorization: `Bearer ${saToken}` }
+    });
+    const listBody = JSON.parse(listRes.body);
+    const record = listBody.data.find((row: Record<string, unknown>) => row.tenant_code === tenantCode);
+    expect(record?.id).toBeTruthy();
+
+    const deleteRes = await app.inject({
+      method: "DELETE",
+      url: `/admin/databases/${record.id}`,
+      headers: { Authorization: `Bearer ${saToken}` }
+    });
+    expect(deleteRes.statusCode).toBe(200);
+    const deleteBody = JSON.parse(deleteRes.body);
+    expect(deleteBody.data.removed).toBe(true);
   });
 
   it("POST /admin/database-operations/backups records a verified backup checkpoint", async () => {

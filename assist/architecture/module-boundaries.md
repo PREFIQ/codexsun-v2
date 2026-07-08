@@ -103,7 +103,7 @@ apps/
     web/              # Core frontend modules
 
   billing/
-    src/              # Billing backend modules
+    src/              # Billing backend modules and thin package exports
     web/              # Billing frontend modules
 
   accounts/
@@ -127,6 +127,16 @@ Use `src`, not `api`, for business app backend code because a business app owns 
 
 Use `api` only for a runnable API process such as `apps/platform/api`, where the responsibility is gateway/composition, auth, tenant context, RBAC, app registry, route registration, database bootstrap, and shared runtime wiring.
 
+Business app `src/` roots must remain flat:
+
+```text
+apps/{app}/src/
+  index.ts
+  modules/
+```
+
+Routes, migrations, workers, seeders, sync rules, contracts, repositories, and use cases must live under `src/modules/{module}/` using the module-prefixed filenames above. Package subpaths may point at module exports for compatibility, but source folders such as top-level `api/`, `migrations/`, `queues/`, `seeders/`, `sync/`, and `workers/` should not be recreated.
+
 Frontend ownership follows the same boundary:
 
 - `apps/platform/web` owns the shell, login, SA/admin desks, tenant desk layout, global navigation, activation, and route composition.
@@ -134,6 +144,35 @@ Frontend ownership follows the same boundary:
 - `apps/billing/web` owns billing entries, billing settings, billing reports, and billing forms.
 - `apps/accounts/web`, `apps/ecommerce/web`, `apps/crm/web`, and `apps/sites/web` own their own app-specific screens and routes.
 - `packages/ui` owns reusable design-system primitives only. It must not absorb app-specific business screens or rules.
+
+Business app web packages must use `web/pages/modules/{module}/` for app-owned frontend workflows:
+
+```text
+apps/{app}/web/pages/
+  api.ts
+  index.ts
+  modules/
+    {module}/
+      index.ts
+      {module}.list.tsx
+      {module}.form.tsx
+      {module}.workspace.tsx
+      {module}.services.ts
+      {module}.hooks.ts
+      {module}.types.ts
+      {module}.schema.ts
+      {module}.spec.ts
+      {module}.settings.tsx
+      {module}.print.tsx
+apps/{app}/web/shared/
+  index.ts
+  {shared-area}/
+    index.ts
+```
+
+Shared controls and layout primitives belong in `packages/ui`. Cross-module app-web code belongs in `web/shared`. Business-specific page state, forms, lists, document settings, print UI, and workflow composition stay in the owning app web module under `web/pages/modules/{module}`. Do not recreate `features/`, `pages/tenant`, or first-level module folders such as `web/pages/sales`.
+
+Within a frontend module, API calls go in `{module}.services.ts`, custom hooks go in `{module}.hooks.ts`, Zod schemas go in `{module}.schema.ts`, interfaces/types go in `{module}.types.ts`, and focused Playwright tests go in `{module}.spec.ts`. Billing web modules share `web/playwright.config.ts`; per-module Playwright config files are not allowed. Page components should consume those files instead of calling shared APIs directly when the behavior belongs to that module.
 
 ## Module Contract
 
@@ -200,7 +239,7 @@ Do not put unstable business rules in the shared kernel.
 | `packages/ui` | Design system | React components, layouts, workspace patterns, blocks (sidemenu, tables, forms) |
 | `apps/core/src` | Master/business backend modules | Common definitions, contacts, companies, and products with database-backed tenant records; work orders and generic core records remain temporary |
 | `apps/core/web` | Core frontend modules | Common/master tenant screens, lookup controls, and reusable tenant record workspace UI |
-| `apps/billing/src` | Billing backend modules | Quotation, sales, export sales, purchase, receipt, payment, cash book, bank book entry contracts, billing entry routes, billing migrations |
+| `apps/billing/src` | Billing backend modules | Quotation, sales, export sales, purchase, receipt, payment contracts, routes, migrations, workers, seeders, and sync rules under module folders |
 | `apps/billing/web` | Billing frontend modules | Billing entry workspaces, billing settings, billing forms, and billing reports |
 | `apps/accounts/src` | Accounting backend modules | Ledgers, bank accounts, cash accounts, journal, contra, double-entry contracts, posting contracts |
 | `apps/accounts/web` | Accounting frontend modules | Accounts screens, reports, voucher UI, and app-specific account workspaces |
@@ -349,7 +388,7 @@ Current registered modules in `platformModuleCatalog`:
 7. **Industry scoping is defined but not implemented** — `ModuleScope` includes `"industry"` but no industry modules or tables exist yet.
 8. **GST/ZETRO are placeholders** — Tax identity types and HSN codes exist in core contracts; full compliance APIs and ZETRO assistant are future work.
 
-9. **Business apps use `src` + `web`** - Business apps such as Core, Billing, Accounts, Ecommerce, CRM, and Sites use `src/` for backend/module source and `web/` for frontend source. Only runnable gateway surfaces such as `apps/platform/api` use `api/`.
+9. **Business apps use strict backend/frontend module folders** - Business apps such as Core, Billing, Accounts, Ecommerce, CRM, and Sites use `src/index.ts` plus `src/modules/` for backend modules and `web/pages/index.ts` plus `web/pages/modules/` for frontend modules. Only runnable gateway surfaces such as `apps/platform/api` use `api/`.
 10. **Platform web composes app web packages** - `apps/platform/web` remains the shell and route/menu composer. Business screens must live in the owning app web package and be imported or registered through app manifests.
 
 ### Tenant Readiness Tracking

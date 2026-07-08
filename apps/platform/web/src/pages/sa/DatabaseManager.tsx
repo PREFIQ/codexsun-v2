@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DatabaseBackup, Download, Gauge, GitCompareArrows, Play, RefreshCw, ShieldCheck } from "lucide-react";
+import { DatabaseBackup, Download, Gauge, GitCompareArrows, Loader2, Play, RefreshCw, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 import { Button, Card, Input, StatusBadge } from "@codexsun/ui";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@codexsun/ui/components/dialog";
 import { apiGet, apiPost } from "../../api";
 
 type OperationRow = Record<string, unknown>;
@@ -31,17 +32,31 @@ type PreflightResult = {
   pending: PendingMigration[];
 };
 
-type TenantDatabase = {
-  database_name: string;
-  dbStatus: string;
-  id: string;
-  status: string;
-  tenant_id: string;
+type DatabaseCommand = "migrate" | "migrate:fresh" | "migrate:rollback";
+type CommandScope = "master" | "tenant";
+type DatabaseCommandInput = {
+  allTenants?: boolean;
+  command: DatabaseCommand;
+  confirm?: boolean;
+  databaseName?: string;
+  scope: CommandScope;
+  tenantDatabaseIds?: string[];
+  tenantId?: string;
 };
 
-export function DatabaseManager({ onBack }: { onBack: () => void }) {
+type PendingConfirmation = {
+  actionLabel: string;
+  description: string;
+  onConfirm: () => void;
+  title: string;
+  tone?: "danger" | "normal";
+};
+
+export function DatabaseManager({ onBack, onTenantDatabases }: { onBack: () => void; onTenantDatabases: () => void }) {
   const queryClient = useQueryClient();
   const [clientKey, setClientKey] = useState("legacy-client");
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
   const overviewQuery = useQuery<DatabaseOverview>({
     queryKey: ["admin", "database-operations", "overview"],
     queryFn: () => apiGet<DatabaseOverview>("/admin/database-operations/overview", "sa")
@@ -50,9 +65,9 @@ export function DatabaseManager({ onBack }: { onBack: () => void }) {
     queryKey: ["admin", "database-operations", "preflight"],
     queryFn: () => apiGet<PreflightResult>("/admin/database-operations/preflight", "sa")
   });
-  const databasesQuery = useQuery<TenantDatabase[]>({
+  const databasesQuery = useQuery<Array<{ id: string }>>({
     queryKey: ["admin", "databases"],
-    queryFn: () => apiGet<TenantDatabase[]>("/admin/databases", "sa")
+    queryFn: () => apiGet<Array<{ id: string }>>("/admin/databases", "sa")
   });
 
   const overview = overviewQuery.data;
@@ -65,26 +80,32 @@ export function DatabaseManager({ onBack }: { onBack: () => void }) {
 
   const createBackup = useMutation({
     mutationFn: () => apiPost("/admin/database-operations/backups", { databaseName: overview?.platformDatabase, scope: "platform" }, "sa"),
+    onSettled: () => setPendingAction(null),
     onSuccess: invalidate
   });
   const createDump = useMutation({
     mutationFn: () => apiPost("/admin/database-operations/dumps", { databaseName: overview?.platformDatabase, dumpMode: "full", scope: "platform" }, "sa"),
+    onSettled: () => setPendingAction(null),
     onSuccess: invalidate
   });
   const restoreTest = useMutation({
     mutationFn: () => apiPost("/admin/database-operations/restore-tests", { sourceDatabase: overview?.platformDatabase }, "sa"),
+    onSettled: () => setPendingAction(null),
     onSuccess: invalidate
   });
   const mirrorCheck = useMutation({
     mutationFn: () => apiPost("/admin/database-operations/mirror-health", { sourceDatabase: overview?.platformDatabase }, "sa"),
+    onSettled: () => setPendingAction(null),
     onSuccess: invalidate
   });
-  const runMigrations = useMutation({
-    mutationFn: () => apiPost("/admin/migrations/run", {}, "sa"),
+  const runDatabaseCommand = useMutation({
+    mutationFn: (input: DatabaseCommandInput) => apiPost("/admin/database-operations/commands", input, "sa"),
+    onSettled: () => setPendingAction(null),
     onSuccess: invalidate
   });
   const legacyDryRun = useMutation({
     mutationFn: () => apiPost("/admin/legacy-import/dry-run", { clientKey }, "sa"),
+    onSettled: () => setPendingAction(null),
     onSuccess: invalidate
   });
 
@@ -111,6 +132,12 @@ export function DatabaseManager({ onBack }: { onBack: () => void }) {
         <Metric title="Tenant Databases" value={String(tenantDatabaseCount)} tone="neutral" />
       </div>
 
+      <Card
+        title="Tenant Database Operations"
+        description="Tenant verification, per-row migration, rollback, fresh rebuild, and physical database drop live in a dedicated tenant database page."
+        action={<Button size="sm" variant="outline" onClick={onTenantDatabases}>Open Tenant Databases</Button>}
+      />
+
       <Card title="Migration Safety" description={`Platform database: ${overview?.platformDatabase ?? "loading"}`}>
         <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="space-y-2">
@@ -129,15 +156,41 @@ export function DatabaseManager({ onBack }: { onBack: () => void }) {
             <p className="text-xs text-muted-foreground">Production migration runs are blocked unless a verified platform backup exists.</p>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => preflightQuery.refetch()}>
-                <RefreshCw className="size-4" /> Preflight
+                <RefreshCw className={`size-4 ${preflightQuery.isFetching ? "animate-spin" : ""}`} /> Preflight
               </Button>
-              <Button size="sm" variant="outline" disabled={createBackup.isPending} onClick={() => createBackup.mutate()}>
-                <DatabaseBackup className="size-4" /> Backup
+              <Button size="sm" variant="outline" disabled={createBackup.isPending} onClick={() => { setPendingAction("backup"); createBackup.mutate(); }}>
+                <ProgressIcon active={pendingAction === "backup"} icon={DatabaseBackup} /> Backup
               </Button>
-              <Button size="sm" disabled={migrationBlocked || runMigrations.isPending} onClick={() => runMigrations.mutate()}>
-                <Play className="size-4" /> Run Pending
+              <Button size="sm" disabled={migrationBlocked || runDatabaseCommand.isPending} onClick={() => { setPendingAction("master:migrate"); runDatabaseCommand.mutate({ command: "migrate", scope: "master" }); }}>
+                <ProgressIcon active={pendingAction === "master:migrate"} icon={Play} /> db:migrate
+              </Button>
+              <Button size="sm" variant="outline" disabled={migrationBlocked || runDatabaseCommand.isPending} onClick={() => setPendingConfirmation({
+                actionLabel: "Rollback",
+                description: "This rolls back the latest master database migration.",
+                onConfirm: () => {
+                  setPendingConfirmation(null);
+                  setPendingAction("master:rollback");
+                  runDatabaseCommand.mutate({ command: "migrate:rollback", confirm: true, scope: "master" });
+                },
+                title: "Run db:migrate-rollback?"
+              })}>
+                <ProgressIcon active={pendingAction === "master:rollback"} icon={RotateCcw} /> db:migrate-rollback
+              </Button>
+              <Button size="sm" variant="outline" disabled={migrationBlocked || runDatabaseCommand.isPending} onClick={() => setPendingConfirmation({
+                actionLabel: "Fresh migrate",
+                description: "This drops and rebuilds master database tables only.",
+                onConfirm: () => {
+                  setPendingConfirmation(null);
+                  setPendingAction("master:fresh");
+                  runDatabaseCommand.mutate({ command: "migrate:fresh", confirm: true, scope: "master" });
+                },
+                title: "Run db:migrate-fresh?",
+                tone: "danger"
+              })}>
+                <ProgressIcon active={pendingAction === "master:fresh"} icon={Sparkles} /> db:migrate-fresh
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">Fresh and rollback commands require confirmation and are audited as Super Admin database commands.</p>
           </div>
         </div>
       </Card>
@@ -145,8 +198,8 @@ export function DatabaseManager({ onBack }: { onBack: () => void }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <OperationPanel
           action={
-            <Button size="sm" variant="outline" disabled={createDump.isPending} onClick={() => createDump.mutate()}>
-              <Download className="size-4" /> Dump
+            <Button size="sm" variant="outline" disabled={createDump.isPending} onClick={() => { setPendingAction("dump"); createDump.mutate(); }}>
+              <ProgressIcon active={pendingAction === "dump"} icon={Download} /> Dump
             </Button>
           }
           rows={overview?.backups ?? []}
@@ -156,8 +209,8 @@ export function DatabaseManager({ onBack }: { onBack: () => void }) {
         />
         <OperationPanel
           action={
-            <Button size="sm" variant="outline" disabled={restoreTest.isPending} onClick={() => restoreTest.mutate()}>
-              <ShieldCheck className="size-4" /> Restore Test
+            <Button size="sm" variant="outline" disabled={restoreTest.isPending} onClick={() => { setPendingAction("restore-test"); restoreTest.mutate(); }}>
+              <ProgressIcon active={pendingAction === "restore-test"} icon={ShieldCheck} /> Restore Test
             </Button>
           }
           rows={overview?.restoreTests ?? []}
@@ -167,8 +220,8 @@ export function DatabaseManager({ onBack }: { onBack: () => void }) {
         />
         <OperationPanel
           action={
-            <Button size="sm" variant="outline" disabled={mirrorCheck.isPending} onClick={() => mirrorCheck.mutate()}>
-              <Gauge className="size-4" /> Check
+            <Button size="sm" variant="outline" disabled={mirrorCheck.isPending} onClick={() => { setPendingAction("mirror-check"); mirrorCheck.mutate(); }}>
+              <ProgressIcon active={pendingAction === "mirror-check"} icon={Gauge} /> Check
             </Button>
           }
           rows={overview?.mirrors ?? []}
@@ -179,22 +232,54 @@ export function DatabaseManager({ onBack }: { onBack: () => void }) {
         <Card title="Legacy Client Migration" description="Map old app tables, then run dry-run imports before cutover.">
           <div className="flex flex-wrap gap-2">
             <Input className="h-9 max-w-xs rounded-md" value={clientKey} onChange={(event) => setClientKey(event.target.value)} />
-            <Button size="sm" variant="outline" disabled={legacyDryRun.isPending} onClick={() => legacyDryRun.mutate()}>
-              <GitCompareArrows className="size-4" /> Dry Run
+            <Button size="sm" variant="outline" disabled={legacyDryRun.isPending} onClick={() => { setPendingAction("legacy-dry-run"); legacyDryRun.mutate(); }}>
+              <ProgressIcon active={pendingAction === "legacy-dry-run"} icon={GitCompareArrows} /> Dry Run
             </Button>
           </div>
           <MiniRows rows={overview?.legacyBatches ?? []} columns={["client_key", "mode", "status", "failed_count", "started_at"]} empty="No legacy dry-runs yet." />
         </Card>
       </div>
 
-      <OperationPanel
-        rows={databasesQuery.data ?? []}
-        title="Tenant Databases"
-        empty="No tenant databases found."
-        columns={["database_name", "tenant_id", "status", "dbStatus"]}
-      />
+      <ConfirmActionDialog pending={pendingConfirmation} running={Boolean(pendingAction)} onClose={() => setPendingConfirmation(null)} />
     </div>
   );
+}
+
+function ConfirmActionDialog({
+  onClose,
+  pending,
+  running
+}: {
+  onClose: () => void;
+  pending: PendingConfirmation | null;
+  running: boolean;
+}) {
+  return (
+    <Dialog open={Boolean(pending)} onOpenChange={(open) => { if (!open && !running) onClose(); }}>
+      <DialogContent className="rounded-md border-border/70 sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{pending?.title ?? "Confirm action"}</DialogTitle>
+          <DialogDescription>{pending?.description ?? "Confirm this database operation."}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" disabled={running} onClick={onClose}>Cancel</Button>
+          <Button
+            type="button"
+            disabled={running}
+            className={pending?.tone === "danger" ? "bg-red-600 text-white hover:bg-red-700" : undefined}
+            onClick={() => pending?.onConfirm()}
+          >
+            {running ? <Loader2 className="size-4 animate-spin" /> : null}
+            {pending?.actionLabel ?? "Confirm"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProgressIcon({ active, icon: Icon }: { active: boolean; icon: typeof DatabaseBackup }) {
+  return active ? <Loader2 className="size-4 animate-spin" /> : <Icon className="size-4" />;
 }
 
 function Metric({ title, value, tone }: { title: string; value: string; tone: "green" | "blue" | "amber" | "red" | "neutral" }) {

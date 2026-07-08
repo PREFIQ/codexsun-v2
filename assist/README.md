@@ -32,6 +32,16 @@ Agents must read and follow these standards before changing module UI, backend c
 
 For tenant/common/master form, lookup, placeholder, switch-card, or shared form-control changes, the guardrail file is mandatory. Run `npm run verify:tenant-ui` during development and `npm run verify:platform-ui` before finishing shared UI changes.
 
+Strict business app module folders:
+
+```text
+apps/{app}/src/modules/{module}/
+apps/{app}/web/pages/modules/{module}/
+apps/{app}/web/shared/
+```
+
+Do not recreate backend top-level `api/`, `migrations/`, `queues/`, `seeders/`, `sync/`, or `workers` folders inside business app `src`. Do not recreate frontend `features/`, `pages/tenant`, or first-level module folders inside business app `web/pages`. Use `web/shared` only for cross-module app-web code; keep module-specific business forms, lists, settings, print views, services, hooks, schemas, types, tests, and page orchestration inside the owning app web module. Keep reusable design controls in `packages/ui`.
+
 ## Product Vision
 
 CODEXSUN should become a business operating platform where each customer receives an isolated, customizable system that matches their industry, billing flow, compliance needs, and growth stage.

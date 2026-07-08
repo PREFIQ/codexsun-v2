@@ -114,8 +114,6 @@ test("sales invoice number follows document settings and advances after save", a
           { kind: "purchase", label: "Purchase", prefix: "PUR", nextNumber: "1", suffix: "", padding: "4", enabled: true },
           { kind: "receipt", label: "Receipt", prefix: "REC", nextNumber: "1", suffix: "", padding: "4", enabled: true },
           { kind: "payment", label: "Payment", prefix: "PAY", nextNumber: "1", suffix: "", padding: "4", enabled: true },
-          { kind: "cashBook", label: "Cash Book", prefix: "CB", nextNumber: "1", suffix: "", padding: "4", enabled: true },
-          { kind: "bankBook", label: "Bank Book", prefix: "BB", nextNumber: "1", suffix: "", padding: "4", enabled: true },
         ]),
       )
     },

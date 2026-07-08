@@ -3,6 +3,7 @@ import { hashPassword } from "@codexsun/platform/auth";
 import { env } from "../env.js";
 import { MigrationRunner } from "./migration-runner.js";
 import { masterMigrations } from "./migrations/master-index.js";
+import { tenantMigrations } from "./migrations/tenant-index.js";
 
 const COMMON_DEFAULT_RECORD_ID = "common-default-dash";
 const COMMON_DEFAULT_CREATED_AT = "2000-01-01T00:00:00.000Z";
@@ -148,7 +149,7 @@ export function describeDatabaseBootstrapError(error: unknown) {
   };
 }
 
-async function migrateMasterDatabase() {
+export async function migrateMasterDatabase() {
   const db = await createServerConnection(env.DB_MASTER_NAME);
 
   const runner = new MigrationRunner(db, "platform_migrations");
@@ -809,42 +810,12 @@ function commonDefaultPayload(moduleKey: string, tenantId: string, updatedAt: st
   return base;
 }
 
-async function migrateTenantDatabase() {
-  const db = await createServerConnection(env.TENANT_TEST_DB_NAME);
+export async function migrateTenantDatabase(databaseName = env.TENANT_TEST_DB_NAME) {
+  const db = await createServerConnection(databaseName);
 
   const runner = new MigrationRunner(db, "tenant_migrations");
   await runner.initialize();
-
-  const tenantFoundationMigration = {
-    id: "001_tenant_foundation",
-    description: "Foundation tenant database tables",
-    up: async (conn: typeof db) => {
-      await conn.execute(`
-        CREATE TABLE IF NOT EXISTS tenant_users (
-          id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-          display_name VARCHAR(120) NOT NULL,
-          email VARCHAR(190) NOT NULL UNIQUE,
-          password_hash VARCHAR(255) NOT NULL,
-          role_key VARCHAR(80) NOT NULL DEFAULT 'owner',
-          status VARCHAR(30) NOT NULL DEFAULT 'active',
-          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )
-      `);
-
-      await conn.execute(`
-        CREATE TABLE IF NOT EXISTS tenant_audit_events (
-          id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-          actor_email VARCHAR(190) NULL,
-          event_name VARCHAR(120) NOT NULL,
-          event_payload JSON NULL,
-          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-    }
-  };
-
-  await runner.run(tenantFoundationMigration);
+  await runner.runAll(tenantMigrations);
 
   if (hasSeedUser(env.TENANT_ADMIN_NAME, env.TENANT_ADMIN_EMAIL, env.TENANT_ADMIN_PASSWORD)) {
     await db.execute(

@@ -22,6 +22,30 @@ Records UI, API, service logic, tooling, and documentation changes.
 
 ## Unreleased
 
+### Billing Backend Source Flattening
+
+#### Database Changes
+
+- Database update: No.
+
+#### App Codebase Changes
+
+- Flattened `apps/billing/src` to a thin `index.ts` plus `modules/` source root.
+- Moved Billing TypeScript build output from `apps/billing/dist` to root `dist/apps/billing`.
+- Moved Billing entry route ownership into `modules/entries/entries.routes.ts`.
+- Folded Billing migrations, seeders, queues, sync rules, and workers into the module index aggregation.
+- Kept package subpath compatibility for `@codexsun/billing/api`, `@codexsun/billing/migrations`, `@codexsun/billing/queues`, `@codexsun/billing/seeders`, `@codexsun/billing/sync`, and `@codexsun/billing/workers` through module exports.
+- Updated app bundle and module-boundary standards so business app backend roots stay flat and concerns remain inside module folders.
+- Reworked Billing Web into strict frontend modules under `apps/billing/web/pages/modules`, with per-entry module folders for Entries, Quotation, Sales, Export Sales, Purchase, Receipt, Payment, and Document Settings.
+- Moved cross-module Billing Web code into `apps/billing/web/shared`, keeping `web/pages/modules` for module-specific page code.
+- Split Sales Settings into `web/pages/modules/sales/sales.settings.tsx` and Document Settings into `web/shared/document-settings/document-settings.page.tsx`, leaving the shared entries workspace for common entry behavior and helpers.
+- Added Sales frontend `sales.services.ts`, `sales.hooks.ts`, and `sales.types.ts` and documented these as required frontend module concerns for API calls, custom hooks, and module contracts.
+- Added `sales.schema.ts` with Zod validation for Sales settings and Sales entry records, and wired Sales services through those schemas.
+- Added a Sales-owned `sales.workspace.tsx` and routed Platform Web Sales entries to `SalesListPage`, so Sales no longer renders through the shared entry workspace.
+- Added module-local Playwright coverage with shared config at `web/playwright.config.ts`, starting with `web/pages/modules/sales/sales.spec.ts`, plus `npm run test:sales -w @codexsun/billing-web` and `npm run test:modules -w @codexsun/billing-web` for focused module regression checks.
+- Standardized frontend module filenames such as `sales.list.tsx`, `sales.form.tsx`, `sales.settings.tsx`, and `index.ts`.
+- Documented the frontend standard: business app web packages use `web/pages/modules/{module}` while shared controls stay in `packages/ui`.
+
 ### App Bundle Source Layout Decision
 
 #### Database Changes

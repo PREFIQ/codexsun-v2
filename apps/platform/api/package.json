@@ -8,6 +8,13 @@
     "dev:skip-db": "node ../../../tools/preflight.mjs platform-api --skip-db",
     "dev:fast": "node ../../../tools/preflight.mjs platform-api --skip-db",
     "build": "tsc -p tsconfig.json",
+    "db:migrate": "tsx src/db/cli.ts migrate",
+    "db:migrate-fresh": "tsx src/db/cli.ts migrate:fresh --confirm",
+    "db:migrate-rollback": "tsx src/db/cli.ts migrate:rollback --confirm",
+    "db:tenant:migrate": "tsx src/db/cli.ts migrate --scope=tenant --all-tenants",
+    "db:tenant:migrate-fresh": "tsx src/db/cli.ts migrate:fresh --scope=tenant --all-tenants --confirm",
+    "db:tenant:migrate-rollback": "tsx src/db/cli.ts migrate:rollback --scope=tenant --all-tenants --confirm",
+    "db:tenant:drop": "tsx src/db/cli.ts drop --scope=tenant --all-tenants --confirm",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src --ext .ts",
     "test": "vitest run"

@@ -5,7 +5,7 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     lib: {
-      entry: "src/index.ts",
+      entry: "pages/index.ts",
       fileName: "index",
       formats: ["es"]
     },

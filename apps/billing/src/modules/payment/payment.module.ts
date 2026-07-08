@@ -1,6 +1,6 @@
-import type { BillingEntryModuleDefinition } from "../entries/entries.types.js";
+import type { PaymentEntryModuleDefinition } from "./payment.types.js";
 
-export const paymentEntryModule: BillingEntryModuleDefinition = {
+export const paymentEntryModule: PaymentEntryModuleDefinition = {
   kind: "payment",
   routeAliases: ["payments"],
   documentKey: "payment",
@@ -12,3 +12,4 @@ export const paymentEntryModule: BillingEntryModuleDefinition = {
   supportsCompliance: false,
   status: "active",
 };
+

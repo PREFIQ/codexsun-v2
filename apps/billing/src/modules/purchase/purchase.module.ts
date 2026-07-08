@@ -1,6 +1,6 @@
-import type { BillingEntryModuleDefinition } from "../entries/entries.types.js";
+import type { PurchaseEntryModuleDefinition } from "./purchase.types.js";
 
-export const purchaseEntryModule: BillingEntryModuleDefinition = {
+export const purchaseEntryModule: PurchaseEntryModuleDefinition = {
   kind: "purchase",
   routeAliases: ["purchases"],
   documentKey: "purchase",
@@ -12,3 +12,4 @@ export const purchaseEntryModule: BillingEntryModuleDefinition = {
   supportsCompliance: false,
   status: "active",
 };
+

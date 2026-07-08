@@ -3,17 +3,24 @@
   "version": "1.0.71",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./pages/index.ts",
+  "types": "./pages/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./api": "./src/api.ts",
-    "./pages/*": "./src/pages/*"
+    ".": "./pages/index.ts",
+    "./api": "./pages/api.ts",
+    "./modules": "./pages/modules/index.ts",
+    "./modules/*": "./pages/modules/*",
+    "./shared": "./shared/index.ts",
+    "./shared/*": "./shared/*",
+    "./sales": "./pages/modules/sales/index.ts",
+    "./sales/*": "./pages/modules/sales/*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint pages --ext .ts,.tsx",
+    "test:modules": "playwright test pages/modules --config playwright.config.ts",
+    "test:sales": "playwright test pages/modules/sales/sales.spec.ts --config playwright.config.ts",
     "dev": "vite --host 127.0.0.1 --port 5540"
   },
   "dependencies": {
@@ -26,7 +33,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sonner": "^2.0.7",
-    "vite": "^8.1.0"
+    "vite": "^8.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

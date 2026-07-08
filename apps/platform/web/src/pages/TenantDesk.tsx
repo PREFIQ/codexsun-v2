@@ -21,7 +21,16 @@ import {
 import { Badge } from "@codexsun/ui/components/badge";
 import { TenantLayout } from "@codexsun/ui";
 import { CommonModuleIndexPage, commonModuleGroups, CommonModulePage, ContactListPage, ProductListPage, WorkOrderListPage } from "@codexsun/core-web";
-import { DocumentSettingsPage, EntryWorkspacePage, SalesSettingsPage } from "@codexsun/billing-web";
+import {
+  DocumentSettingsPage,
+  ExportSalesListPage,
+  PaymentListPage,
+  PurchaseListPage,
+  QuotationListPage,
+  ReceiptListPage,
+  SalesListPage,
+  SalesSettingsPage,
+} from "@codexsun/billing-web";
 import { AuthGate } from "../components/AuthGate";
 import { MediaAssetsPage } from "./tenant/MediaAssetsPage";
 import { apiGet } from "../api";
@@ -542,7 +551,13 @@ export function TenantDesk() {
         if (page.page === "landing") return <ApplicationLandingPage onBack={() => selectPage({ view: "dashboard" })} />;
         return null;
       case "entry":
-        return <EntryWorkspacePage kind={page.page} />;
+        if (page.page === "sales") return <SalesListPage />;
+        if (page.page === "quotation") return <QuotationListPage />;
+        if (page.page === "exportSales") return <ExportSalesListPage />;
+        if (page.page === "purchase") return <PurchaseListPage />;
+        if (page.page === "receipt") return <ReceiptListPage />;
+        if (page.page === "payment") return <PaymentListPage />;
+        return null;
       case "common-index":
         return (
           <CommonModuleIndexPage
