@@ -132,6 +132,14 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(rootPackage.version)
   },
   plugins: [tailwindcss(), react()],
+  resolve: {
+    alias: [
+      { find: /^@codexsun\/core-web\/(.*)$/, replacement: resolve(configDir, "../../../apps/core/web/src/$1") },
+      { find: "@codexsun/core-web", replacement: resolve(configDir, "../../../apps/core/web/src/index.ts") },
+      { find: /^@codexsun\/billing-web\/(.*)$/, replacement: resolve(configDir, "../../../apps/billing/web/src/$1") },
+      { find: "@codexsun/billing-web", replacement: resolve(configDir, "../../../apps/billing/web/src/index.ts") },
+    ]
+  },
   server: {
     headers: {
       "Permissions-Policy": "unload=*"

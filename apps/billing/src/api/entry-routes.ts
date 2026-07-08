@@ -3,8 +3,8 @@ import { AppError } from "@codexsun/framework/errors";
 import { ok } from "@codexsun/framework/http";
 import type { CompatibleDbPool } from "@codexsun/framework/db";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { findBillingEntryModule, getBillingEntryModule } from "../modules/entries/registry.js";
-import type { BillingEntryKind as EntryKind } from "../modules/entries/contracts.js";
+import { findBillingEntryModule, getBillingEntryModule } from "../modules/entries/entries.module.js";
+import type { BillingEntryKind as EntryKind } from "../modules/entries/entries.types.js";
 
 declare module "fastify" {
   interface FastifyInstance {

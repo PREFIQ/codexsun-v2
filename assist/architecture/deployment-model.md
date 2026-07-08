@@ -33,6 +33,94 @@ Different runtime parts may run on different ports and containers:
 - Local development services.
 - Integration bridge services where needed.
 
+## App Bundle Containers
+
+CODEXSUN should support product bundles where each container/deployment includes its own backend, frontend, workers, and selected app packages while still sharing framework, platform, and UI packages from the same codebase.
+
+Examples:
+
+```text
+billing-suite
+  shared packages
+  framework
+  platform
+  core
+  billing
+  accounts
+
+ecommerce-suite
+  shared packages
+  framework
+  platform
+  core
+  billing
+  ecommerce
+
+crm-suite
+  shared packages
+  framework
+  platform
+  core
+  crm
+
+sites-suite
+  shared packages
+  framework
+  platform
+  sites
+```
+
+Each bundle may eventually have its own API, Web, and Worker images:
+
+```text
+docker/
+  billing/
+    api.Dockerfile
+    web.Dockerfile
+    worker.Dockerfile
+
+  ecommerce/
+    api.Dockerfile
+    web.Dockerfile
+    worker.Dockerfile
+
+  crm/
+    api.Dockerfile
+    web.Dockerfile
+    worker.Dockerfile
+
+  sites/
+    api.Dockerfile
+    web.Dockerfile
+```
+
+The source code remains app-owned and modular. Containers bind selected apps and shared packages together.
+
+## Root Dist Rule
+
+Build output must use the root `dist/` folder as the packaging surface. App-local `dist/` folders should not be treated as final release artifacts.
+
+Expected shape:
+
+```text
+dist/apps/platform/api
+dist/apps/platform/web
+dist/apps/core
+dist/apps/core/web
+dist/apps/billing
+dist/apps/billing/web
+dist/apps/accounts
+dist/apps/accounts/web
+dist/apps/ecommerce/web
+dist/apps/crm/web
+dist/apps/sites/web
+dist/packages/framework
+dist/packages/platform
+dist/packages/ui
+```
+
+Root build/dev workflows should clean app-local `.turbo` folders under `apps/` so package outputs and Docker build contexts stay predictable.
+
 ## Container Rules
 
 - Containers should be replaceable and reproducible.

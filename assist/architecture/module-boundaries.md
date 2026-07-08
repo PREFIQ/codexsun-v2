@@ -39,26 +39,101 @@ Each module should define:
 
 ## Standard Module Folder Structure
 
-Modules should follow this structure:
+Modules must use one module folder with NestJS-like filenames. Do not create many nested boundary folders inside a module.
 
 ```text
-domain/
-application/
-infrastructure/
-interface/
-contracts/
-events/
-migrations/
-seeders/
-queues/
-workers/
-sync/
-tests/
+apps/{app}/src/modules/{module}/
+  {module}.module.ts       # Module definition and registration
+  {module}.service.ts      # Use cases and business operations
+  {module}.repository.ts   # Database adapter and persistence implementation
+  {module}.routes.ts       # HTTP/interface layer
+  {module}.events.ts       # Event names, publishers, subscribers, and handlers
+  {module}.migration.ts    # Module-specific database migrations
+  {module}.worker.ts       # Queue registration and background job processors
+  {module}.seed.ts         # Default data and seed behavior
+  {module}.sync.ts         # Offline and sync rules
+  {module}.test.ts         # Module tests or test helpers
+  {module}.types.ts        # Public types and contracts
+  index.ts                 # Public exports
 ```
 
-This structure keeps business rules, use cases, adapters, public contracts, events, migrations, seeds, queues, workers, offline sync rules, and tests separated in a predictable way.
+Example:
 
-Module folders must be created with these boundaries from the start. Empty boundaries should still expose a small `index.ts` so future code has a fixed home and reviewers can see that the module consciously owns or does not yet own that concern.
+```text
+apps/billing/src/modules/quotation/
+  quotation.module.ts
+  quotation.service.ts
+  quotation.repository.ts
+  quotation.routes.ts
+  quotation.events.ts
+  quotation.migration.ts
+  quotation.worker.ts
+  quotation.seed.ts
+  quotation.sync.ts
+  quotation.test.ts
+  quotation.types.ts
+  index.ts
+```
+
+This structure keeps module code easy to scan while preserving clear roles. It replaces folder-heavy patterns such as `application/index.ts`, `contracts/index.ts`, `domain/index.ts`, `infrastructure/index.ts`, and similar nested placeholders.
+
+Module files should be created when the module needs that concern or when the module is being scaffolded as a planned full module. Do not create nested boundary folders for normal app modules.
+
+Strict naming rules:
+
+- Use the module name as the filename prefix, for example `quotation.service.ts`, not `service.ts`.
+- Use singular role names: `migration.ts`, `worker.ts`, `seed.ts`, `sync.ts`, `test.ts`, `types.ts`.
+- Keep public exports in `index.ts`.
+- Keep queue registration and worker processors together in `{module}.worker.ts` unless the module becomes large enough to justify a later explicit split.
+- Use `routes.ts` for HTTP/interface code. Do not use a vague `interface.ts` filename for routes.
+- Use `types.ts` for public contracts and shared module types. Do not create a separate `contracts/` folder.
+
+## Standard App Source Structure
+
+Business apps must use `src/` for backend/module source and `web/` for frontend source.
+
+```text
+apps/
+  platform/
+    api/              # Runnable platform API gateway/composition surface
+    web/              # Runnable platform shell and route composer
+
+  core/
+    src/              # Core backend modules
+    web/              # Core frontend modules
+
+  billing/
+    src/              # Billing backend modules
+    web/              # Billing frontend modules
+
+  accounts/
+    src/              # Accounts backend modules
+    web/              # Accounts frontend modules
+
+  ecommerce/
+    src/              # Ecommerce backend modules
+    web/              # Ecommerce frontend modules
+
+  crm/
+    src/              # CRM backend modules
+    web/              # CRM frontend modules
+
+  sites/
+    src/              # Sites backend modules
+    web/              # Sites frontend modules
+```
+
+Use `src`, not `api`, for business app backend code because a business app owns more than HTTP routes: domain rules, application use cases, contracts, infrastructure, migrations, events, queues, workers, sync behavior, tests, and interface adapters all live under the app backend source.
+
+Use `api` only for a runnable API process such as `apps/platform/api`, where the responsibility is gateway/composition, auth, tenant context, RBAC, app registry, route registration, database bootstrap, and shared runtime wiring.
+
+Frontend ownership follows the same boundary:
+
+- `apps/platform/web` owns the shell, login, SA/admin desks, tenant desk layout, global navigation, activation, and route composition.
+- `apps/core/web` owns common/master tenant screens and shared tenant data UI.
+- `apps/billing/web` owns billing entries, billing settings, billing reports, and billing forms.
+- `apps/accounts/web`, `apps/ecommerce/web`, `apps/crm/web`, and `apps/sites/web` own their own app-specific screens and routes.
+- `packages/ui` owns reusable design-system primitives only. It must not absorb app-specific business screens or rules.
 
 ## Module Contract
 
@@ -123,11 +198,14 @@ Do not put unstable business rules in the shared kernel.
 | `packages/framework` | Shared kernel | DB abstraction, HTTP helpers, errors, modules registry, health check, testing utilities |
 | `packages/platform` | Platform services | Auth, tenants, audit, settings, permissions, roles, subscription (scaffold), users, catalog, notifications, files, activity, agents, templates, API client |
 | `packages/ui` | Design system | React components, layouts, workspace patterns, blocks (sidemenu, tables, forms) |
-| `apps/core` | Master/business modules | Common definitions, contacts, companies, and products with database-backed tenant records; work orders and generic core records remain temporary |
-| `apps/billing` | Billing entry modules | Quotation, sales, export sales, purchase, receipt, payment, cash book, bank book entry contracts, billing entry routes, billing migrations |
-| `apps/accounts` | Accounting modules | Ledgers, bank accounts, cash accounts, journal, contra, double-entry contracts, posting contracts |
+| `apps/core/src` | Master/business backend modules | Common definitions, contacts, companies, and products with database-backed tenant records; work orders and generic core records remain temporary |
+| `apps/core/web` | Core frontend modules | Common/master tenant screens, lookup controls, and reusable tenant record workspace UI |
+| `apps/billing/src` | Billing backend modules | Quotation, sales, export sales, purchase, receipt, payment, cash book, bank book entry contracts, billing entry routes, billing migrations |
+| `apps/billing/web` | Billing frontend modules | Billing entry workspaces, billing settings, billing forms, and billing reports |
+| `apps/accounts/src` | Accounting backend modules | Ledgers, bank accounts, cash accounts, journal, contra, double-entry contracts, posting contracts |
+| `apps/accounts/web` | Accounting frontend modules | Accounts screens, reports, voucher UI, and app-specific account workspaces |
 | `apps/platform/api` | API gateway + platform routes | Route registration, guard functions (session, tenant, feature, permission), migration runner, DB bootstrap |
-| `apps/platform/web` | React SPA | SA desk, Admin desk, Tenant desk, design system pages, API client integration |
+| `apps/platform/web` | Platform shell and React composer | Login, SA desk, Admin desk, Tenant desk shell, design system pages, route/menu composition, API client integration |
 
 ### Table Ownership
 
@@ -165,9 +243,12 @@ graph TD
   framework[packages/framework]
   platform[packages/platform]
   ui[packages/ui]
-  core[apps/core]
-  billing[apps/billing]
-  accounts[apps/accounts]
+  core[apps/core/src]
+  coreweb[apps/core/web]
+  billing[apps/billing/src]
+  billingweb[apps/billing/web]
+  accounts[apps/accounts/src]
+  accountsweb[apps/accounts/web]
   api[apps/platform/api]
   web[apps/platform/web]
 
@@ -182,6 +263,12 @@ graph TD
   api --> accounts
   web --> platform
   web --> ui
+  web --> coreweb
+  web --> billingweb
+  coreweb --> ui
+  billingweb --> ui
+  billingweb --> coreweb
+  accountsweb --> ui
 ```
 
 Key rule: `packages/platform` depends on `packages/framework` **only**. `apps/core` depends on `packages/framework` **only**. `apps/billing` owns entries and consumes core through injected contracts/UI composition, not direct platform code. `apps/accounts` owns accounting vouchers, ledgers, and posting contracts. Platform API is the integration point where `platform`, `core`, `billing`, and future apps are composed.
@@ -190,10 +277,11 @@ Key rule: `packages/platform` depends on `packages/framework` **only**. `apps/co
 
 | Bundle | Includes | Purpose |
 |---|---|---|
-| Base SaaS | `framework` + `platform` + `core` | Tenant, identity, RBAC, common modules, contacts, products, work orders |
-| Billing Software | `framework` + `platform` + `core` + `billing` | Entry billing with industry feature flags for fields such as PO/DC, colour/size, and future dimensions |
-| Accounts Suite | `framework` + `platform` + `core` + `billing` + `accounts` | Billing with accounting vouchers, ledgers, double-entry posting, cash/bank accounting |
-| Ecommerce Suite | `framework` + `platform` + `core` + `billing` + `ecommerce` | Future ecommerce app consuming core masters and billing documents |
+| Base SaaS | shared packages + `framework` + `platform` + `core` | Tenant, identity, RBAC, common modules, contacts, products, work orders |
+| Billing Software | shared packages + `framework` + `platform` + `core` + `billing` + `accounts` | Entry billing with industry feature flags, document settings, and optional accounting integration |
+| Ecommerce Suite | shared packages + `framework` + `platform` + `core` + `billing` + `ecommerce` | Ecommerce app consuming core masters and billing documents |
+| CRM Suite | shared packages + `framework` + `platform` + `core` + `crm` | CRM app with shared identity, tenant, and core customer data foundation |
+| Sites Suite | shared packages + `framework` + `platform` + `sites` | Sites app with platform identity, settings, files, and site-specific publishing tools |
 
 Billing industry fields must stay as billing settings/features. Examples: offset billing uses PO/DC, garments uses colour/size, uPVC can add length/width/area later. Shared billing fields remain particulars, quantity, price, GST, subtotal, totals, and document controls.
 
@@ -260,6 +348,9 @@ Current registered modules in `platformModuleCatalog`:
 6. **Subscription is scaffold-only** — The `SubscriptionService` class exists but has no real implementation. Paid-plan enforcement is deferred.
 7. **Industry scoping is defined but not implemented** — `ModuleScope` includes `"industry"` but no industry modules or tables exist yet.
 8. **GST/ZETRO are placeholders** — Tax identity types and HSN codes exist in core contracts; full compliance APIs and ZETRO assistant are future work.
+
+9. **Business apps use `src` + `web`** - Business apps such as Core, Billing, Accounts, Ecommerce, CRM, and Sites use `src/` for backend/module source and `web/` for frontend source. Only runnable gateway surfaces such as `apps/platform/api` use `api/`.
+10. **Platform web composes app web packages** - `apps/platform/web` remains the shell and route/menu composer. Business screens must live in the owning app web package and be imported or registered through app manifests.
 
 ### Tenant Readiness Tracking
 

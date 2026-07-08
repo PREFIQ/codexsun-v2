@@ -34,6 +34,14 @@ function runGit(args, opts = {}) {
   return result ? result.trim() : "";
 }
 
+function runGitQuiet(args) {
+  try {
+    return runGit(args, { silent: true });
+  } catch {
+    return "";
+  }
+}
+
 async function withPrompt(callback) {
   if (!process.stdin.isTTY && platform() === "win32") {
     return callback(askWindowsModal);
@@ -156,9 +164,7 @@ async function main() {
     return subject;
   });
 
-  console.log("\n  > git -c maintenance.auto=false -c gc.auto=0 pull --rebase --autostash");
-  runGit(["-c", "maintenance.auto=false", "-c", "gc.auto=0", "pull", "--rebase", "--autostash"]);
-  console.log("");
+  checkAndPull();
 
   console.log("  > git add -A");
   runGit(["add", "-A"]);
@@ -170,6 +176,28 @@ async function main() {
   runGit(["push"]);
 
   console.log(`\n  Done - ${message}\n`);
+}
+
+function checkAndPull() {
+  const upstream = runGitQuiet(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"]);
+  if (!upstream) {
+    console.log("\n  No upstream branch found. Skipping pull.\n");
+    return;
+  }
+
+  console.log("\n  > git fetch");
+  runGit(["-c", "maintenance.auto=false", "-c", "gc.auto=0", "fetch", "--quiet"]);
+
+  const behind = Number(runGitQuiet(["rev-list", "--count", `HEAD..${upstream}`]) || 0);
+  if (!behind) {
+    console.log("  Already up to date.\n");
+    return;
+  }
+
+  console.log(`  Branch is behind ${upstream} by ${behind} commit(s).`);
+  console.log("  > git pull --rebase --autostash");
+  runGit(["-c", "maintenance.auto=false", "-c", "gc.auto=0", "pull", "--rebase", "--autostash"]);
+  console.log("");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

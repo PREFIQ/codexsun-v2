@@ -1,12 +1,12 @@
-import { entriesQueues } from "../modules/entries/queues/index.js";
-import { quotationQueues } from "../modules/quotation/queues/index.js";
-import { salesQueues } from "../modules/sales/queues/index.js";
-import { exportSalesQueues } from "../modules/export-sales/queues/index.js";
-import { purchaseQueues } from "../modules/purchase/queues/index.js";
-import { receiptQueues } from "../modules/receipt/queues/index.js";
-import { paymentQueues } from "../modules/payment/queues/index.js";
-import { cashBookQueues } from "../modules/cash-book/queues/index.js";
-import { bankBookQueues } from "../modules/bank-book/queues/index.js";
+import { entriesQueues } from "../modules/entries/entries.worker.js";
+import { quotationQueues } from "../modules/quotation/quotation.worker.js";
+import { salesQueues } from "../modules/sales/sales.worker.js";
+import { exportSalesQueues } from "../modules/export-sales/export-sales.worker.js";
+import { purchaseQueues } from "../modules/purchase/purchase.worker.js";
+import { receiptQueues } from "../modules/receipt/receipt.worker.js";
+import { paymentQueues } from "../modules/payment/payment.worker.js";
+import { cashBookQueues } from "../modules/cash-book/cash-book.worker.js";
+import { bankBookQueues } from "../modules/bank-book/bank-book.worker.js";
 
 export const billingQueues = [
   ...entriesQueues,

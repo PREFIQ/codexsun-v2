@@ -25,6 +25,7 @@ Agents should inspect this reference before changing authentication screens, glo
 Agents must read and follow these standards before changing module UI, backend contracts, or release notes:
 
 - UI and backend module standard: `assist/documentation/design-system-helper.md`
+- App/backend/frontend bundle structure: `assist/documentation/app-bundle-structure.md`
 - Governance rule book: `assist/governance/rules.md`
 - Changelog and version state: `assist/documentation/CHANGELOG.md`
 - Tenant/common/master form regression guardrails: `assist/devops/ui-form-regression-guardrails.md`

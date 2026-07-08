@@ -10,7 +10,10 @@ const outputs = [
   ["apps/accounts/dist", "apps/accounts"],
   ["apps/billing/dist", "apps/billing"],
   ["apps/core/dist", "apps/core"],
+  ["apps/crm/dist", "apps/crm"],
+  ["apps/ecommerce/dist", "apps/ecommerce"],
   ["apps/platform/api/dist", "apps/platform/api"],
+  ["apps/sites/dist", "apps/sites"],
   ["packages/framework/dist", "packages/framework"],
   ["packages/platform/dist", "packages/platform"],
   ["packages/ui/dist", "packages/ui"]

@@ -30,13 +30,22 @@
       "path": "./apps/billing/web"
     },
     {
+      "path": "./apps/ecommerce"
+    },
+    {
       "path": "./apps/accounts/web"
     },
     {
       "path": "./apps/ecommerce/web"
     },
     {
+      "path": "./apps/crm"
+    },
+    {
       "path": "./apps/crm/web"
+    },
+    {
+      "path": "./apps/sites"
     },
     {
       "path": "./apps/sites/web"

@@ -20,6 +20,23 @@ Records schema, migration, seed, tenant provisioning, and data compatibility cha
 
 Records UI, API, service logic, tooling, and documentation changes.
 
+## Unreleased
+
+### App Bundle Source Layout Decision
+
+#### Database Changes
+
+- Database update: No.
+
+#### App Codebase Changes
+
+- Documented the CODEXSUN app bundle structure: business apps use `src/` for backend/module code and `web/` for frontend code.
+- Clarified that `apps/platform/api` is the special runnable API gateway/composition surface, while business app backend code should not be renamed to `api`.
+- Added frontend ownership rules so Platform Web remains the shell/composer and Core, Billing, Accounts, Ecommerce, CRM, and Sites own their app-specific frontend modules.
+- Documented product bundle examples for Billing, Ecommerce, CRM, and Sites containers.
+- Added the root `dist/apps/...` packaging rule and app-local `.turbo` cleanup rule for build/dev workflows.
+- Added the strict one-folder module file pattern using `{module}.module.ts`, `{module}.service.ts`, `{module}.repository.ts`, `{module}.routes.ts`, `{module}.events.ts`, `{module}.migration.ts`, `{module}.worker.ts`, `{module}.seed.ts`, `{module}.sync.ts`, `{module}.test.ts`, `{module}.types.ts`, and `index.ts`.
+
 ## v-1.0.71
 
 ### [v 1.0.71] 2026-07-07 2:12 pm - Billing Lookup Readability Fixes
