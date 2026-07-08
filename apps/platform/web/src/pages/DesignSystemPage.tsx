@@ -26,8 +26,6 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Avatar,
-  AvatarFallback,
   Badge,
   Breadcrumb,
   BreadcrumbItem,
@@ -75,7 +73,6 @@ import {
   TabsList,
   TabsTrigger,
   Textarea,
-  Toggle,
   ToggleGroup,
   ToggleGroupItem,
   Tooltip,
@@ -365,7 +362,6 @@ export function DesignSystemPage() {
 
         {activePage === "controls" ? (
           <ControlBuilderPage
-            loading={resultQuery.isFetching}
             records={result?.controls ?? []}
             selectedControl={selectedControl}
             selectedRecord={selectedControlRecord}
@@ -494,8 +490,7 @@ function ComponentCatalogPage({ loading, onCreate, onDelete, onEdit, onLifecycle
   );
 }
 
-function ControlBuilderPage({ loading, onCreate, onDelete, onEdit, onLifecycle, onSearchChange, onSelectControl, records, searchValue, selectedControl, selectedRecord }: {
-  loading: boolean;
+function ControlBuilderPage({ onCreate, onDelete, onEdit, onLifecycle, onSearchChange, onSelectControl, records, searchValue, selectedControl, selectedRecord }: {
   onCreate: (item: CatalogItem) => void;
   onDelete: (record: DesignSystemRecord) => void;
   onEdit: (record: DesignSystemRecord) => void;

@@ -1386,14 +1386,6 @@ function DatabaseCoverageStrip({ records }: { records: DetailRecord[] }) {
   )
 }
 
-function ModulePlaceholderPanel({ tab }: { tab: string }) {
-  return (
-    <WorkspaceShowCard title={tab}>
-      <p className="px-4 py-3 text-sm text-muted-foreground">This section is reserved for the next registry layer after feature coverage is stable.</p>
-    </WorkspaceShowCard>
-  )
-}
-
 function RegistryUpsertPage({
   errorMessage,
   level,
@@ -2189,7 +2181,7 @@ function DetailRegistryDialog({
                   <RegistrySideSection title="State">
                     <div className="space-y-2">
                       {booleanFieldsForKind(kind).map((field) => (
-                        <div key={field} className={cn("flex min-h-11 items-center justify-between rounded-md border px-3 py-2", Boolean(form[field as keyof DetailFormState]) ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-border bg-background text-muted-foreground")}>
+                        <div key={field} className={cn("flex min-h-11 items-center justify-between rounded-md border px-3 py-2", form[field as keyof DetailFormState] ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-border bg-background text-muted-foreground")}>
                           <span className="text-sm font-semibold">{booleanLabel(field)}</span>
                           <Switch checked={Boolean(form[field as keyof DetailFormState])} onCheckedChange={(checked) => updateDetailForm(setForm, { [field]: checked } as Partial<DetailFormState>, setLocalBanner)} />
                         </div>

@@ -109,6 +109,14 @@ export default defineConfig({
             return "sa-pages";
           }
 
+          if (normalizedId.includes("/apps/core/web/src/pages/tenant/")) {
+            return "core-tenant-pages";
+          }
+
+          if (normalizedId.includes("/apps/billing/web/src/pages/tenant/")) {
+            return "billing-tenant-pages";
+          }
+
           if (normalizedId.includes("/apps/platform/web/src/pages/tenant/")) {
             return "tenant-pages";
           }

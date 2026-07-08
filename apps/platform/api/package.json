@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@codexsun/billing": "^1.0.71",
     "@codexsun/core": "^1.0.9",
     "@codexsun/framework": "^1.0.9",
     "@codexsun/platform": "^1.0.9",

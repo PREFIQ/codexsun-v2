@@ -4,7 +4,7 @@ import { WorkspaceFilters } from "@codexsun/ui/workspace/filters"
 import { WorkspacePagination } from "@codexsun/ui/workspace/pagination"
 import { WorkspaceStatusBadge } from "@codexsun/ui/workspace/status"
 import { buildShowingLabel } from "@codexsun/ui/workspace/utils"
-import type { MasterDataPageProps } from "./types"
+import type { MasterDataPageProps } from "@codexsun/core-web"
 
 const definitions = [
   { key: "contact_type", label: "Contact Types", description: "Customer, supplier, transporter, etc.", scope: "system", fields: 2 },

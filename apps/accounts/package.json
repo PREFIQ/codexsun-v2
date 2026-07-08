@@ -1,0 +1,52 @@
+{
+  "name": "@codexsun/accounts",
+  "version": "1.0.71",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --emitDeclarationOnly false",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@codexsun/framework": "^1.0.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./api": {
+      "types": "./dist/api/index.d.ts",
+      "default": "./dist/api/index.js"
+    },
+    "./migrations": {
+      "types": "./dist/migrations/index.d.ts",
+      "default": "./dist/migrations/index.js"
+    },
+    "./modules": {
+      "types": "./dist/modules/index.d.ts",
+      "default": "./dist/modules/index.js"
+    },
+    "./queues": {
+      "types": "./dist/queues/index.d.ts",
+      "default": "./dist/queues/index.js"
+    },
+    "./seeders": {
+      "types": "./dist/seeders/index.d.ts",
+      "default": "./dist/seeders/index.js"
+    },
+    "./sync": {
+      "types": "./dist/sync/index.d.ts",
+      "default": "./dist/sync/index.js"
+    },
+    "./workers": {
+      "types": "./dist/workers/index.d.ts",
+      "default": "./dist/workers/index.js"
+    }
+  }
+}

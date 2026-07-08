@@ -24,6 +24,24 @@
       "path": "./apps/platform/web"
     },
     {
+      "path": "./apps/core/web"
+    },
+    {
+      "path": "./apps/billing/web"
+    },
+    {
+      "path": "./apps/accounts/web"
+    },
+    {
+      "path": "./apps/ecommerce/web"
+    },
+    {
+      "path": "./apps/crm/web"
+    },
+    {
+      "path": "./apps/sites/web"
+    },
+    {
       "path": "./packages/framework"
     },
     {

@@ -20,7 +20,6 @@ import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { SaDesk } from "./pages/SaDesk";
 import { TenantDesk } from "./pages/TenantDesk";
-import { DesignSystemPage } from "./pages/DesignSystemPage";
 import { CommonListTemplatePage } from "./pages/templates/CommonListTemplatePage";
 import { MasterListTemplatePage } from "./pages/templates/MasterListTemplatePage";
 import { EntryListTemplatePage } from "./pages/templates/EntryListTemplatePage";
@@ -82,12 +81,6 @@ const tenantRoute = createRoute({
   path: "/tenant"
 });
 
-const tenantModuleRoute = createRoute({
-  component: TenantDesk,
-  getParentRoute: () => rootRoute,
-  path: "/tenant/$tenantPage"
-});
-
 const tenantSplatRoute = createRoute({
   component: TenantDesk,
   getParentRoute: () => rootRoute,
@@ -98,12 +91,6 @@ const appRoute = createRoute({
   component: TenantDesk,
   getParentRoute: () => rootRoute,
   path: "/app"
-});
-
-const appModuleRoute = createRoute({
-  component: TenantDesk,
-  getParentRoute: () => rootRoute,
-  path: "/app/$tenantPage"
 });
 
 const appSplatRoute = createRoute({

@@ -25,6 +25,11 @@ export class GenericCommonModuleService {
     const name = String(input.name ?? "").trim();
     if (!tenantId) throw AppError.validation("tenantId is required");
     if (!name) throw AppError.validation("name is required");
+    const code = String(input.code ?? "").trim();
+    if (code) {
+      const duplicate = (await this.repository.list(tenantId)).find((record) => String((record as { code?: unknown }).code ?? "").trim() === code);
+      if (duplicate) throw AppError.conflict(`${this.label} with code '${code}' already exists`);
+    }
     const now = new Date().toISOString();
     const record: CommonRecord = {
       ...input,

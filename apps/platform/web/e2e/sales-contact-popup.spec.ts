@@ -131,7 +131,7 @@ test("sales invoice number follows document settings and advances after save", a
   await page.getByRole("button", { name: /^Add$/ }).click()
 
   const saveResponsePromise = page.waitForResponse(
-    (response) => response.url().includes("/core/entries/sales/upsert") && response.request().method() === "POST",
+    (response) => response.url().includes("/billing/entries/sales/upsert") && response.request().method() === "POST",
   )
   await page.getByRole("button", { name: /^Save$/ }).click()
   const saveResponse = await saveResponsePromise

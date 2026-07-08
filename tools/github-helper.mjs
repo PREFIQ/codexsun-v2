@@ -156,8 +156,8 @@ async function main() {
     return subject;
   });
 
-  console.log("\n  > git pull --rebase --autostash");
-  runGit(["pull", "--rebase", "--autostash"]);
+  console.log("\n  > git -c maintenance.auto=false -c gc.auto=0 pull --rebase --autostash");
+  runGit(["-c", "maintenance.auto=false", "-c", "gc.auto=0", "pull", "--rebase", "--autostash"]);
   console.log("");
 
   console.log("  > git add -A");

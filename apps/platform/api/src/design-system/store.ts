@@ -124,15 +124,6 @@ async function ensureFiles() {
   await ensureRecordJson(templateFile, seed("template"));
 }
 
-async function ensureJson<T>(filePath: string, fallback: T) {
-  try {
-    await readFile(filePath, "utf8");
-  } catch (error) {
-    if (!isMissingFile(error)) throw error;
-    await writeJson(filePath, fallback);
-  }
-}
-
 async function ensureRecordJson(filePath: string, fallback: DesignSystemRecord[]) {
   try {
     await readJson<DesignSystemRecord[]>(filePath);

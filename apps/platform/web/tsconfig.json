@@ -10,11 +10,15 @@
       "@codexsun/ui/workspace": ["../../../packages/ui/src/workspace/index.ts"],
       "@codexsun/ui/workspace/*": ["../../../packages/ui/src/workspace/*"],
       "@codexsun/ui/presets/*": ["../../../packages/ui/src/workspace/presets/*"],
-      "@codexsun/ui/lib/*": ["../../../packages/ui/src/lib/*"]
+      "@codexsun/ui/lib/*": ["../../../packages/ui/src/lib/*"],
+      "@codexsun/core-web": ["../../../apps/core/web/src/index.ts"],
+      "@codexsun/core-web/*": ["../../../apps/core/web/src/*"],
+      "@codexsun/billing-web": ["../../../apps/billing/web/src/index.ts"],
+      "@codexsun/billing-web/*": ["../../../apps/billing/web/src/*"]
     },
     "noEmit": true,
     "outDir": "dist-types",
     "types": ["vite/client"]
   },
-  "include": ["src"]
+  "include": ["src", "../../../apps/core/web/src", "../../../apps/billing/web/src"]
 }

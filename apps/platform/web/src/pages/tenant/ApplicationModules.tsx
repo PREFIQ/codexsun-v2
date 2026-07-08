@@ -34,8 +34,8 @@ import { WorkspaceRowActions } from "@codexsun/ui/workspace/row-actions"
 import { WorkspaceStatusBadge } from "@codexsun/ui/workspace/status"
 import { WorkspaceFormBanner } from "@codexsun/ui/workspace/upsert"
 import { cn } from "@codexsun/ui/lib/utils"
+import { CommonRecordAutocomplete } from "@codexsun/core-web/components/CommonRecordAutocomplete"
 import { apiGet, apiPost, apiPut, getTenantId } from "../../api"
-import { CommonRecordAutocomplete } from "../../components/CommonRecordAutocomplete"
 
 type CompanyRecord = {
   companyId: string

@@ -20,14 +20,10 @@ import {
 } from "lucide-react";
 import { Badge } from "@codexsun/ui/components/badge";
 import { TenantLayout } from "@codexsun/ui";
+import { CommonModuleIndexPage, commonModuleGroups, CommonModulePage, ContactListPage, ProductListPage, WorkOrderListPage } from "@codexsun/core-web";
+import { DocumentSettingsPage, EntryWorkspacePage, SalesSettingsPage } from "@codexsun/billing-web";
 import { AuthGate } from "../components/AuthGate";
-import { ContactListPage } from "./tenant/ContactListPage";
-import { ProductListPage } from "./tenant/ProductListPage";
-import { WorkOrderListPage } from "./tenant/WorkOrderListPage";
 import { MediaAssetsPage } from "./tenant/MediaAssetsPage";
-import { DocumentSettingsPage, EntryWorkspacePage, SalesSettingsPage } from "./tenant/EntryWorkspacePage";
-import { CommonModuleIndexPage, commonModuleGroups } from "./tenant/CommonModuleIndexPage";
-import { CommonModulePage } from "./tenant/CommonModulePage";
 import { apiGet } from "../api";
 import { ApplicationAccountingYearPage, ApplicationCompanyPage, ApplicationDefaultCompanyPage, ApplicationLandingPage, ApplicationPermissionsPage, ApplicationRolesPage, ApplicationSettingsPage, ApplicationUsersPage, readDefaultCompanyBinding, type DefaultCompanyBinding } from "./tenant/ApplicationModules";
 

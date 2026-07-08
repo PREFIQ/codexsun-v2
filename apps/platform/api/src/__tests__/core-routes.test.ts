@@ -7,6 +7,9 @@ describe("Core Routes (Task 15+)", () => {
   let app: FastifyInstance;
   let saToken: string;
   let tenantId: string;
+  const commonDefinitionKey = "address-book";
+  const commonRecordCode = `core-test-type-${Date.now()}`;
+  const productCode = `CORE-PROD-${Date.now()}`;
 
   beforeAll(async () => {
     app = await createApp();
@@ -83,21 +86,21 @@ describe("Core Routes (Task 15+)", () => {
       const res = await app.inject({
         method: "POST", url: "/core/common/records",
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId },
-        body: { definitionKey: "contact_type", code: "core-test-type", name: "Core Test Type" }
+        body: { definitionKey: commonDefinitionKey, code: commonRecordCode, name: "Core Test Type" }
       });
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      expect(body.data.code).toBe("core-test-type");
+      expect(body.data.code).toBe(commonRecordCode);
       expect(body.data.tenantId).toBe(tenantId);
-      expect(body.data.status).toBe("active");
-      recordId = body.data.recordId;
+      expect(body.data.isActive).toBe(true);
+      recordId = body.data.id;
     });
 
     it("POST rejects duplicate code", async () => {
       const res = await app.inject({
         method: "POST", url: "/core/common/records",
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId },
-        body: { definitionKey: "contact_type", code: "core-test-type", name: "Duplicate" }
+        body: { definitionKey: commonDefinitionKey, code: commonRecordCode, name: "Duplicate" }
       });
       expect(res.statusCode).toBe(409);
     });
@@ -106,14 +109,14 @@ describe("Core Routes (Task 15+)", () => {
       const res = await app.inject({
         method: "POST", url: "/core/common/records",
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId },
-        body: { definitionKey: "contact_type" }
+        body: { definitionKey: commonDefinitionKey }
       });
       expect(res.statusCode).toBe(400);
     });
 
     it("GET lists records", async () => {
       const res = await app.inject({
-        method: "GET", url: "/core/common/records?definitionKey=contact_type",
+        method: "GET", url: `/core/common/records?definitionKey=${commonDefinitionKey}`,
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId }
       });
       expect(res.statusCode).toBe(200);
@@ -124,17 +127,17 @@ describe("Core Routes (Task 15+)", () => {
 
     it("GET by id returns record", async () => {
       const res = await app.inject({
-        method: "GET", url: `/core/common/records/${recordId}`,
+        method: "GET", url: `/core/common/records/${recordId}?definitionKey=${commonDefinitionKey}`,
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId }
       });
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      expect(body.data.recordId).toBe(recordId);
+      expect(body.data.id).toBe(recordId);
     });
 
     it("GET by id returns 404 for unknown", async () => {
       const res = await app.inject({
-        method: "GET", url: "/core/common/records/nonexistent-id",
+        method: "GET", url: `/core/common/records/nonexistent-id?definitionKey=${commonDefinitionKey}`,
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId }
       });
       expect(res.statusCode).toBe(404);
@@ -144,7 +147,7 @@ describe("Core Routes (Task 15+)", () => {
       const res = await app.inject({
         method: "PUT", url: `/core/common/records/${recordId}`,
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId },
-        body: { name: "Updated Core Type" }
+        body: { definitionKey: commonDefinitionKey, name: "Updated Core Type" }
       });
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
@@ -153,7 +156,7 @@ describe("Core Routes (Task 15+)", () => {
 
     it("POST archive archives a record", async () => {
       const res = await app.inject({
-        method: "POST", url: `/core/common/records/${recordId}/archive`,
+        method: "POST", url: `/core/common/records/${recordId}/archive?definitionKey=${commonDefinitionKey}`,
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId }
       });
       expect(res.statusCode).toBe(200);
@@ -162,7 +165,7 @@ describe("Core Routes (Task 15+)", () => {
 
     it("POST restore restores a record", async () => {
       const res = await app.inject({
-        method: "POST", url: `/core/common/records/${recordId}/restore`,
+        method: "POST", url: `/core/common/records/${recordId}/restore?definitionKey=${commonDefinitionKey}`,
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId }
       });
       expect(res.statusCode).toBe(200);
@@ -171,11 +174,11 @@ describe("Core Routes (Task 15+)", () => {
 
     it("POST archive is idempotent on already archived", async () => {
       await app.inject({
-        method: "POST", url: `/core/common/records/${recordId}/archive`,
+        method: "POST", url: `/core/common/records/${recordId}/archive?definitionKey=${commonDefinitionKey}`,
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId }
       });
       const res = await app.inject({
-        method: "POST", url: `/core/common/records/${recordId}/archive`,
+        method: "POST", url: `/core/common/records/${recordId}/archive?definitionKey=${commonDefinitionKey}`,
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId }
       });
       expect(res.statusCode).toBe(409);
@@ -205,12 +208,11 @@ describe("Core Routes (Task 15+)", () => {
       const res = await app.inject({
         method: "POST", url: "/core/contacts",
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId },
-        body: { contactType: "customer", displayName: "Core Customer", phone: ["+91-9876543210"], email: ["core@test.in"] }
+        body: { name: `Core Customer ${Date.now()}`, primaryPhone: "+91-9876543210", primaryEmail: "core@test.in" }
       });
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      expect(body.data.displayName).toBe("Core Customer");
-      expect(body.data.contactType).toBe("customer");
+      expect(body.data.name).toContain("Core Customer");
       contactId = body.data.contactId;
     });
 
@@ -239,11 +241,11 @@ describe("Core Routes (Task 15+)", () => {
       const res = await app.inject({
         method: "PUT", url: `/core/contacts/${contactId}`,
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId },
-        body: { displayName: "Updated Core Customer" }
+        body: { name: "Updated Core Customer" }
       });
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      expect(body.data.displayName).toBe("Updated Core Customer");
+      expect(body.data.name).toBe("Updated Core Customer");
     });
 
     it("POST archive archives a contact", async () => {
@@ -320,11 +322,11 @@ describe("Core Routes (Task 15+)", () => {
       const res = await app.inject({
         method: "POST", url: "/core/products",
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId },
-        body: { code: "CORE-PROD-001", name: "Core Product", unitCode: "pcs" }
+        body: { code: productCode, name: "Core Product", unitId: "pcs" }
       });
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      expect(body.data.code).toBe("CORE-PROD-001");
+      expect(body.data.code).toBe(productCode);
       productId = body.data.itemId;
     });
 
@@ -341,12 +343,12 @@ describe("Core Routes (Task 15+)", () => {
 
     it("GET by code returns product", async () => {
       const res = await app.inject({
-        method: "GET", url: "/core/products/by-code/CORE-PROD-001",
+        method: "GET", url: `/core/products/by-code/${productCode}`,
         headers: { Authorization: `Bearer ${saToken}`, "x-tenant-id": tenantId }
       });
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      expect(body.data.code).toBe("CORE-PROD-001");
+      expect(body.data.code).toBe(productCode);
     });
 
     it("PUT updates a product", async () => {

@@ -10,6 +10,8 @@
     "lint": "eslint src --ext .ts,.tsx"
   },
   "dependencies": {
+    "@codexsun/billing-web": "^1.0.71",
+    "@codexsun/core-web": "^1.0.71",
     "@codexsun/ui": "^1.0.9",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.91.3",

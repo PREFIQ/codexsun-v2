@@ -1,0 +1,23 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@codexsun/core-web": ["../../../apps/core/web/src/index.ts"],
+      "@codexsun/core-web/*": ["../../../apps/core/web/src/*"],
+      "@codexsun/platform/api-client": ["../../../packages/platform/src/api-client/index.ts"],
+      "@codexsun/ui": ["../../../packages/ui/src/index.ts"],
+      "@codexsun/ui/styles.css": ["../../../packages/ui/src/styles.css"],
+      "@codexsun/ui/components/*": ["../../../packages/ui/src/components/*"],
+      "@codexsun/ui/layouts/*": ["../../../packages/ui/src/layouts/*"],
+      "@codexsun/ui/workspace": ["../../../packages/ui/src/workspace/index.ts"],
+      "@codexsun/ui/workspace/*": ["../../../packages/ui/src/workspace/*"],
+      "@codexsun/ui/presets/*": ["../../../packages/ui/src/workspace/presets/*"],
+      "@codexsun/ui/lib/*": ["../../../packages/ui/src/lib/*"]
+    },
+    "noEmit": true,
+    "outDir": "dist-types",
+    "types": ["vite/client"]
+  },
+  "include": ["src", "../../../apps/core/web/src"]
+}

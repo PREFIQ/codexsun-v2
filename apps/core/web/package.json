@@ -1,0 +1,34 @@
+{
+  "name": "@codexsun/core-web",
+  "version": "1.0.71",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./api": "./src/api.ts",
+    "./components/*": "./src/components/*",
+    "./pages/*": "./src/pages/*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "dev": "vite --host 127.0.0.1 --port 5530"
+  },
+  "dependencies": {
+    "@codexsun/platform": "^1.0.9",
+    "@codexsun/ui": "^1.0.9",
+    "@tanstack/react-query": "^5.101.2",
+    "@vitejs/plugin-react": "^6.0.3",
+    "lucide-react": "^1.22.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sonner": "^2.0.7",
+    "vite": "^8.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

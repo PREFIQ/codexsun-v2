@@ -49,10 +49,16 @@ interface/
 contracts/
 events/
 migrations/
+seeders/
+queues/
+workers/
+sync/
 tests/
 ```
 
-This structure keeps business rules, use cases, adapters, public contracts, events, migrations, and tests separated in a predictable way.
+This structure keeps business rules, use cases, adapters, public contracts, events, migrations, seeds, queues, workers, offline sync rules, and tests separated in a predictable way.
+
+Module folders must be created with these boundaries from the start. Empty boundaries should still expose a small `index.ts` so future code has a fixed home and reviewers can see that the module consciously owns or does not yet own that concern.
 
 ## Module Contract
 
@@ -118,6 +124,8 @@ Do not put unstable business rules in the shared kernel.
 | `packages/platform` | Platform services | Auth, tenants, audit, settings, permissions, roles, subscription (scaffold), users, catalog, notifications, files, activity, agents, templates, API client |
 | `packages/ui` | Design system | React components, layouts, workspace patterns, blocks (sidemenu, tables, forms) |
 | `apps/core` | Master/business modules | Common definitions, contacts, companies, and products with database-backed tenant records; work orders and generic core records remain temporary |
+| `apps/billing` | Billing entry modules | Quotation, sales, export sales, purchase, receipt, payment, cash book, bank book entry contracts, billing entry routes, billing migrations |
+| `apps/accounts` | Accounting modules | Ledgers, bank accounts, cash accounts, journal, contra, double-entry contracts, posting contracts |
 | `apps/platform/api` | API gateway + platform routes | Route registration, guard functions (session, tenant, feature, permission), migration runner, DB bootstrap |
 | `apps/platform/web` | React SPA | SA desk, Admin desk, Tenant desk, design system pages, API client integration |
 
@@ -158,19 +166,36 @@ graph TD
   platform[packages/platform]
   ui[packages/ui]
   core[apps/core]
+  billing[apps/billing]
+  accounts[apps/accounts]
   api[apps/platform/api]
   web[apps/platform/web]
 
   platform --> framework
   core --> framework
+  billing --> framework
+  accounts --> framework
   api --> framework
   api --> platform
   api --> core
+  api --> billing
+  api --> accounts
   web --> platform
   web --> ui
 ```
 
-Key rule: `packages/platform` depends on `packages/framework` **only**. `apps/core` depends on `packages/framework` **only**. Platform API is the sole integration point where `platform` and `core` are combined.
+Key rule: `packages/platform` depends on `packages/framework` **only**. `apps/core` depends on `packages/framework` **only**. `apps/billing` owns entries and consumes core through injected contracts/UI composition, not direct platform code. `apps/accounts` owns accounting vouchers, ledgers, and posting contracts. Platform API is the integration point where `platform`, `core`, `billing`, and future apps are composed.
+
+### App Suite Bundles
+
+| Bundle | Includes | Purpose |
+|---|---|---|
+| Base SaaS | `framework` + `platform` + `core` | Tenant, identity, RBAC, common modules, contacts, products, work orders |
+| Billing Software | `framework` + `platform` + `core` + `billing` | Entry billing with industry feature flags for fields such as PO/DC, colour/size, and future dimensions |
+| Accounts Suite | `framework` + `platform` + `core` + `billing` + `accounts` | Billing with accounting vouchers, ledgers, double-entry posting, cash/bank accounting |
+| Ecommerce Suite | `framework` + `platform` + `core` + `billing` + `ecommerce` | Future ecommerce app consuming core masters and billing documents |
+
+Billing industry fields must stay as billing settings/features. Examples: offset billing uses PO/DC, garments uses colour/size, uPVC can add length/width/area later. Shared billing fields remain particulars, quantity, price, GST, subtotal, totals, and document controls.
 
 ### Migration Verification
 
@@ -216,19 +241,23 @@ Current registered modules in `platformModuleCatalog`:
 | `core.company` | tenant | Active |
 | `core.product` | tenant | Active |
 | `business.items` | tenant | Future |
-| `business.billing` | tenant | Future |
-| `business.accounting` | tenant | Future |
+| `business.billing` | tenant | Active (entry modules) |
+| `business.accounting` | tenant | Planned (`apps/accounts`) |
 | `business.reports` | tenant | Future |
 | `business.offline-sync` | tenant | Future |
+| `app.zetro` | tenant | Future |
+| `app.mail` | tenant | Future |
+| `app.blog` | tenant | Future |
+| `app.sites` | tenant | Future |
 
 ### Boundary Decisions
 
 1. **Core owns master data** — All common definitions, contacts, companies, and products live in `apps/core`. Platform no longer has master-data routes.
 2. **Platform owns platform operations** — Tenants, users, audit, settings, auth remain in `packages/platform` + `apps/platform/api`.
-3. **API gateway is the integration point** — `apps/platform/api/src/app.ts` wires together platform services and core services. Core routes get `/core/*` prefix.
+3. **API gateway is the integration point** — `apps/platform/api/src/app.ts` wires together platform, core, billing, and future app services. Core routes get `/core/*`; billing routes get `/billing/*` with temporary `/core/entries/*` compatibility.
 4. **Database-backed master records are required** — Common records, contacts, companies, and products are persisted in the master database with tenant scoping. Remaining temporary in-memory modules must not be promoted to production until they have explicit tables and bootstrap repair.
 5. **No direct core-to-platform dependency** — Core only depends on `packages/framework`. Platform guards are injected via `CoreRouteContext` at API registration time.
-6. **Subscription is scaffold-only** — The `SubscriptionService` class exists but has no real implementation. Full billing integration is deferred.
+6. **Subscription is scaffold-only** — The `SubscriptionService` class exists but has no real implementation. Paid-plan enforcement is deferred.
 7. **Industry scoping is defined but not implemented** — `ModuleScope` includes `"industry"` but no industry modules or tables exist yet.
 8. **GST/ZETRO are placeholders** — Tax identity types and HSN codes exist in core contracts; full compliance APIs and ZETRO assistant are future work.
 

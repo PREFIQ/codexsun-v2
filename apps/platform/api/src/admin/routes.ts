@@ -271,50 +271,6 @@ function toPlatformIndustry(row: Record<string, unknown>) {
   };
 }
 
-function toPlatformRegistry(row: Record<string, unknown>) {
-  return {
-    id: String(row.id),
-    name: String(row.name),
-    platform: String(row.platform),
-    description: typeof row.description === "string" ? row.description : "",
-    active: Boolean(Number(row.active ?? 1)),
-    status: Boolean(Number(row.active ?? 1)) ? "active" : "inactive",
-    createdAt: row.created_at,
-    updatedAt: row.updated_at ?? row.created_at
-  };
-}
-
-function toPlatformModuleGroup(row: Record<string, unknown>) {
-  return {
-    id: String(row.id),
-    platformRegistryId: String(row.platform_registry_id),
-    groupKey: String(row.group_key),
-    name: String(row.name),
-    description: typeof row.description === "string" ? row.description : "",
-    sortOrder: toNumber(row.sort_order ?? 0),
-    active: Boolean(Number(row.active ?? 1)),
-    status: Boolean(Number(row.active ?? 1)) ? "active" : "inactive",
-    createdAt: row.created_at,
-    updatedAt: row.updated_at ?? row.created_at
-  };
-}
-
-function toPlatformModuleRegistry(row: Record<string, unknown>) {
-  return {
-    id: String(row.id),
-    moduleGroupId: String(row.module_group_id),
-    moduleKey: String(row.module_key),
-    name: String(row.name),
-    routePath: typeof row.route_path === "string" ? row.route_path : "",
-    description: typeof row.description === "string" ? row.description : "",
-    sortOrder: toNumber(row.sort_order ?? 0),
-    active: Boolean(Number(row.active ?? 1)),
-    status: Boolean(Number(row.active ?? 1)) ? "active" : "inactive",
-    createdAt: row.created_at,
-    updatedAt: row.updated_at ?? row.created_at
-  };
-}
-
 function platformRegistryInputFromBody(body: Record<string, unknown>, requireIdentity: boolean) {
   const input: Record<string, unknown> = {};
   if (typeof body.name === "string") input.name = body.name.trim();

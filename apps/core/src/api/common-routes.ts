@@ -15,7 +15,10 @@ export async function registerCoreCommonRoutes(app: FastifyInstance, ctx: CoreRo
   app.get("/core/common/definitions", async (request) => {
     const session = await ctx.guardSession(app, request);
     ctx.guardPermission(session, "core.common.view");
-    return ok(commonModuleDefinitions, responseMeta(request));
+    return ok(commonModuleDefinitions.map((definition) => ({
+      ...definition,
+      definitionKey: definition.key,
+    })), responseMeta(request));
   });
 
   app.get("/core/common/records", async (request) => {

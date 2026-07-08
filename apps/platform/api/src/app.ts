@@ -26,6 +26,7 @@ import {
   registerAllCoreRoutes
 } from "@codexsun/core";
 import type { CoreRouteContext, CommonModuleServiceMap } from "@codexsun/core";
+import { registerEntryRoutes, type BillingRouteContext } from "@codexsun/billing/api";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerTenantRoutes } from "./tenant/routes.js";
 import { registerAdminRoutes } from "./admin/routes.js";
@@ -33,7 +34,6 @@ import { registerSettingsRoutes } from "./settings/routes.js";
 import { registerActivityRoutes } from "./activity/routes.js";
 import { registerFileRoutes } from "./files/routes.js";
 import { registerMediaRoutes } from "./media/routes.js";
-import { registerEntryRoutes } from "./entries/routes.js";
 import { registerNotificationRoutes } from "./notifications/routes.js";
 import { registerTemplateRoutes } from "./templates/routes.js";
 import { registerAgentRoutes } from "./agents/routes.js";
@@ -261,7 +261,6 @@ export async function createApp() {
   await registerActivityRoutes(app);
   await registerFileRoutes(app);
   await registerMediaRoutes(app);
-  await registerEntryRoutes(app);
   await registerNotificationRoutes(app);
   await registerTemplateRoutes(app);
   await registerAgentRoutes(app);
@@ -274,6 +273,15 @@ export async function createApp() {
     guardPermission: (session, permission) => requirePermission(session, permission)
   };
   await registerAllCoreRoutes(app, coreCtx);
+
+  // Billing routes are composed by platform, but owned by the billing app boundary.
+  const billingCtx: BillingRouteContext = {
+    guardSession: (app, request) => requireSession(app, request),
+    guardActiveTenant: (app, tenantId) => requireActiveTenant(app, tenantId),
+    guardFeatureEnabled: (app, tenantId, featureKey) => requireFeatureEnabled(app, tenantId, featureKey),
+    guardPermission: (session, permission) => requirePermission(session, permission)
+  };
+  await registerEntryRoutes(app, billingCtx);
 
   return app;
 }

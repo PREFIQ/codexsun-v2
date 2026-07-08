@@ -7,6 +7,10 @@ const root = resolve(import.meta.dirname, "..");
 const rootDist = join(root, "dist");
 
 const outputs = [
+  ["apps/accounts/dist", "apps/accounts"],
+  ["apps/billing/dist", "apps/billing"],
+  ["apps/core/dist", "apps/core"],
+  ["apps/platform/api/dist", "apps/platform/api"],
   ["packages/framework/dist", "packages/framework"],
   ["packages/platform/dist", "packages/platform"],
   ["packages/ui/dist", "packages/ui"]

@@ -2,9 +2,11 @@
 
 Software makes simple.
 
-CODEXSUN is a fresh monorepo foundation for a multi-tenant business application
-platform. The first scaffold includes the Platform API, Platform web shell,
-shared UI package, master database bootstrap, and version/changelog tooling.
+CODEXSUN is a monorepo foundation for a multi-tenant business application
+platform. The current workspace includes the Platform API, Platform web shell,
+shared Framework, Platform, and UI packages, Core business modules, Billing
+entry modules, Accounts modules, master database bootstrap, and
+version/changelog tooling.
 
 ## Start
 
@@ -22,6 +24,11 @@ Platform web: <http://127.0.0.1:5520>
 ```text
 apps/platform/api
 apps/platform/web
+apps/core
+apps/billing
+apps/accounts
+packages/framework
+packages/platform
 packages/ui
 tools/version
 assist
