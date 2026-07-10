@@ -6,24 +6,38 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const envPath = resolve(root, ".env");
+const exampleEnvPath = resolve(root, ".env.example");
+const ensureOnly = process.argv.includes("--ensure");
 
-if (!existsSync(envPath)) {
-  console.error(".env file not found at", envPath);
-  process.exit(1);
+let content = "";
+
+if (existsSync(envPath)) {
+  content = readFileSync(envPath, "utf8");
+} else if (existsSync(exampleEnvPath)) {
+  content = readFileSync(exampleEnvPath, "utf8");
+  writeFileSync(envPath, content);
+  console.log(".env created from .env.example");
+} else {
+  writeFileSync(envPath, "");
+  console.log(".env created");
+}
+
+const jwtSecretMatch = content.match(/^\s*JWT_SECRET\s*=\s*(.*?)\s*$/m);
+const existingSecret = jwtSecretMatch?.[1]?.trim() ?? "";
+
+if (ensureOnly && existingSecret) {
+  console.log("JWT_SECRET already exists in .env");
+  process.exit(0);
 }
 
 const secret = randomBytes(32).toString("hex");
-
-const content = readFileSync(envPath, "utf8");
-const hasJwtSecret = /^JWT_SECRET=/m.test(content);
-
-let updated;
-if (hasJwtSecret) {
-  updated = content.replace(/^JWT_SECRET=.*$/m, `JWT_SECRET=${secret}`);
-} else {
-  updated = content.endsWith("\n") ? `${content}JWT_SECRET=${secret}\n` : `${content}\nJWT_SECRET=${secret}\n`;
-}
+const updated = jwtSecretMatch
+  ? content.replace(/^\s*JWT_SECRET\s*=.*$/m, `JWT_SECRET=${secret}`)
+  : `${content}${content.endsWith("\n") || content.length === 0 ? "" : "\n"}JWT_SECRET=${secret}\n`;
 
 writeFileSync(envPath, updated);
-console.log(`JWT_SECRET generated and written to .env`);
-console.log(`  ${secret}`);
+console.log(`JWT_SECRET ${ensureOnly ? "generated" : "rotated"} and written to .env`);
+
+if (!ensureOnly) {
+  console.log(`  ${secret}`);
+}

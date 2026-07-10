@@ -12,9 +12,13 @@
     "tools/*"
   ],
   "scripts": {
+    "predev": "node tools/env-jwt-secret.mjs --ensure",
     "dev": "node tools/clean-app-turbo.mjs && turbo dev --parallel",
+    "predev:platform": "node tools/env-jwt-secret.mjs --ensure",
     "dev:platform": "concurrently -n api,web -c cyan,green \"npm run dev -w @codexsun/platform-api\" \"npm run dev -w @codexsun/platform-web\"",
+    "predev:platform:skip-db": "node tools/env-jwt-secret.mjs --ensure",
     "dev:platform:skip-db": "concurrently -n api,web -c cyan,green \"npm run dev:skip-db -w @codexsun/platform-api\" \"npm run dev -w @codexsun/platform-web\"",
+    "predev:platform:fast": "node tools/env-jwt-secret.mjs --ensure",
     "dev:platform:fast": "concurrently -n api,web -c cyan,green \"npm run dev:fast -w @codexsun/platform-api\" \"npm run dev -w @codexsun/platform-web\"",
     "build": "node tools/clean-root-dist.mjs && node tools/clean-app-turbo.mjs && turbo build && node tools/collect-dist.mjs && node tools/clean-app-turbo.mjs",
     "typecheck": "turbo typecheck",
